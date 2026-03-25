@@ -10,6 +10,7 @@ const quiz = ref(null)
 const loading = ref(false)
 const error = ref('')
 const isLoadingData = ref(false)
+const selectedAnswers = ref({})
 
 const selectedModule = computed(() =>
   modules.value.find((moduleItem) => moduleItem.modules_id === selectedModuleId.value)
@@ -50,11 +51,19 @@ async function handleGerar() {
   loading.value = true
   error.value = ''
   try {
-    const titulo = selectedModule.value.module_title || 'Modulo'
+    const tituloLivro = selectedBook.value?.title || 'Sem título de livro'
+    const moduloTitulo = selectedModule.value.module_title || 'Sem título de módulo'
     const descricao = selectedModule.value.additional_description || ''
-    const livro = selectedBook.value?.title || ''
-    const tituloCompleto = livro ? `${titulo} (${livro})` : titulo
-    quiz.value = await gerarQuiz(tituloCompleto, descricao)
+
+    quiz.value = await gerarQuiz(tituloLivro, moduloTitulo, descricao)
+    selectedAnswers.value = {}
+    if (quiz.value?.quiz?.length) {
+      const correctAnswers = quiz.value.quiz.map((item) => ({
+        id: item.id,
+        correta: getCorrectOption(item),
+      }))
+      console.log('[Quiz] Respostas corretas', correctAnswers)
+    }
     console.log(quiz.value)
   } catch (e) {
     console.error(e)
@@ -62,6 +71,36 @@ async function handleGerar() {
   } finally {
     loading.value = false
   }
+}
+
+const getOptionKey = (option) => {
+  const match = String(option).trim().match(/^([A-Z])/i)
+  return match ? match[1].toUpperCase() : String(option).trim().toUpperCase()
+}
+
+const getCorrectKey = (item) =>
+  String(item?.resposta_correta || '').trim().toUpperCase().replace(/[^A-Z]/g, '').charAt(0)
+
+const getCorrectOption = (item) => {
+  const correctKey = getCorrectKey(item)
+  return item?.opcoes?.find((option) => getOptionKey(option) === correctKey) || ''
+}
+
+const selectAnswer = (item, option) => {
+  selectedAnswers.value = {
+    ...selectedAnswers.value,
+    [item.id]: option,
+  }
+}
+
+const isSelected = (item, option) => selectedAnswers.value[item.id] === option
+
+const hasAnswer = (item) => !!selectedAnswers.value[item.id]
+
+const isAnswerCorrect = (item) => {
+  const selected = selectedAnswers.value[item.id]
+  if (!selected) return false
+  return getOptionKey(selected) === getCorrectKey(item)
 }
 </script>
 
@@ -74,19 +113,11 @@ async function handleGerar() {
     <ul v-else class="module-grid">
       <li v-for="moduleItem in modules" :key="moduleItem.modules_id">
         <label class="module-card" :class="{ selected: moduleItem.modules_id === selectedModuleId }">
-          <input
-            type="radio"
-            name="module"
-            :value="moduleItem.modules_id"
-            v-model.number="selectedModuleId"
-            class="module-radio"
-          />
+          <input type="radio" name="module" :value="moduleItem.modules_id" v-model.number="selectedModuleId"
+            class="module-radio" />
           <div class="cover">
-            <img
-              v-if="getBookForModule(moduleItem)?.cover_img"
-              :src="getAssetUrl(getBookForModule(moduleItem).cover_img)"
-              alt=""
-            />
+            <img v-if="getBookForModule(moduleItem)?.cover_img"
+              :src="getAssetUrl(getBookForModule(moduleItem).cover_img)" alt="" />
             <span v-else>Livro</span>
           </div>
           <div class="module-info">
@@ -112,7 +143,41 @@ async function handleGerar() {
       {{ loading ? 'A gerar...' : 'Gerar Quiz' }}
     </button>
 
-    <pre v-if="quiz">{{ JSON.stringify(quiz, null, 2) }}</pre>
+    <section v-if="quiz" class="quiz">
+      <header class="quiz-header">
+        <h2>{{ quiz.capitulo || 'Quiz' }}</h2>
+        <p>
+          {{ quiz.quiz && quiz.quiz.length ? `${quiz.quiz.length} perguntas` : 'Sem perguntas' }}
+        </p>
+      </header>
+
+      <ol class="quiz-list">
+        <li v-for="item in quiz.quiz" :key="item.id" class="quiz-card">
+          <div class="quiz-top">
+            <span class="badge">Pergunta {{ item.id }}</span>
+            <span class="answer">Resposta: {{ item.resposta_correta }}</span>
+          </div>
+
+          <h3 class="question">{{ item.pergunta }}</h3>
+
+          <ul class="options">
+            <li v-for="option in item.opcoes" :key="option">
+              <button type="button" class="option-btn" :class="{
+                selected: isSelected(item, option),
+                correct: hasAnswer(item) && getOptionKey(option) === getCorrectKey(item),
+                wrong: isSelected(item, option) && !isAnswerCorrect(item),
+              }" @click="selectAnswer(item, option)">
+                {{ option }}
+              </button>
+            </li>
+          </ul>
+
+          <p v-if="hasAnswer(item)" class="feedback" :class="{ correct: isAnswerCorrect(item) }">
+            {{ isAnswerCorrect(item) ? 'Correto!' : `Errado. Correta: ${getCorrectOption(item)}` }}
+          </p>
+        </li>
+      </ol>
+    </section>
   </div>
 </template>
 
@@ -210,11 +275,111 @@ button {
   cursor: pointer;
 }
 
-pre {
-  background: #f7fbf9;
-  padding: 12px;
-  border-radius: 12px;
-  overflow: auto;
+.quiz {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: #ffffff;
+  padding: 14px 16px;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+}
+
+.quiz-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.quiz-card {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+  display: grid;
+  gap: 10px;
+}
+
+.quiz-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #6f6f6f;
+}
+
+.badge {
+  background: #e9f6f1;
+  color: #0c7a5a;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.answer {
+  font-weight: 600;
+}
+
+.question {
+  margin: 0;
+  font-size: 16px;
+}
+
+.options {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.options li {
+  list-style: none;
+}
+
+.option-btn {
+  width: 100%;
+  text-align: left;
+  background: #f5faf8;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 2px solid transparent;
+  cursor: pointer;
+  color: #111111;
+}
+
+.option-btn.selected {
+  border-color: #0c7a5a;
+  background: #e9f6f1;
+}
+
+.option-btn.correct {
+  border-color: #2c8a5a;
+  background: #e2f6ec;
+}
+
+.option-btn.wrong {
+  border-color: #b13b3b;
+  background: #fdecec;
+}
+
+.feedback {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b13b3b;
+}
+
+.feedback.correct {
+  color: #2c8a5a;
 }
 
 .state {
