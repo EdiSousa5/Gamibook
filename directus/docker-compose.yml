@@ -1,0 +1,26 @@
+version: "3.8"
+services:
+  directus:
+    image: directus/directus:latest
+    container_name: gamibook-directus
+    ports:
+      - "8055:8055"
+    volumes:
+      - ./uploads:/directus/uploads
+    environment:
+      KEY: "gamibook-vue-2026-supersecret"
+      SECRET: "gamibook-directus-vue-project2026"
+      DB_CLIENT: "mysql"
+      DB_HOST: "host.docker.internal"
+      DB_PORT: "3306"
+      DB_DATABASE: "gamibook"
+      DB_USER: "root"
+      DB_PASSWORD: "Edi49291600."
+
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "http://localhost:5173,http://127.0.0.1:5173"
+      CORS_METHODS: "GET,POST,PATCH,DELETE,OPTIONS,PUT"
+      CORS_HEADERS: "Content-Type,Authorization"
+      CORS_CREDENTIALS: "true"
+
+    restart: unless-stopped
