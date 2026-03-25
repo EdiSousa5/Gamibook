@@ -155,7 +155,6 @@ const isAnswerCorrect = (item) => {
         <li v-for="item in quiz.quiz" :key="item.id" class="quiz-card">
           <div class="quiz-top">
             <span class="badge">Pergunta {{ item.id }}</span>
-            <span class="answer">Resposta: {{ item.resposta_correta }}</span>
           </div>
 
           <h3 class="question">{{ item.pergunta }}</h3>
