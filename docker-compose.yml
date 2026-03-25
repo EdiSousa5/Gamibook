@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  # Flowise IA (novo!)
+  flowise:
+    image: flowiseai/flowise
+    container_name: gamibook-flowise
+    ports:
+      - "3000:3000"
+    environment:
+      OLLAMA_BASE_URL: "http://ollama:11434"
+    volumes:
+      - ./docker/flowise_data:/root/.flowise
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    # Directus já roda separado
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gamibook-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./docker/ollama_data:/root/.ollama
+    restart: unless-stopped
