@@ -1,11 +1,17 @@
 const FLOWISE_URL = 'http://localhost:3000'
 const CHATFLOW_ID = '18a5aadf-041b-4c26-ba74-a062281b843d'
 
-export async function gerarQuiz(tituloLivro, moduloTitulo, descricao = '') {
+export async function gerarQuiz(
+  tituloLivro,
+  moduloTitulo,
+  descricao = '',
+  tipoExercicio = 'multiple-choice',
+) {
   const promptValues = {
     titulo_livro: tituloLivro || 'Sem título de livro',
     modulo_titulo: moduloTitulo || 'Sem título de módulo',
     descricao: descricao?.trim() || 'Sem descrição adicional',
+    tipo_exercicio: tipoExercicio,
   }
 
   const payload = {
