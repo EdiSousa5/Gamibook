@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { registerUser } from '../services/directus'
+import { loginUser, registerUser, uploadUserAvatar } from '../services/directus'
 
 const router = useRouter()
 const name = ref('')
 const email = ref('')
 const password = ref('')
 const avatarPreview = ref('')
+const avatarFile = ref<File | null>(null)
 const error = ref('')
 
 const onAvatarChange = (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
+  avatarFile.value = file
   const reader = new FileReader()
   reader.onload = () => {
     avatarPreview.value = String(reader.result || '')
@@ -29,18 +31,30 @@ const submit = async () => {
   }
 
   try {
-    const createdUser = await registerUser({
+    await registerUser({
       name: name.value,
       email: email.value,
       password: password.value,
-      avatar_img: null,
     })
-    if (createdUser?.user_id) {
-      localStorage.setItem('gb_user_id', String(createdUser.user_id))
+    let loggedUser = null
+    try {
+      loggedUser = await loginUser(email.value, password.value)
+    } catch (loginError) {
+      console.warn('[register] login after registration failed', loginError)
+    }
+
+    if (!loggedUser?.id) {
+      await router.push({ path: '/login', query: { registered: '1' } })
+      return
+    }
+
+    if (avatarFile.value) {
+      await uploadUserAvatar(String(loggedUser.id), avatarFile.value)
     }
     window.dispatchEvent(new Event('gb-auth-changed'))
     await router.push('/dashboard')
-  } catch {
+  } catch (err) {
+    console.error('[register] failed', err)
     error.value = 'Nao foi possivel criar conta.'
   }
 }
