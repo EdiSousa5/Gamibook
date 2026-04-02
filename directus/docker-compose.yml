@@ -23,4 +23,7 @@ services:
       CORS_HEADERS: "Content-Type,Authorization"
       CORS_CREDENTIALS: "true"
 
+      ACCESS_TOKEN_TTL: "15m"
+      REFRESH_TOKEN_TTL: "30d"
+
     restart: unless-stopped

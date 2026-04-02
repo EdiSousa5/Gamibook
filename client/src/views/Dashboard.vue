@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { fetchBooks, fetchUserById, fetchUsers, getAssetUrl, type Book, type User } from '../services/directus'
+import {
+  fetchBooks,
+  fetchUserById,
+  fetchUsers,
+  getAssetUrl,
+  getUserAvatarId,
+  getUserDisplayName,
+  type Book,
+  type User,
+} from '../services/directus'
 
 const user = ref<User | null>(null)
 const books = ref<Book[]>([])
 const ranking = ref<User[]>([])
 const error = ref('')
 
-const name = computed(() => user.value?.name || 'Utilizador')
-const avatar = computed(() => getAssetUrl(user.value?.avatar_img))
+const name = computed(() => getUserDisplayName(user.value))
+const avatar = computed(() => getAssetUrl(getUserAvatarId(user.value)))
+const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
 
 const stats = computed(() => ({
   points: user.value?.points ?? null,
@@ -85,8 +95,8 @@ onMounted(async () => {
       <div class="panel">
         <h2>Ranking top 10</h2>
         <ol v-if="ranking.length">
-          <li v-for="rankUser in ranking" :key="rankUser.user_id || rankUser.email || rankUser.name">
-            <span>{{ rankUser.name || 'Utilizador' }}</span>
+          <li v-for="rankUser in ranking" :key="rankUser.id || rankUser.email || rankUser.name">
+            <span>{{ displayUserName(rankUser) }}</span>
             <strong>{{ rankUser.points ?? '-' }}</strong>
           </li>
         </ol>

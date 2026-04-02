@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { findUserByCredentials } from '../services/directus'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { loginUser } from '../services/directus'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
+const info = computed(() => (route.query.registered ? 'Conta criada. Faz login para continuar.' : ''))
 
 const submit = async () => {
   error.value = ''
@@ -16,13 +18,11 @@ const submit = async () => {
   }
 
   try {
-    const users = await findUserByCredentials(email.value, password.value)
-    const matchedUser = users?.[0]
-    if (!matchedUser?.user_id) {
+    const loggedUser = await loginUser(email.value, password.value)
+    if (!loggedUser?.id) {
       error.value = 'Credenciais invalidas.'
       return
     }
-    localStorage.setItem('gb_user_id', String(matchedUser.user_id))
     window.dispatchEvent(new Event('gb-auth-changed'))
     await router.push('/dashboard')
   } catch {
@@ -47,6 +47,7 @@ const submit = async () => {
           <input v-model="password" type="password" placeholder="********" />
         </label>
 
+        <p v-if="info" class="info">{{ info }}</p>
         <p v-if="error" class="error">{{ error }}</p>
 
         <button class="btn" type="submit">Entrar</button>
@@ -104,6 +105,11 @@ input {
 
 .error {
   color: #b13b3b;
+  font-weight: 600;
+}
+
+.info {
+  color: #0c7a5a;
   font-weight: 600;
 }
 

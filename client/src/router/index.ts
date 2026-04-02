@@ -42,6 +42,12 @@ const router = createRouter({
       component: () => import('../views/FlowiseTest.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/exercise-generator',
+      name: 'exercise-generator',
+      component: () => import('../views/ExerciseGenerator.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

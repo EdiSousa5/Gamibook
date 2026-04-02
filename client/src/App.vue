@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchUserById, type User } from './services/directus'
+import { clearAccessToken, fetchUserById, getUserDisplayName, setStoredUserId, type User } from './services/directus'
 
 const router = useRouter()
 const user = ref<User | null>(null)
 const isAuthed = computed(() => !!user.value)
-const displayName = computed(() => user.value?.name || 'Utilizador')
+const displayName = computed(() => getUserDisplayName(user.value))
 
 const loadUser = async () => {
   const storedId = localStorage.getItem('gb_user_id')
@@ -23,7 +23,8 @@ const loadUser = async () => {
 }
 
 const logout = async () => {
-  localStorage.removeItem('gb_user_id')
+  setStoredUserId(null)
+  clearAccessToken()
   user.value = null
   await router.push('/')
 }
@@ -45,6 +46,7 @@ onUnmounted(() => {
       <nav class="nav">
         <template v-if="isAuthed">
           <RouterLink to="/dashboard">Dashboard</RouterLink>
+          <RouterLink to="/exercise-generator">Gerar Exercicios</RouterLink>
           <RouterLink to="/rankings">Rankings</RouterLink>
           <RouterLink to="/profile">Perfil</RouterLink>
           <button class="link" @click="logout">Sair</button>

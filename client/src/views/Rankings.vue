@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { fetchUsers, type User } from '../services/directus'
+import { fetchUsers, getUserDisplayName, type User } from '../services/directus'
 
 const topGlobal = ref<User[]>([])
 const error = ref('')
 const isLoading = ref(false)
+const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
 
 onMounted(async () => {
   error.value = ''
@@ -29,8 +30,8 @@ onMounted(async () => {
         <p v-if="isLoading" class="state">A carregar...</p>
         <p v-else-if="error" class="state error">{{ error }}</p>
         <ol v-else-if="topGlobal.length">
-          <li v-for="user in topGlobal" :key="user.user_id || user.email || user.name">
-            <span>{{ user.name || 'Utilizador' }}</span>
+          <li v-for="user in topGlobal" :key="user.id || user.email || user.name">
+            <span>{{ displayUserName(user) }}</span>
             <strong>{{ user.points ?? '-' }}</strong>
           </li>
         </ol>
