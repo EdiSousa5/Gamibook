@@ -2,11 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import {
   fetchBooks,
+  fetchApprovedBooks,
   fetchUserById,
   fetchUsers,
   getAssetUrl,
   getUserAvatarId,
   getUserDisplayName,
+  getLevelProgressFromPoints,
   type Book,
   type User,
 } from '../services/directus'
@@ -22,7 +24,9 @@ const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
 
 const stats = computed(() => ({
   points: user.value?.points ?? null,
-  level: user.value?.level ?? null,
+  level:
+    user.value?.level ??
+    (user.value?.points != null ? getLevelProgressFromPoints(user.value.points).level : null),
 }))
 
 const loadUser = async () => {
@@ -38,7 +42,7 @@ const loadUser = async () => {
 onMounted(async () => {
   error.value = ''
   try {
-    const [bookList, topUsers] = await Promise.all([fetchBooks(), fetchUsers(10)])
+    const [bookList, topUsers] = await Promise.all([fetchApprovedBooks(), fetchUsers(10)])
     books.value = bookList
     ranking.value = topUsers
     await loadUser()
@@ -46,6 +50,8 @@ onMounted(async () => {
     error.value = 'Nao foi possivel carregar os dados do dashboard.'
   }
 })
+
+
 </script>
 
 <template>

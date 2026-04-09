@@ -8,6 +8,7 @@ export type Book = {
   ISBN?: string | null
   publish_date?: string | null
   publisher?: string
+  is_approved?: boolean | null
   date_created?: string | null
   date_updated?: string | null
 }
@@ -22,6 +23,7 @@ export type User = {
   avatar_img?: string | null
   points?: number
   level?: number
+  role?: { id?: string; name?: string } | string | null
   password?: string
   date_created?: string | null
 }
@@ -31,8 +33,9 @@ export type Module = {
   id_book?: number | null
   order_number?: number | null
   module_title?: string | null
-  minimum_exercises?: number | null
+  minimum_exercises?: boolean | null
   additional_description?: string | null
+  status?: 'draft' | 'approved' | 'unapproved'
 }
 
 export type Exercise = {
@@ -40,23 +43,37 @@ export type Exercise = {
   id_module?: number | null
   status?: 'draft' | 'approved' | 'unapproved'
   type?: 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
-  difficulty?: 'easy' | 'medium' | 'hard'
   content?: Record<string, any>
   points?: number | null
   date_created?: string | null
 }
 
-export type ApprovedExerciseCounts = {
-  easy: number
-  medium: number
-  hard: number
+export type ExerciseExample = Pick<Exercise, 'type' | 'status' | 'content'> & {
+  question_text?: string
+}
+
+export type UserBook = {
+  id?: number
+  user_id?: string | User
+  book_id?: Book
 }
 
 const directusUrl = import.meta.env.VITE_DIRECTUS_URL ?? ''
 const normalizedDirectusUrl = directusUrl.replace(/\/$/, '')
 const ACCESS_TOKEN_KEY = 'gb_access_token'
 const USER_ID_KEY = 'gb_user_id'
-const USER_FIELDS = ['id', 'first_name', 'last_name', 'email', 'avatar', 'points', 'level']
+const USER_FIELDS = [
+  'id',
+  'first_name',
+  'last_name',
+  'email',
+  'avatar',
+  'points',
+  'level',
+  'role',
+  'role.id',
+  'role.name',
+]
 
 if (!directusUrl) {
   console.warn('VITE_DIRECTUS_URL is not set. Directus requests will fail.')
@@ -129,6 +146,14 @@ export const fetchBooks = () =>
     }),
   ) as Promise<Book[]>
 
+export const fetchApprovedBooks = () =>
+  directus.request(
+    readItems('books' as any, {
+      filter: { is_approved: { _eq: true } },
+      sort: ['-date_created'],
+    }),
+  ) as Promise<Book[]>
+
 export const fetchBook = (id: number | string) =>
   directus.request(readItem('books' as any, id)) as Promise<Book>
 
@@ -137,6 +162,17 @@ export const fetchModulesByBook = (bookId: number) =>
     readItems('modules' as any, {
       filter: {
         id_book: { _eq: bookId },
+      },
+      sort: ['order_number'],
+    }),
+  ) as Promise<Module[]>
+
+export const fetchApprovedModulesByBook = (bookId: number) =>
+  directus.request(
+    readItems('modules' as any, {
+      filter: {
+        id_book: { _eq: bookId },
+        minimum_exercises: { _eq: true },
       },
       sort: ['order_number'],
     }),
@@ -154,7 +190,7 @@ export const fetchModule = (moduleId: number | string) =>
 
 export const fetchExercisesByModule = async (moduleId: number) => {
   const params = new URLSearchParams({
-    fields: 'exercise_id,type,id_module,content,difficulty,points,status,date_created',
+    fields: 'exercise_id,type,id_module,content,status,date_created',
     sort: '-date_created',
   })
   params.set('filter[id_module][_eq]', String(moduleId))
@@ -169,6 +205,45 @@ export const fetchExercisesByModule = async (moduleId: number) => {
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as Exercise[]
+}
+
+export const fetchExerciseExamplesByModule = async (moduleId: number, limit = 12) => {
+  const params = new URLSearchParams({
+    fields: 'type,status,content',
+    sort: '-date_created',
+    limit: String(limit),
+  })
+  params.set('filter[id_module][_eq]', String(moduleId))
+  params.set('filter[status][_in]', 'approved,unapproved')
+
+  const response = await authFetch(`/items/exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch examples failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as ExerciseExample[]
+}
+
+export const fetchUserBooks = async (userId: string) => {
+  const params = new URLSearchParams({
+    fields:
+      'user_book_id,book_id.book_id,book_id.title,book_id.publisher,book_id.cover_img,book_id.is_approved',
+    sort: '-user_book_id',
+  })
+  params.set('filter[user_id][_eq]', userId)
+
+  const response = await authFetch(`/items/user_books?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user books failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as UserBook[]
 }
 
 export const fetchUsers = (limit?: number) => fetchUsersWithAuth(limit)
@@ -238,7 +313,7 @@ export const updateUser = async (id: number | string, payload: Partial<User>) =>
 
 export const fetchApprovedExerciseCountsByModule = async (moduleId: number) => {
   const params = new URLSearchParams({
-    fields: 'difficulty',
+    fields: 'exercise_id',
     limit: '-1',
   })
   params.set('filter[id_module][_eq]', String(moduleId))
@@ -252,16 +327,8 @@ export const fetchApprovedExerciseCountsByModule = async (moduleId: number) => {
   }
 
   const data = await response.json().catch(() => null)
-  const items = (data?.data ?? []) as Array<{ difficulty?: string }>
-  return items.reduce<ApprovedExerciseCounts>(
-    (acc, item) => {
-      if (item.difficulty === 'easy') acc.easy += 1
-      if (item.difficulty === 'medium') acc.medium += 1
-      if (item.difficulty === 'hard') acc.hard += 1
-      return acc
-    },
-    { easy: 0, medium: 0, hard: 0 },
-  )
+  const items = (data?.data ?? []) as Array<{ exercise_id?: number }>
+  return items.length
 }
 
 export const createExercise = async (payload: Partial<Exercise>) => {
@@ -282,7 +349,7 @@ export const createExercise = async (payload: Partial<Exercise>) => {
 
 export const fetchApprovedExercisesByModule = async (moduleId: number) => {
   const params = new URLSearchParams({
-    fields: 'exercise_id,type,id_module,content,difficulty,points,status,date_created',
+    fields: 'exercise_id,type,id_module,content,status,date_created',
     sort: '-date_created',
   })
   params.set('filter[id_module][_eq]', String(moduleId))
@@ -297,6 +364,22 @@ export const fetchApprovedExercisesByModule = async (moduleId: number) => {
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as Exercise[]
+}
+
+export const updateModuleApproval = async (moduleId: number, isApproved: boolean) => {
+  const response = await authFetch(`/items/modules/${moduleId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minimum_exercises: isApproved }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Update module failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as Module
 }
 
 export const deleteExercise = async (exerciseId: number) => {
@@ -438,3 +521,36 @@ export const getUserDisplayName = (user?: User | null) => {
 }
 
 export const getUserAvatarId = (user?: User | null) => user?.avatar ?? user?.avatar_img ?? null
+
+export const isAdminUser = (user?: User | null) => {
+  const role = user?.role
+  const roleName =
+    typeof role === 'string' ? role : typeof role === 'object' && role ? role.name : null
+  if (!roleName) return false
+  const normalized = roleName.trim().toLowerCase()
+  return normalized === 'admin' || normalized === 'admin absoluto'
+}
+
+export const roundToNearest5 = (value: number) => 5 * Math.round(value / 5)
+
+export const getNextLevelXp = (previousLevelXp: number) => roundToNearest5(previousLevelXp * 1.05)
+
+export const getLevelProgressFromPoints = (points: number) => {
+  const safePoints = Number.isFinite(points) ? Math.max(0, points) : 0
+  let level = 1
+  let currentLevelMin = 0
+  let nextLevelXp = 100
+
+  while (safePoints >= currentLevelMin + nextLevelXp) {
+    currentLevelMin += nextLevelXp
+    level += 1
+    nextLevelXp = getNextLevelXp(nextLevelXp)
+  }
+
+  return {
+    level,
+    currentLevelMin,
+    nextLevelXp,
+    progress: safePoints - currentLevelMin,
+  }
+}

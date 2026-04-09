@@ -52,7 +52,7 @@ const submit = async () => {
       await uploadUserAvatar(String(loggedUser.id), avatarFile.value)
     }
     window.dispatchEvent(new Event('gb-auth-changed'))
-    await router.push('/dashboard')
+    await router.push('/profile')
   } catch (err) {
     console.error('[register] failed', err)
     error.value = 'Nao foi possivel criar conta.'

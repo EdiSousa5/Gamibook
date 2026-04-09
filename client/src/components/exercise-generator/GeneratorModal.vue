@@ -1,19 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-type Difficulty = 'easy' | 'medium' | 'hard'
-
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
 type GeneratePayload = {
-    difficulty: Difficulty
     types: ExerciseType[]
     count: number
 }
 
 type Props = {
     open: boolean
-    defaultDifficulty: Difficulty
     defaultTypes: ExerciseType[]
     defaultCount: number
     isGenerating: boolean
@@ -23,7 +19,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{ close: []; generate: [GeneratePayload] }>()
 
-const difficulty = ref<Difficulty>(props.defaultDifficulty)
 const selectedTypes = ref<ExerciseType[]>([...props.defaultTypes])
 const count = ref(props.defaultCount)
 
@@ -31,7 +26,6 @@ watch(
     () => props.open,
     (value) => {
         if (!value) return
-        difficulty.value = props.defaultDifficulty
         selectedTypes.value = [...props.defaultTypes]
         count.value = props.defaultCount
     }
@@ -39,7 +33,6 @@ watch(
 
 const handleGenerate = () => {
     emit('generate', {
-        difficulty: difficulty.value,
         types: selectedTypes.value,
         count: count.value,
     })
@@ -55,17 +48,8 @@ const handleGenerate = () => {
             </header>
 
             <div class="fields">
-                <label>
-                    Dificuldade
-                    <select v-model="difficulty">
-                        <option value="easy">Facil</option>
-                        <option value="medium">Medio</option>
-                        <option value="hard">Dificil</option>
-                    </select>
-                </label>
-
                 <div class="type-group">
-                    <p>Tipos</p>
+                    <p>Tipos de Exercícios</p>
                     <label class="type-item">
                         <input type="checkbox" value="multiple-choice" v-model="selectedTypes" />
                         <span>Escolha multipla</span>
@@ -74,19 +58,12 @@ const handleGenerate = () => {
                         <input type="checkbox" value="true-false" v-model="selectedTypes" />
                         <span>Verdadeiro / Falso</span>
                     </label>
-                    <label class="type-item">
-                        <input type="checkbox" value="fill-blanks" v-model="selectedTypes" />
-                        <span>Completar espacos</span>
-                    </label>
-                    <label class="type-item">
-                        <input type="checkbox" value="ordering" v-model="selectedTypes" />
-                        <span>Ordenar</span>
-                    </label>
                 </div>
 
                 <label>
-                    Quantidade
+                    Quantos exercicios quer gerar por tipo de exercicio selecionado?
                     <input type="number" min="1" v-model.number="count" />
+                    <span class="helper">(Este valor aplica-se a cada tipo selecionado.)</span>
                 </label>
             </div>
 
@@ -142,6 +119,12 @@ label {
     font-weight: 600;
 }
 
+.helper {
+    font-size: 12px;
+    color: #6a6a6a;
+    font-weight: 400;
+}
+
 .type-group {
     display: grid;
     gap: 10px;
@@ -159,7 +142,6 @@ label {
     font-weight: 600;
 }
 
-select,
 input {
     padding: 10px 12px;
     border-radius: 12px;

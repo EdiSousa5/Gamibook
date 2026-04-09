@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { fetchBooks, getAssetUrl, type Book } from '../services/directus'
+import { fetchApprovedBooks, getAssetUrl, type Book } from '../services/directus'
 
 const featuredBooks = ref<Book[]>([])
 const error = ref('')
@@ -10,7 +10,7 @@ onMounted(async () => {
   error.value = ''
   isLoading.value = true
   try {
-    featuredBooks.value = await fetchBooks()
+    featuredBooks.value = await fetchApprovedBooks()
   } catch {
     error.value = 'Nao foi possivel carregar os livros em destaque.'
   } finally {

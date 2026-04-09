@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { fetchBook, fetchExercisesByModule, fetchModule, getAssetUrl, type Book, type Exercise, type Module } from '../services/directus'
+import {
+    fetchApprovedExerciseCountsByModule,
+    fetchBook,
+    fetchExercisesByModule,
+    fetchModule,
+    getAssetUrl,
+    type Book,
+    type Exercise,
+    type Module,
+} from '../services/directus'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
@@ -12,6 +21,11 @@ const moduleData = ref<Module | null>(null)
 const exercises = ref<Exercise[]>([])
 const error = ref('')
 const isLoading = ref(false)
+const APPROVAL_THRESHOLD = 5
+const approvedCount = ref(0)
+const requiredCount = ref(APPROVAL_THRESHOLD)
+
+const moduleApproved = computed(() => approvedCount.value >= requiredCount.value)
 
 const toArray = (value: any) => {
     if (Array.isArray(value)) return value
@@ -49,11 +63,16 @@ watch(
             book.value = bookInfo
             moduleData.value = moduleInfo
             exercises.value = exerciseList
+
+            approvedCount.value = await fetchApprovedExerciseCountsByModule(currentModuleId)
+            requiredCount.value = APPROVAL_THRESHOLD
         } catch {
             error.value = 'Nao foi possivel carregar o modulo.'
             book.value = null
             moduleData.value = null
             exercises.value = []
+            approvedCount.value = 0
+            requiredCount.value = APPROVAL_THRESHOLD
         } finally {
             isLoading.value = false
         }
@@ -80,11 +99,14 @@ watch(
         <section class="panel">
             <div class="panel-header">
                 <h2>Exercicios do modulo</h2>
-                <p>{{ exercises.length }} exercicios aprovados</p>
+                <p>{{ approvedCount }} / {{ requiredCount }} exercicios aprovados</p>
             </div>
 
             <p v-if="isLoading" class="state">A carregar exercicios...</p>
             <p v-else-if="error" class="state error">{{ error }}</p>
+            <p v-else-if="!moduleApproved" class="state warning">
+                Este modulo ainda nao tem exercicios aprovados suficientes para ficar disponivel.
+            </p>
             <div v-else-if="exercises.length" class="exercise-grid">
                 <article v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-card">
                     <div class="exercise-top">
@@ -115,9 +137,6 @@ watch(
                                 </li>
                             </ol>
                         </template>
-                    </div>
-                    <div class="meta-row">
-                        <span class="tag">{{ exercise.difficulty || 'medium' }}</span>
                     </div>
                 </article>
             </div>
@@ -238,23 +257,15 @@ watch(
     color: #4a4a4a;
 }
 
-.meta-row {
-    display: flex;
-    justify-content: flex-start;
-}
-
-.tag {
-    font-size: 12px;
-    font-weight: 700;
-    color: #1c1c1c;
-    background: #eef6ff;
-    padding: 4px 10px;
-    border-radius: 999px;
-}
-
 .state {
     font-weight: 600;
     color: #6f6f6f;
+}
+
+.state.warning {
+    color: #8a5a00;
+    background: #fff4dc;
+    border: 1px solid #f2d6a3;
 }
 
 .error {

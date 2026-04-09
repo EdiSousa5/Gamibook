@@ -1,7 +1,5 @@
 <script setup lang="ts">
 
-type Difficulty = 'easy' | 'medium' | 'hard'
-
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
 type GeneratedExercise = {
@@ -9,31 +7,61 @@ type GeneratedExercise = {
     questionText: string
     content: Record<string, any>
     exerciseType: ExerciseType
-    difficulty: Difficulty
+    moduleId?: number | null
+    moduleTitle?: string | null
 }
 
 type Section = {
-    difficulty: Difficulty
+    moduleId: number | null
+    moduleTitle: string
     types: Array<{ type: ExerciseType; items: GeneratedExercise[] }>
 }
 
 type Props = {
     sections: Section[]
     typeLabels: Record<ExerciseType, string>
-    difficultyLabels: Record<Difficulty, string>
     approvingMap: Record<string, boolean>
 }
 
 defineProps<Props>()
 
 defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
+
+const getOptionLabel = (value: string) => String(value || '').trim()
+
+const getOptionLetter = (value: string) => {
+    const trimmed = getOptionLabel(value)
+    const match = trimmed.match(/^([A-D])\)/i)
+    return match ? match[1].toUpperCase() : ''
+}
+
+const isOptionCorrect = (option: string, correct: string) => {
+    const optionLetter = getOptionLetter(option)
+    const correctLetter = String(correct || '').trim().toUpperCase()
+    if (optionLetter && correctLetter) return optionLetter === correctLetter
+    return getOptionLabel(option) === String(correct || '').trim()
+}
+
+const normalizeAnswers = (value: any) => {
+    if (Array.isArray(value)) return value.map((item) => String(item))
+    if (value == null) return []
+    return [String(value)]
+}
+
+const getFillBlankAnswers = (exercise: GeneratedExercise) => {
+    const answers = normalizeAnswers(exercise.content.respostas_corretas)
+    return answers.length ? answers.join(' / ') : 'Sem resposta'
+}
 </script>
 
 <template>
     <section v-if="sections.length" class="exercise-list">
-        <div v-for="section in sections" :key="section.difficulty" class="group">
-            <h3>{{ difficultyLabels[section.difficulty] }}</h3>
-            <div v-for="typeSection in section.types" :key="`${section.difficulty}-${typeSection.type}`">
+        <div v-for="section in sections" :key="String(section.moduleId)" class="group">
+            <div class="module-header">
+                <h3>{{ section.moduleTitle }}</h3>
+                <span class="chip">Modulo {{ section.moduleId ?? '-' }}</span>
+            </div>
+            <div v-for="typeSection in section.types" :key="`${section.moduleId}-${typeSection.type}`">
                 <h4>{{ typeLabels[typeSection.type] }}</h4>
                 <div class="grid">
                     <article v-for="(exercise, index) in typeSection.items" :key="exercise.localId" class="card"
@@ -49,11 +77,13 @@ defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
                         <div class="content">
                             <template v-if="exercise.exerciseType === 'multiple-choice'">
                                 <ul>
-                                    <li v-for="option in exercise.content.opcoes" :key="option">
+                                    <li v-for="option in exercise.content.opcoes" :key="option"
+                                        :class="{ correct: isOptionCorrect(option, exercise.content.resposta_correta) }">
                                         <strong>{{ option }}</strong>
                                     </li>
                                 </ul>
-                                <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta }}</p>
+                                <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta || 'Sem resposta'
+                                    }}</p>
                                 <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
                                 </p>
                             </template>
@@ -66,7 +96,17 @@ defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
                             </template>
 
                             <template v-else-if="exercise.exerciseType === 'fill-blanks'">
-                                <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta }}</p>
+                                <p><span>Frase:</span> {{ exercise.questionText }}</p>
+                                <div class="options">
+                                    <p><span>Opcoes</span></p>
+                                    <ul>
+                                        <li v-for="option in exercise.content.opcoes" :key="option"
+                                            :class="{ correct: normalizeAnswers(exercise.content.respostas_corretas).includes(String(option)) }">
+                                            <strong>{{ option }}</strong>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <p><span>Respostas corretas:</span> {{ getFillBlankAnswers(exercise) }}</p>
                                 <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
                                 </p>
                             </template>
@@ -77,7 +117,7 @@ defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
                                         <p><span>Itens desordenados</span></p>
                                         <ol>
                                             <li v-for="item in exercise.content.itens_desordenados" :key="item">{{ item
-                                                }}</li>
+                                            }}</li>
                                         </ol>
                                     </div>
                                     <div>
@@ -122,6 +162,13 @@ defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
 .group h3 {
     margin: 0;
     font-size: 18px;
+}
+
+.module-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .group h4 {
@@ -196,6 +243,16 @@ defineEmits<{ approve: [GeneratedExercise]; reject: [GeneratedExercise] }>()
 .content ol {
     margin: 0;
     padding-left: 20px;
+}
+
+.content li.correct {
+    color: #0c7a5a;
+    font-weight: 700;
+}
+
+.options {
+    display: grid;
+    gap: 6px;
 }
 
 .ordering {

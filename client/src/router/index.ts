@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { fetchUserById, getStoredUserId, isAdminUser } from '@/services/directus'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -6,12 +7,6 @@ const router = createRouter({
     { path: '/', name: 'home', component: () => import('../views/Home.vue') },
     { path: '/login', name: 'login', component: () => import('../views/Login.vue') },
     { path: '/register', name: 'register', component: () => import('../views/Register.vue') },
-    {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('../views/Dashboard.vue'),
-      meta: { requiresAuth: true },
-    },
     {
       path: '/profile',
       name: 'profile',
@@ -37,12 +32,6 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/flowise-test',
-      name: 'flowise-test',
-      component: () => import('../views/FlowiseTest.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
       path: '/exercise-generator',
       name: 'exercise-generator',
       component: () => import('../views/ExerciseGenerator.vue'),
@@ -51,10 +40,22 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
-  const isAuthed = !!localStorage.getItem('gb_user_id')
-  return isAuthed ? true : { path: '/login' }
+  const storedId = getStoredUserId()
+  if (!storedId) return { path: '/login' }
+
+  if (to.name === 'exercise-generator') {
+    try {
+      const user = await fetchUserById(storedId)
+      if (!isAdminUser(user)) return { path: '/profile' }
+    } catch (error) {
+      console.error('[Router] Failed to validate admin access', error)
+      return { path: '/profile' }
+    }
+  }
+
+  return true
 })
 
 export default router
