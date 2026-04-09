@@ -1,15 +1,28 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { fetchBook, fetchModulesByBook, getAssetUrl, type Book, type Module } from '../services/directus'
+import {
+  fetchApprovedModulesByBook,
+  fetchBook,
+  getAssetUrl,
+  type Book,
+  type Module,
+} from '../services/directus'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.id || 1))
 
 const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
+const approvedModules = ref<Module[]>([])
 const error = ref('')
 const isLoading = ref(false)
+
+const isMainChapter = (moduleItem: Module) => {
+  if (moduleItem.order_number == null) return true
+  const orderValue = Number(moduleItem.order_number)
+  return Number.isFinite(orderValue) && Number.isInteger(orderValue)
+}
 
 watch(
   bookId,
@@ -19,14 +32,16 @@ watch(
     try {
       const [bookData, moduleList] = await Promise.all([
         fetchBook(id),
-        fetchModulesByBook(id),
+        fetchApprovedModulesByBook(id),
       ])
       book.value = bookData
-      modules.value = moduleList
+      modules.value = moduleList.filter(isMainChapter)
+      approvedModules.value = modules.value
     } catch {
       error.value = 'Nao foi possivel carregar o livro.'
       book.value = null
       modules.value = []
+      approvedModules.value = []
     } finally {
       isLoading.value = false
     }
@@ -57,8 +72,8 @@ watch(
       </div>
       <p v-if="isLoading" class="state">A carregar modulos...</p>
       <p v-else-if="error" class="state error">{{ error }}</p>
-      <div v-else-if="modules.length" class="module-grid">
-        <RouterLink v-for="module in modules" :key="module.modules_id" class="module-card"
+      <div v-else-if="approvedModules.length" class="module-grid">
+        <RouterLink v-for="module in approvedModules" :key="module.modules_id" class="module-card"
           :to="`/book/${bookId}/module/${module.modules_id}`">
           <div class="module-order">{{ module.order_number || '-' }}</div>
           <div>
@@ -67,7 +82,7 @@ watch(
           </div>
         </RouterLink>
       </div>
-      <p v-else class="state">Sem modulos para este livro.</p>
+      <p v-else class="state">Sem modulos aprovados para este livro.</p>
     </section>
   </section>
 </template>

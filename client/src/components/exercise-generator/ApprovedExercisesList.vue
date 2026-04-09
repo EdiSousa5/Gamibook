@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import type { Exercise } from '@/services/directus'
 
-type Difficulty = 'easy' | 'medium' | 'hard'
-
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
 type Props = {
     exercises: Exercise[]
     typeLabels: Record<ExerciseType, string>
-    difficultyLabels: Record<Difficulty, string>
 }
 
 defineProps<Props>()
@@ -37,11 +34,9 @@ const getQuestion = (exercise: Exercise) => {
             <article v-for="exercise in exercises" :key="exercise.exercise_id" class="card">
                 <div class="top">
                     <span class="badge">{{ typeLabels[exercise.type || 'multiple-choice'] }}</span>
-                    <span class="tag">{{ difficultyLabels[exercise.difficulty || 'medium'] }}</span>
                 </div>
                 <p class="question">{{ getQuestion(exercise) }}</p>
                 <div class="meta">
-                    <span>{{ exercise.points || 0 }} XP</span>
                     <button class="ghost" type="button" @click="$emit('remove', exercise)">Remover</button>
                 </div>
             </article>
@@ -105,15 +100,6 @@ const getQuestion = (exercise: Exercise) => {
     color: #8a4c00;
 }
 
-.tag {
-    font-size: 12px;
-    font-weight: 700;
-    color: #1c1c1c;
-    background: #eef6ff;
-    padding: 4px 10px;
-    border-radius: 999px;
-}
-
 .question {
     margin: 0;
     font-weight: 600;
@@ -121,7 +107,7 @@ const getQuestion = (exercise: Exercise) => {
 
 .meta {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     font-weight: 600;
     color: #3a3a3a;

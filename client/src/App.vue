@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { clearAccessToken, fetchUserById, getUserDisplayName, setStoredUserId, type User } from './services/directus'
+import {
+  clearAccessToken,
+  fetchUserById,
+  getUserDisplayName,
+  isAdminUser,
+  setStoredUserId,
+  type User,
+} from './services/directus'
 
 const router = useRouter()
 const user = ref<User | null>(null)
 const isAuthed = computed(() => !!user.value)
 const displayName = computed(() => getUserDisplayName(user.value))
+const isAdmin = computed(() => isAdminUser(user.value))
 
 const loadUser = async () => {
   const storedId = localStorage.getItem('gb_user_id')
@@ -45,8 +53,7 @@ onUnmounted(() => {
       <div class="brand" @click="$router.push('/')">GamiBook</div>
       <nav class="nav">
         <template v-if="isAuthed">
-          <RouterLink to="/dashboard">Dashboard</RouterLink>
-          <RouterLink to="/exercise-generator">Gerar Exercicios</RouterLink>
+          <RouterLink v-if="isAdmin" to="/exercise-generator">Gerar Exercicios</RouterLink>
           <RouterLink to="/rankings">Rankings</RouterLink>
           <RouterLink to="/profile">Perfil</RouterLink>
           <button class="link" @click="logout">Sair</button>

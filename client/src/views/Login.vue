@@ -24,7 +24,7 @@ const submit = async () => {
       return
     }
     window.dispatchEvent(new Event('gb-auth-changed'))
-    await router.push('/dashboard')
+    await router.push('/profile')
   } catch {
     error.value = 'Nao foi possivel iniciar sessao.'
   }
