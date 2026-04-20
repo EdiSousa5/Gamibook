@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiCard from '@/components/ui/UiCard.vue'
 import { getAssetUrl, type Book } from '@/services/directus'
 
 type Props = {
@@ -18,9 +19,15 @@ defineEmits<{ select: [number] }>()
             <p>Seleciona um livro para ver os modulos.</p>
         </div>
         <div class="grid">
-            <button v-for="book in books" :key="book.book_id" class="card"
-                :class="{ selected: book.book_id === selectedBookId }" type="button"
-                @click="$emit('select', book.book_id)">
+            <UiCard
+                v-for="book in books"
+                :key="book.book_id"
+                class="card"
+                :class="{ selected: book.book_id === selectedBookId }"
+                role="button"
+                tabindex="0"
+                @click="$emit('select', book.book_id)"
+            >
                 <div class="cover">
                     <img v-if="book.cover_img" :src="getAssetUrl(book.cover_img)" alt="" />
                     <span v-else>Livro</span>
@@ -29,7 +36,7 @@ defineEmits<{ select: [number] }>()
                     <h3>{{ book.title || `Livro ${book.book_id}` }}</h3>
                     <p>{{ book.description || 'Sem descricao' }}</p>
                 </div>
-            </button>
+            </UiCard>
         </div>
     </section>
 </template>
@@ -64,13 +71,8 @@ defineEmits<{ select: [number] }>()
     display: grid;
     grid-template-columns: 72px 1fr;
     gap: 14px;
-    padding: 14px;
-    border-radius: 18px;
-    border: 2px solid transparent;
-    background: #ffffff;
     cursor: pointer;
     text-align: left;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 import { fetchUsers, getUserDisplayName, type User } from '../services/directus'
 
 const topGlobal = ref<User[]>([])
@@ -25,8 +27,11 @@ onMounted(async () => {
     <h1>Rankings</h1>
 
     <div class="grid">
-      <div class="card">
-        <h2>Top geral points</h2>
+      <UiCard class="card">
+        <div class="card-header">
+          <h2>Top geral points</h2>
+          <UiBadge label="Global" />
+        </div>
         <p v-if="isLoading" class="state">A carregar...</p>
         <p v-else-if="error" class="state error">{{ error }}</p>
         <ol v-else-if="topGlobal.length">
@@ -36,7 +41,7 @@ onMounted(async () => {
           </li>
         </ol>
         <p v-else class="state">Sem dados disponiveis.</p>
-      </div>
+      </UiCard>
     </div>
   </section>
 </template>
@@ -54,10 +59,14 @@ onMounted(async () => {
 }
 
 .card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 18px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  background: transparent;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-200);
 }
 
 ol,

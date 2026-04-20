@@ -1,12 +1,19 @@
 /// <reference types="vite/client" />
 
 declare module '@/services/flowise' {
-  export function gerarExercicios(
-    tituloLivro: string,
-    moduloTitulo: string,
-    descricao?: string,
-    tipoExercicio?: 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering',
-    dificuldade?: 'easy' | 'medium' | 'hard',
-    numeroPerguntas?: number,
-  ): Promise<any>
+  export type FlowiseModulePayload = {
+    id: number
+    titulo: string
+    descricao?: string
+    exemplos?: string
+  }
+
+  export type GerarExerciciosParams = {
+    tituloLivro: string
+    modulos: FlowiseModulePayload[] | string
+    tipoExercicio?: string
+    numeroPerguntas?: number
+  }
+
+  export function gerarExercicios(params: GerarExerciciosParams): Promise<any>
 }

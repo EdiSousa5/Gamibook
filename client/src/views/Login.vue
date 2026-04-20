@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { loginUser } from '../services/directus'
 
 const router = useRouter()
@@ -24,7 +27,7 @@ const submit = async () => {
       return
     }
     window.dispatchEvent(new Event('gb-auth-changed'))
-    await router.push('/profile')
+    await router.push('/app')
   } catch {
     error.value = 'Nao foi possivel iniciar sessao.'
   }
@@ -33,31 +36,37 @@ const submit = async () => {
 
 <template>
   <section class="auth">
-    <div class="card">
+    <UiCard class="card">
       <h1>Login</h1>
       <p class="hint">Entra para continuar a tua missao.</p>
 
       <form @submit.prevent="submit">
-        <label>
-          Email
-          <input v-model="email" type="email" placeholder="email@exemplo.com" />
-        </label>
-        <label>
-          Password
-          <input v-model="password" type="password" placeholder="********" />
-        </label>
+        <UiInput
+          label="Email"
+          type="email"
+          placeholder="email@exemplo.com"
+          :model-value="email"
+          @update="email = String($event)"
+        />
+        <UiInput
+          label="Password"
+          type="password"
+          placeholder="********"
+          :model-value="password"
+          @update="password = String($event)"
+        />
 
         <p v-if="info" class="info">{{ info }}</p>
         <p v-if="error" class="error">{{ error }}</p>
 
-        <button class="btn" type="submit">Entrar</button>
+        <UiButton class="cta" type="submit">Entrar</UiButton>
       </form>
 
       <p class="alt">
         Ainda nao tens conta?
         <RouterLink to="/register">Regista-te aqui</RouterLink>
       </p>
-    </div>
+    </UiCard>
   </section>
 </template>
 
@@ -69,10 +78,6 @@ const submit = async () => {
 
 .card {
   width: min(420px, 100%);
-  background: #ffffff;
-  padding: 28px;
-  border-radius: 18px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 
 form {
@@ -81,26 +86,9 @@ form {
   margin-top: 16px;
 }
 
-label {
-  display: grid;
-  gap: 6px;
-  font-weight: 600;
-}
-
-input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #d7d7d7;
-}
-
-.btn {
-  background: #0c7a5a;
-  border: none;
-  color: #fff;
-  padding: 12px;
-  border-radius: 12px;
-  font-weight: 700;
-  cursor: pointer;
+.cta {
+  justify-content: center;
+  width: 100%;
 }
 
 .error {
@@ -109,7 +97,7 @@ input {
 }
 
 .info {
-  color: #0c7a5a;
+  color: var(--color-primary-strong);
   font-weight: 600;
 }
 
@@ -119,7 +107,7 @@ input {
 }
 
 .alt a {
-  color: #0c7a5a;
+  color: var(--color-primary-strong);
   font-weight: 600;
   text-decoration: none;
 }

@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiCheckbox from '@/components/ui/UiCheckbox.vue'
+import UiChip from '@/components/ui/UiChip.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { gerarExercicios } from '@/services/flowise'
 import {
     createExercise,
@@ -7,8 +12,10 @@ import {
     fetchApprovedExercisesByModule,
     fetchExerciseExamplesByModule,
     fetchBooks,
+    fetchModulesByBook,
     fetchModules,
     updateModuleApproval,
+    updateBookApproval,
     type ExerciseExample,
     type Book,
     type Exercise,
@@ -19,7 +26,7 @@ import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
 
-type ExerciseType = 'multiple-choice' | 'true-false'
+type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
 type GeneratedExercise = {
     localId: string
@@ -61,6 +68,8 @@ const approvingMap = ref<Record<string, boolean>>({})
 const typeLabels: Record<ExerciseType, string> = {
     'multiple-choice': 'Escolha multipla',
     'true-false': 'Verdadeiro / Falso',
+    'fill-blanks': 'Preencher lacunas',
+    'ordering': 'Ordenar',
 }
 
 const selectedModule = computed(() =>
@@ -113,6 +122,8 @@ const groupedSections = computed<Section[]>(() => {
             grouped.set(moduleId, {
                 'multiple-choice': [],
                 'true-false': [],
+                'fill-blanks': [],
+                'ordering': [],
             })
         }
         grouped.get(moduleId)?.[exercise.exerciseType].push(exercise)
@@ -212,6 +223,21 @@ const syncModuleApproval = async (moduleId: number, approvedCount: number) => {
     try {
         await updateModuleApproval(moduleId, isApproved)
         setLocalModuleApproval(moduleId, isApproved)
+        const moduleItem = modules.value.find((item) => item.modules_id === moduleId)
+        if (moduleItem?.id_book) {
+            await syncBookApproval(moduleItem.id_book)
+        }
+    } catch (err) {
+        console.error(err)
+    }
+}
+
+const syncBookApproval = async (bookId: number) => {
+    try {
+        const moduleList = await fetchModulesByBook(bookId)
+        const hasModules = moduleList.length > 0
+        const isApproved = hasModules && moduleList.every((item) => item.minimum_exercises === true)
+        await updateBookApproval(bookId, isApproved)
     } catch (err) {
         console.error(err)
     }
@@ -634,82 +660,130 @@ onMounted(async () => {
 <template>
     <section class="generator">
         <header class="hero">
-            <div>
-                <p class="kicker">Laboratorio de exercicios</p>
-                <h1>Gerar exercicios para cada modulo</h1>
+            <div class="hero-text">
+                <UiChip label="Laboratorio de exercicios" variant="outline" />
+                <h1>Gerar exercicios com foco</h1>
                 <p class="subtitle">
-                    Um modulo fica aprovado quando tem pelo menos {{ APPROVAL_THRESHOLD }} exercicios aprovados.
+                    Escolhe um livro, define os modulos e gera questoes em lote. Um modulo fica aprovado com
+                    {{ APPROVAL_THRESHOLD }} exercicios aprovados.
                 </p>
+                <div class="hero-meta">
+                    <div class="meta-card">
+                        <span>Modulos selecionados</span>
+                        <strong>{{ selectedModuleIds.length }}</strong>
+                    </div>
+                    <div class="meta-card">
+                        <span>Maximo por modulo</span>
+                        <strong>{{ maxPerModule }}</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-steps">
+                <div class="step">
+                    <span>01</span>
+                    <p>Seleciona um livro</p>
+                </div>
+                <div class="step">
+                    <span>02</span>
+                    <p>Marca os modulos certos</p>
+                </div>
+                <div class="step">
+                    <span>03</span>
+                    <p>Gera e aprova exercicios</p>
+                </div>
             </div>
         </header>
 
-        <p v-if="isLoadingData" class="state">A carregar livros e modulos...</p>
-        <p v-else-if="error" class="state error">{{ error }}</p>
-        <p v-else-if="warning" class="state warning">{{ warning }}</p>
-        <p v-else-if="info" class="state info">{{ info }}</p>
+        <div class="state-stack">
+            <p v-if="isLoadingData" class="state">A carregar livros e modulos...</p>
+            <p v-else-if="error" class="state error">{{ error }}</p>
+            <p v-else-if="warning" class="state warning">{{ warning }}</p>
+            <p v-else-if="info" class="state info">{{ info }}</p>
+        </div>
 
-        <BookGrid :books="books" :selected-book-id="selectedBookId" @select="selectedBookId = $event" />
+        <div class="layout">
+            <div class="column">
+                <UiCard class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>1. Escolhe o livro</h2>
+                            <p class="meta">Seleciona o livro que queres trabalhar.</p>
+                        </div>
+                    </div>
+                    <BookGrid :books="books" :selected-book-id="selectedBookId" @select="selectedBookId = $event" />
+                </UiCard>
 
-        <ModuleGrid v-if="selectedBookId" :modules="filteredModules" :selected-module-ids="selectedModuleIds"
-            :active-module-id="selectedModuleId" @toggle="toggleModuleSelection" @active="selectedModuleId = $event" />
+                <UiCard v-if="selectedBookId" class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>2. Escolhe os modulos</h2>
+                            <p class="meta">Marca os modulos que vao receber novos exercicios.</p>
+                        </div>
+                    </div>
+                    <ModuleGrid :modules="filteredModules" :selected-module-ids="selectedModuleIds"
+                        :active-module-id="selectedModuleId" @toggle="toggleModuleSelection"
+                        @active="selectedModuleId = $event" />
+                </UiCard>
+            </div>
 
-        <section v-if="selectedBookId" class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Geracao em lote</h2>
-                    <p class="meta">
-                        {{ selectedModuleIds.length }} modulos selecionados
-                    </p>
-                </div>
+            <div class="column aside">
+                <UiCard v-if="selectedBookId" class="panel sticky">
+                    <div class="panel-header">
+                        <div>
+                            <h2>3. Geracao em lote</h2>
+                            <p class="meta">{{ selectedModuleIds.length }} modulos selecionados</p>
+                        </div>
+                    </div>
+                    <div class="selection-actions">
+                        <UiButton variant="outline" type="button" :disabled="!filteredModules.length"
+                            @click="selectAllModules">
+                            Selecionar todos
+                        </UiButton>
+                        <UiButton variant="ghost" type="button" :disabled="!selectedModuleIds.length"
+                            @click="clearSelectedModules">
+                            Limpar selecao
+                        </UiButton>
+                    </div>
+                    <div class="form-row">
+                        <div class="label">
+                            <span>Perguntas por modulo</span>
+                            <span class="hint">Maximo: {{ maxPerModule }}</span>
+                        </div>
+                        <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule"
+                            @update="countPerModule = Math.max(1, Number($event) || 1)" />
+                    </div>
+                    <div class="form-row">
+                        <label>Tipos de exercicio</label>
+                        <p class="hint">Escolha multipla + Verdadeiro/Falso</p>
+                    </div>
+                    <UiButton variant="primary" type="button" :disabled="!selectedModuleIds.length || isGenerating"
+                        @click="handleGenerate">
+                        Gerar exercicios (1 chamada)
+                    </UiButton>
+                </UiCard>
             </div>
-            <div class="selection-actions">
-                <button class="ghost" type="button" :disabled="!filteredModules.length" @click="selectAllModules">
-                    Selecionar todos
-                </button>
-                <button class="ghost" type="button" :disabled="!selectedModuleIds.length" @click="clearSelectedModules">
-                    Limpar selecao
-                </button>
-            </div>
-            <div class="form-row">
-                <label>
-                    Perguntas por modulo
-                    <span class="hint">Maximo: {{ maxPerModule }}</span>
-                </label>
-                <input type="number" min="1" :max="maxPerModule" v-model.number="countPerModule" />
-            </div>
-            <div class="form-row">
-                <label>Tipos de exercicio</label>
-                <p class="hint">Escolha multipla + Verdadeiro/Falso</p>
-            </div>
-            <button class="primary" type="button" :disabled="!selectedModuleIds.length || isGenerating"
-                @click="handleGenerate">
-                Gerar exercicios (1 chamada)
-            </button>
-        </section>
+        </div>
 
         <section v-if="approvedSummaries.length" class="module-panels">
-            <div v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id" class="panel">
+            <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id" class="panel">
                 <div class="panel-header">
                     <div>
                         <h2>{{ summary.moduleItem.module_title || 'Modulo' }}</h2>
-                        <p class="meta">
-                            Estado: {{ summary.isApproved ? 'Aprovado' : 'Por aprovar' }}
-                        </p>
+                        <p class="meta">Estado: {{ summary.isApproved ? 'Aprovado' : 'Por aprovar' }}</p>
                     </div>
-                    <span class="status-pill" :class="{ approved: summary.isApproved }">
-                        {{ summary.isApproved ? 'Aprovado' : 'Por aprovar' }}
-                    </span>
+                    <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
+                        :variant="summary.isApproved ? 'filled' : 'outline'" />
                 </div>
-                <label class="status-check">
-                    <input type="checkbox" :checked="summary.isApproved" disabled />
+                <div class="status-check">
+                    <UiCheckbox :model-value="summary.isApproved" disabled />
                     <div>
                         <strong>{{ summary.approvedCount }} / {{ summary.required }} aprovados</strong>
                         <p>Minimo necessario para aprovar o modulo</p>
                     </div>
-                </label>
+                </div>
                 <ApprovedExercisesList :exercises="summary.approved" :type-labels="typeLabels"
                     @remove="handleRemoveApproved" />
-            </div>
+            </UiCard>
         </section>
 
         <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels" :approving-map="approvingMap"
@@ -722,107 +796,213 @@ onMounted(async () => {
                 <div class="loading-spinner" aria-hidden="true"></div>
             </div>
         </div>
-
     </section>
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@400;600;700&display=swap');
-
 .generator {
     display: grid;
-    gap: 24px;
-    font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
-    color: #171717;
+    gap: var(--space-600);
+    color: var(--color-mirage-800);
 }
 
 .hero {
     display: grid;
-    gap: 10px;
-    padding: 24px;
-    border-radius: 22px;
-    background: linear-gradient(130deg, #fff6e6 0%, #f3fff4 55%, #f0f6ff 100%);
-    box-shadow: 0 20px 48px rgba(12, 122, 90, 0.1);
-    animation: fadeUp 0.6s ease;
+    gap: var(--space-400);
+    padding: var(--space-500);
+    border-radius: var(--radius-400);
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 }
 
 .hero h1 {
-    margin: 6px 0 10px;
-    font-family: 'Playfair Display', serif;
+    margin: 0;
+    font-family: var(--font-display);
     font-size: 30px;
 }
 
-.kicker {
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #0c7a5a;
-    font-weight: 700;
+.subtitle {
+    max-width: 560px;
+    color: var(--color-mirage-600);
+    margin: 0;
 }
 
-.subtitle {
-    max-width: 520px;
-    color: #505050;
+.hero-text {
+    display: grid;
+    gap: var(--space-200);
+}
+
+.hero-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-200);
+}
+
+.meta-card {
+    border: 2px solid var(--color-mirage-800);
+    border-radius: 14px;
+    padding: var(--space-200) var(--space-300);
+    background: var(--color-wild-100);
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    display: grid;
+    gap: 4px;
+}
+
+.meta-card span {
+    font-size: 12px;
+    color: var(--color-mirage-500);
+}
+
+.meta-card strong {
+    font-size: 18px;
+}
+
+.hero-steps {
+    display: grid;
+    gap: var(--space-200);
+}
+
+.step {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--space-200);
+    padding: var(--space-200) var(--space-300);
+    border-radius: 14px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    font-weight: 600;
+}
+
+.step span {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--color-mirage-500);
+}
+
+.step p {
+    margin: 0;
+}
+
+.state-stack {
+    display: grid;
+    gap: var(--space-200);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--space-500);
+    align-items: start;
+}
+
+.column {
+    display: grid;
+    gap: var(--space-400);
+}
+
+.aside .sticky {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-400));
+}
+
+.state {
+    padding: var(--space-200) var(--space-300);
+    border-radius: 12px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    font-weight: 600;
+}
+
+.state.error {
+    color: #b13b3b;
+    background: #fff2f2;
+}
+
+.state.info {
+    color: var(--color-deep-700);
+    background: var(--color-deep-100);
 }
 
 .state.warning {
     color: #8a5a00;
     background: #fff4dc;
-    border: 1px solid #f2d6a3;
 }
 
 .panel {
-    background: #ffffff;
-    padding: 22px;
-    border-radius: 20px;
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.06);
     display: grid;
-    gap: 18px;
+    gap: var(--space-300);
 }
 
 .selection-actions {
     display: flex;
-    gap: 12px;
+    gap: var(--space-200);
     flex-wrap: wrap;
 }
 
 .form-row {
     display: grid;
-    gap: 8px;
+    gap: var(--space-150);
 }
 
-.form-row label {
-    font-weight: 600;
+.form-row .label {
+    font-weight: 700;
     display: flex;
     align-items: baseline;
-    gap: 8px;
-}
-
-.form-row input {
-    border-radius: 12px;
-    border: 1px solid #d9d9d9;
-    padding: 10px 12px;
-    font-size: 14px;
+    justify-content: space-between;
+    gap: var(--space-200);
 }
 
 .hint {
     font-size: 12px;
-    color: #6c6c6c;
-    font-weight: 500;
+    color: var(--color-mirage-500);
+    font-weight: 600;
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-200);
     flex-wrap: wrap;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.panel-header .meta {
+    margin: 4px 0 0;
+    color: var(--color-mirage-600);
+}
+
+.status-check {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-200);
+    padding: var(--space-300);
+    border-radius: var(--radius-400);
+    align-items: center;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+}
+
+.status-check p {
+    margin: 4px 0 0;
+    color: var(--color-mirage-600);
+    font-size: 12px;
 }
 
 .loading-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(12, 24, 20, 0.55);
+    background: rgba(2, 29, 32, 0.35);
     display: grid;
     place-items: center;
     z-index: 40;
@@ -830,33 +1010,33 @@ onMounted(async () => {
 }
 
 .loading-card {
-    background: #ffffff;
-    border-radius: 18px;
-    padding: 28px 30px;
+    background: var(--color-wild-100);
+    border-radius: 16px;
+    padding: var(--space-500);
     display: grid;
-    gap: 16px;
+    gap: var(--space-300);
     text-align: center;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+    border: 2px solid var(--color-mirage-800);
+    box-shadow: 6px 6px 0 var(--color-shadow);
 }
 
 .loading-card h3 {
     margin: 0;
-    font-family: 'Playfair Display', serif;
-    font-size: 22px;
+    font-size: 20px;
 }
 
 .loading-progress {
     margin: 0;
-    font-size: 13px;
-    color: #5a5a5a;
+    font-size: 12px;
+    color: var(--color-mirage-600);
 }
 
 .loading-spinner {
     width: 44px;
     height: 44px;
     border-radius: 999px;
-    border: 4px solid #e6efe9;
-    border-top-color: #0c7a5a;
+    border: 4px solid var(--color-wild-300);
+    border-top-color: var(--color-deep-600);
     margin: 0 auto;
     animation: spin 1s linear infinite;
 }
@@ -871,111 +1051,23 @@ onMounted(async () => {
     }
 }
 
-.panel-header h2 {
-    margin: 0;
-}
-
-.panel-header .meta {
-    margin: 4px 0 0;
-    color: #555;
-}
-
-.status-pill {
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 12px;
-    background: #ffe6be;
-    color: #8a4c00;
-}
-
-.status-pill.approved {
-    background: #d6f2e6;
-    color: #0c7a5a;
-}
-
-.status-check {
+.module-panels {
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 16px;
-    background: #ffffff;
-    border: 1px solid #ececec;
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.05);
-    align-items: center;
-}
-
-.status-check input {
-    width: 18px;
-    height: 18px;
-}
-
-.status-check p {
-    margin: 4px 0 0;
-    color: #6f6f6f;
-    font-size: 12px;
-}
-
-.primary {
-    padding: 12px 16px;
-    border-radius: 14px;
-    border: none;
-    background: #0c7a5a;
-    color: #fff;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.ghost {
-    padding: 10px 14px;
-    border-radius: 14px;
-    border: 1px solid #d9d9d9;
-    background: #fff;
-    color: #333;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.ghost:disabled,
-.primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.state {
-    font-weight: 600;
-    color: #666;
-}
-
-.state.error {
-    color: #b13b3b;
-}
-
-.state.info {
-    color: #0c7a5a;
-}
-
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    gap: var(--space-400);
 }
 
 @media (max-width: 720px) {
     .hero {
+        padding: var(--space-400);
         grid-template-columns: 1fr;
     }
-}
 
-.module-panels {
-    display: grid;
-    gap: 20px;
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .aside .sticky {
+        position: static;
+    }
 }
 </style>

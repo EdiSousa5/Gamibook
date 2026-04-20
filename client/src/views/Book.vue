@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiChip from '@/components/ui/UiChip.vue'
 import {
   fetchApprovedModulesByBook,
   fetchBook,
@@ -58,14 +60,14 @@ watch(
         <span v-else>Livro</span>
       </div>
       <div class="hero-info">
-        <p class="kicker">Biblioteca</p>
+        <UiChip label="Biblioteca" variant="outline" />
         <h1>{{ book?.title || 'Sem titulo' }}</h1>
         <p class="meta">{{ book?.publisher || 'Sem editora' }}</p>
         <p class="description">{{ book?.description || 'Sem descricao.' }}</p>
       </div>
     </header>
 
-    <section class="panel">
+    <UiCard class="panel">
       <div class="panel-header">
         <h2>Escolhe um modulo</h2>
         <p>Seleciona o modulo para ver os exercicios.</p>
@@ -75,7 +77,7 @@ watch(
       <div v-else-if="approvedModules.length" class="module-grid">
         <RouterLink v-for="module in approvedModules" :key="module.modules_id" class="module-card"
           :to="`/book/${bookId}/module/${module.modules_id}`">
-          <div class="module-order">{{ module.order_number || '-' }}</div>
+          <UiChip :label="String(module.order_number || '-')" variant="filled" />
           <div>
             <h3>{{ module.module_title || 'Sem titulo' }}</h3>
             <p>{{ module.additional_description || 'Sem descricao' }}</p>
@@ -83,7 +85,7 @@ watch(
         </RouterLink>
       </div>
       <p v-else class="state">Sem modulos aprovados para este livro.</p>
-    </section>
+    </UiCard>
   </section>
 </template>
 
@@ -108,13 +110,6 @@ watch(
   gap: 6px;
 }
 
-.kicker {
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #0c7a5a;
-  font-weight: 700;
-}
 
 .cover {
   width: 110px;
@@ -144,10 +139,6 @@ watch(
 }
 
 .panel {
-  background: #ffffff;
-  padding: 22px;
-  border-radius: 18px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
   display: grid;
   gap: 14px;
 }
@@ -194,16 +185,6 @@ watch(
   font-size: 12px;
 }
 
-.module-order {
-  min-width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #0c7a5a;
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
 
 .state {
   margin-top: 12px;

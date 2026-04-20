@@ -382,6 +382,22 @@ export const updateModuleApproval = async (moduleId: number, isApproved: boolean
   return (data?.data ?? data) as Module
 }
 
+export const updateBookApproval = async (bookId: number, isApproved: boolean) => {
+  const response = await authFetch(`/items/books/${bookId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_approved: isApproved }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Update book failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as Book
+}
+
 export const deleteExercise = async (exerciseId: number) => {
   const response = await authFetch(`/items/exercises/${exerciseId}`, {
     method: 'DELETE',
