@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 import type { Exercise } from '@/services/directus'
 
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
@@ -25,32 +28,28 @@ const getQuestion = (exercise: Exercise) => {
 </script>
 
 <template>
-    <section class="panel">
+    <UiCard class="panel">
         <div class="panel-header">
             <h2>Exercicios aprovados</h2>
             <p>Remove exercicios se precisares de ajustar o modulo.</p>
         </div>
         <div v-if="exercises.length" class="grid">
-            <article v-for="exercise in exercises" :key="exercise.exercise_id" class="card">
+            <UiCard v-for="exercise in exercises" :key="exercise.exercise_id" class="card">
                 <div class="top">
-                    <span class="badge">{{ typeLabels[exercise.type || 'multiple-choice'] }}</span>
+                    <UiBadge :label="typeLabels[exercise.type || 'multiple-choice']" />
                 </div>
                 <p class="question">{{ getQuestion(exercise) }}</p>
                 <div class="meta">
-                    <button class="ghost" type="button" @click="$emit('remove', exercise)">Remover</button>
+                    <UiButton variant="ghost" type="button" @click="$emit('remove', exercise)">Remover</UiButton>
                 </div>
-            </article>
+            </UiCard>
         </div>
         <p v-else class="state">Sem exercicios aprovados neste modulo.</p>
-    </section>
+    </UiCard>
 </template>
 
 <style scoped>
 .panel {
-    background: #ffffff;
-    padding: 22px;
-    border-radius: 20px;
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.06);
     display: grid;
     gap: 18px;
 }
@@ -76,11 +75,6 @@ const getQuestion = (exercise: Exercise) => {
 }
 
 .card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 14px;
-    border: 1px solid #e7e7e7;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
     display: grid;
     gap: 8px;
 }
@@ -91,14 +85,6 @@ const getQuestion = (exercise: Exercise) => {
     align-items: center;
 }
 
-.badge {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #ffe6be;
-    color: #8a4c00;
-}
 
 .question {
     margin: 0;
@@ -113,14 +99,6 @@ const getQuestion = (exercise: Exercise) => {
     color: #3a3a3a;
 }
 
-.ghost {
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid #d0d0d0;
-    background: transparent;
-    font-weight: 600;
-    cursor: pointer;
-}
 
 .state {
     font-weight: 600;

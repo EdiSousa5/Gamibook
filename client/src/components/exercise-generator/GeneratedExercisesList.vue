@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiChip from '@/components/ui/UiChip.vue'
 
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
@@ -32,7 +36,7 @@ const getOptionLabel = (value: string) => String(value || '').trim()
 const getOptionLetter = (value: string) => {
     const trimmed = getOptionLabel(value)
     const match = trimmed.match(/^([A-D])\)/i)
-    return match ? match[1].toUpperCase() : ''
+    return match?.[1] ? match[1].toUpperCase() : ''
 }
 
 const isOptionCorrect = (option: string, correct: string) => {
@@ -59,15 +63,15 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
         <div v-for="section in sections" :key="String(section.moduleId)" class="group">
             <div class="module-header">
                 <h3>{{ section.moduleTitle }}</h3>
-                <span class="chip">Modulo {{ section.moduleId ?? '-' }}</span>
+                <UiChip :label="`Modulo ${section.moduleId ?? '-'}`" variant="outline" />
             </div>
             <div v-for="typeSection in section.types" :key="`${section.moduleId}-${typeSection.type}`">
                 <h4>{{ typeLabels[typeSection.type] }}</h4>
                 <div class="grid">
-                    <article v-for="(exercise, index) in typeSection.items" :key="exercise.localId" class="card"
+                    <UiCard v-for="(exercise, index) in typeSection.items" :key="exercise.localId" class="card"
                         :style="{ '--i': index }">
                         <header>
-                            <span class="chip">Exercicio {{ index + 1 }}</span>
+                            <UiBadge :label="`Exercicio ${index + 1}`" />
                             <div>
                                 <p class="question">{{ exercise.questionText }}</p>
                                 <p class="hint">{{ typeLabels[exercise.exerciseType] }}</p>
@@ -83,7 +87,7 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                                     </li>
                                 </ul>
                                 <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta || 'Sem resposta'
-                                    }}</p>
+                                }}</p>
                                 <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
                                 </p>
                             </template>
@@ -117,7 +121,7 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                                         <p><span>Itens desordenados</span></p>
                                         <ol>
                                             <li v-for="item in exercise.content.itens_desordenados" :key="item">{{ item
-                                            }}</li>
+                                                }}</li>
                                         </ol>
                                     </div>
                                     <div>
@@ -131,13 +135,14 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                         </div>
 
                         <footer>
-                            <button class="ghost" type="button" @click="$emit('reject', exercise)">Rejeitar</button>
-                            <button class="approve" type="button" :disabled="approvingMap[exercise.localId]"
+                            <UiButton variant="ghost" type="button" @click="$emit('reject', exercise)">Rejeitar
+                            </UiButton>
+                            <UiButton variant="primary" type="button" :disabled="approvingMap[exercise.localId]"
                                 @click="$emit('approve', exercise)">
                                 {{ approvingMap[exercise.localId] ? 'A guardar...' : 'Aprovar' }}
-                            </button>
+                            </UiButton>
                         </footer>
-                    </article>
+                    </UiCard>
                 </div>
             </div>
         </div>
@@ -182,15 +187,10 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
 .grid {
     display: grid;
     gap: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: 1fr;
 }
 
 .card {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 18px;
-    border: 1px solid #ececec;
-    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.06);
     display: grid;
     gap: 14px;
     animation: fadeUp 0.5s ease;
@@ -203,40 +203,10 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
     gap: 8px;
 }
 
-.chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    background: #ffe6be;
-    color: #8a4c00;
-    width: fit-content;
-}
-
-.question {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.hint {
-    margin: 0;
-    color: #6f6f6f;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.content {
-    display: grid;
-    gap: 10px;
-    color: #2c2c2c;
-}
-
-.content span {
-    font-weight: 700;
+footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
 .content ul,
@@ -308,6 +278,22 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@media (max-width: 720px) {
+    .module-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .card footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ordering {
+        grid-template-columns: 1fr;
     }
 }
 </style>

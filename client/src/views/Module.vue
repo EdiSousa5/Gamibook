@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiChip from '@/components/ui/UiChip.vue'
 import {
     fetchApprovedExerciseCountsByModule,
     fetchBook,
@@ -89,17 +92,17 @@ watch(
                 <span v-else>Livro</span>
             </div>
             <div class="hero-info">
-                <p class="kicker">Exercicios</p>
+                <UiChip label="Exercicios" variant="outline" />
                 <h1>{{ moduleData?.module_title || `Modulo ${moduleId}` }}</h1>
                 <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
                 <p class="description">{{ moduleData?.additional_description || 'Sem descricao.' }}</p>
             </div>
         </header>
 
-        <section class="panel">
+        <UiCard class="panel">
             <div class="panel-header">
                 <h2>Exercicios do modulo</h2>
-                <p>{{ approvedCount }} / {{ requiredCount }} exercicios aprovados</p>
+                <UiChip :label="`${approvedCount} / ${requiredCount} aprovados`" />
             </div>
 
             <p v-if="isLoading" class="state">A carregar exercicios...</p>
@@ -108,10 +111,10 @@ watch(
                 Este modulo ainda nao tem exercicios aprovados suficientes para ficar disponivel.
             </p>
             <div v-else-if="exercises.length" class="exercise-grid">
-                <article v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-card">
+                <UiCard v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-card">
                     <div class="exercise-top">
-                        <span class="badge">{{ exercise.type || 'exercicio' }}</span>
-                        <span class="points">{{ exercise.points || 0 }} XP</span>
+                        <UiBadge :label="exercise.type || 'exercicio'" />
+                        <UiChip :label="`${exercise.points || 0} XP`" variant="outline" />
                     </div>
                     <h3>{{ getQuestion(exercise) }}</h3>
                     <div class="content">
@@ -138,10 +141,10 @@ watch(
                             </ol>
                         </template>
                     </div>
-                </article>
+                </UiCard>
             </div>
             <p v-else class="state">Sem exercicios aprovados para este modulo.</p>
-        </section>
+        </UiCard>
     </section>
 </template>
 
@@ -166,13 +169,6 @@ watch(
     gap: 6px;
 }
 
-.kicker {
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #0c7a5a;
-    font-weight: 700;
-}
 
 .cover {
     width: 110px;
@@ -201,10 +197,6 @@ watch(
 }
 
 .panel {
-    background: #ffffff;
-    padding: 22px;
-    border-radius: 18px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
     display: grid;
     gap: 18px;
 }
@@ -221,11 +213,6 @@ watch(
 }
 
 .exercise-card {
-    background: #ffffff;
-    border-radius: 18px;
-    padding: 16px;
-    border: 1px solid #e7e7e7;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
     display: grid;
     gap: 10px;
 }
@@ -236,19 +223,6 @@ watch(
     align-items: center;
 }
 
-.badge {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #ffe6be;
-    color: #8a4c00;
-}
-
-.points {
-    font-weight: 700;
-    color: #0c7a5a;
-}
 
 .content ul,
 .content ol {

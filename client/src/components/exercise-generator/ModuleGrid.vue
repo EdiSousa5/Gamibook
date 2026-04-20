@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import UiCard from '@/components/ui/UiCard.vue'
+import UiChip from '@/components/ui/UiChip.vue'
 import type { Module } from '@/services/directus'
 
 type Props = {
@@ -19,14 +21,14 @@ defineEmits<{ toggle: [number]; active: [number] }>()
             <p>Seleciona um ou mais modulos para gerar exercicios.</p>
         </div>
         <div class="grid">
-            <button v-for="moduleItem in modules" :key="moduleItem.modules_id" class="card" :class="{
+            <UiCard v-for="moduleItem in modules" :key="moduleItem.modules_id" class="card" :class="{
                 selected: selectedModuleIds.includes(moduleItem.modules_id),
                 active: moduleItem.modules_id === activeModuleId,
-            }" type="button" @click="() => {
+            }" role="button" tabindex="0" @click="() => {
                 $emit('toggle', moduleItem.modules_id)
                 $emit('active', moduleItem.modules_id)
             }">
-                <div class="order">{{ moduleItem.order_number || '-' }}</div>
+                <UiChip :label="String(moduleItem.order_number || '-')" variant="filled" />
                 <div class="info">
                     <h3>{{ moduleItem.module_title || `Modulo ${moduleItem.modules_id}` }}</h3>
                     <p>{{ moduleItem.additional_description || 'Sem descricao' }}</p>
@@ -35,7 +37,7 @@ defineEmits<{ toggle: [number]; active: [number] }>()
                 <div class="check" aria-hidden="true">
                     <span v-if="selectedModuleIds.includes(moduleItem.modules_id)">✓</span>
                 </div>
-            </button>
+            </UiCard>
         </div>
     </section>
 </template>
@@ -70,13 +72,8 @@ defineEmits<{ toggle: [number]; active: [number] }>()
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: 14px;
-    padding: 14px;
-    border-radius: 18px;
-    border: 2px solid transparent;
-    background: #ffffff;
     cursor: pointer;
     text-align: left;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     align-items: center;
 }
@@ -96,16 +93,6 @@ defineEmits<{ toggle: [number]; active: [number] }>()
     box-shadow: 0 18px 32px rgba(13, 92, 145, 0.2);
 }
 
-.order {
-    min-width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    background: #0c7a5a;
-    color: #ffffff;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-}
 
 .info {
     display: grid;

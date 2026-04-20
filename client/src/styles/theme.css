@@ -1,0 +1,152 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+:root {
+  --color-deep-100: #e8f5f4;
+  --color-deep-200: #cbe7e5;
+  --color-deep-300: #a7d2cf;
+  --color-deep-400: #7fb8b4;
+  --color-deep-500: #4e9d98;
+  --color-deep-600: #2e7f7b;
+  --color-deep-700: #075056;
+  --color-deep-800: #053e43;
+  --color-deep-900: #032e32;
+  --color-deep-1000: #021d20;
+
+  --color-teal-100: #e2f1ef;
+  --color-teal-200: #c3e1dd;
+  --color-teal-300: #9fcbc7;
+  --color-teal-400: #74b0aa;
+  --color-teal-500: #48958f;
+  --color-teal-600: #257b74;
+  --color-teal-700: #0d584f;
+  --color-teal-800: #0a4540;
+  --color-teal-900: #06322e;
+  --color-teal-1000: #041f1d;
+
+  --color-amber-100: #fff0e7;
+  --color-amber-200: #ffdcc7;
+  --color-amber-300: #ffc29f;
+  --color-amber-400: #ffa874;
+  --color-amber-500: #ff8a50;
+  --color-amber-600: #ff7a3a;
+  --color-amber-700: #e8611e;
+  --color-amber-800: #ba4c15;
+  --color-amber-900: #8c370d;
+  --color-amber-1000: #5e2306;
+
+  --color-pumpkin-100: #fff4e0;
+  --color-pumpkin-200: #ffe4b8;
+  --color-pumpkin-300: #ffd28a;
+  --color-pumpkin-400: #ffbd63;
+  --color-pumpkin-500: #ffaa51;
+  --color-pumpkin-600: #ffa74f;
+  --color-pumpkin-700: #e38c35;
+  --color-pumpkin-800: #b66c24;
+  --color-pumpkin-900: #874e17;
+  --color-pumpkin-1000: #5a320c;
+
+  --color-mirage-100: #e6ebed;
+  --color-mirage-200: #c9d3d8;
+  --color-mirage-300: #a8b5bc;
+  --color-mirage-400: #7d8f98;
+  --color-mirage-500: #52656f;
+  --color-mirage-600: #34434d;
+  --color-mirage-700: #22313a;
+  --color-mirage-800: #1a262e;
+  --color-mirage-900: #16232b;
+  --color-mirage-1000: #0e161b;
+
+  --color-wild-100: #ffffff;
+  --color-wild-200: #f9fbfb;
+  --color-wild-300: #f3f7f8;
+  --color-wild-400: #ecf2f3;
+  --color-wild-500: #e4eef0;
+  --color-wild-600: #d6e4e7;
+  --color-wild-700: #c2d1d5;
+  --color-wild-800: #aab9be;
+  --color-wild-900: #8b9ba1;
+  --color-wild-1000: #65747a;
+
+  --color-brand-black: #1a1a1a;
+  --color-brand-white: #f5f5f5;
+
+  --space-0: 0;
+  --space-050: 2px;
+  --space-100: 4px;
+  --space-150: 6px;
+  --space-200: 8px;
+  --space-300: 12px;
+  --space-400: 16px;
+  --space-500: 24px;
+  --space-600: 32px;
+  --space-700: 48px;
+  --space-800: 64px;
+  --space-900: 96px;
+  --space-1000: 128px;
+
+  --radius-100: 4px;
+  --radius-200: 8px;
+  --radius-400: 16px;
+  --radius-full: 9999px;
+
+  --stroke-100: 1px;
+  --stroke-150: 1.5px;
+  --stroke-200: 2px;
+  --icon-stroke: 2.25;
+
+  --font-base: 'Manrope', 'Segoe UI', sans-serif;
+  --font-display: 'Outfit', 'Segoe UI', sans-serif;
+
+  --color-surface: var(--color-wild-200);
+  --color-surface-strong: var(--color-wild-100);
+  --color-surface-muted: var(--color-wild-500);
+  --color-text: var(--color-brand-black);
+  --color-text-muted: var(--color-mirage-500);
+  --color-primary: var(--color-deep-600);
+  --color-primary-strong: var(--color-deep-700);
+  --color-accent: var(--color-amber-600);
+  --color-accent-strong: var(--color-amber-700);
+  --color-shadow: var(--color-deep-400);
+  --shadow-soft: 0 12px 28px rgba(2, 29, 32, 0.08);
+  --shadow-strong: 0 18px 36px rgba(2, 29, 32, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-base);
+  color: var(--color-text);
+  background:
+    radial-gradient(circle at 15% 10%, var(--color-deep-300), transparent 55%),
+    radial-gradient(circle at 90% 20%, var(--color-deep-500), transparent 45%),
+    linear-gradient(160deg, var(--color-deep-100), var(--color-wild-400));
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+.brand {
+  font-family: var(--font-display);
+  letter-spacing: 0.2px;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
