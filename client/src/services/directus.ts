@@ -33,7 +33,7 @@ export type Module = {
   id_book?: number | null
   order_number?: number | null
   module_title?: string | null
-  minimum_exercises?: boolean | null
+  minimum_exercises?: boolean | number | null
   additional_description?: string | null
   status?: 'draft' | 'approved' | 'unapproved'
 }
@@ -50,6 +50,19 @@ export type Exercise = {
 
 export type ExerciseExample = Pick<Exercise, 'type' | 'status' | 'content'> & {
   question_text?: string
+}
+
+export type UserExercise = {
+  id_user_exercises?: number
+  user_id?: string | User
+  exercise_id?: number | Exercise
+  module_id?: number | Module
+  is_correct?: boolean | null
+  attempts?: number | null
+  points_earned?: number | null
+  time_spent?: number | null
+  date?: string | null
+  date_updated?: string | null
 }
 
 export type UserBook = {
@@ -205,6 +218,84 @@ export const fetchExercisesByModule = async (moduleId: number) => {
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as Exercise[]
+}
+
+export const fetchUserExerciseCountsByModule = async (
+  userId: string,
+  moduleId: number,
+  onlyCorrect = false,
+) => {
+  const params = new URLSearchParams({
+    fields: 'id_user_exercises',
+    limit: '-1',
+  })
+  params.set('filter[user_id][_eq]', String(userId))
+  params.set('filter[module_id][_eq]', String(moduleId))
+  if (onlyCorrect) {
+    params.set('filter[is_correct][_eq]', 'true')
+  }
+
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user exercises failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  const items = (data?.data ?? []) as UserExercise[]
+  return items.length
+}
+
+export const fetchUserExercisesByModule = async (userId: string, moduleId: number) => {
+  const params = new URLSearchParams({
+    fields: 'id_user_exercises,exercise_id,is_correct,attempts,points_earned,time_spent',
+    limit: '-1',
+  })
+  params.set('filter[user_id][_eq]', String(userId))
+  params.set('filter[module_id][_eq]', String(moduleId))
+
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user exercises failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as UserExercise[]
+}
+
+export const createUserExercise = async (payload: Partial<UserExercise>) => {
+  const response = await authFetch('/items/user_exercises', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Create user exercise failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as UserExercise
+}
+
+export const updateUserExercise = async (recordId: number, payload: Partial<UserExercise>) => {
+  const response = await authFetch(`/items/user_exercises/${recordId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Update user exercise failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as UserExercise
 }
 
 export const fetchExerciseExamplesByModule = async (moduleId: number, limit = 12) => {

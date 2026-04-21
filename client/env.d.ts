@@ -11,7 +11,6 @@ declare module '@/services/flowise' {
   export type GerarExerciciosParams = {
     tituloLivro: string
     modulos: FlowiseModulePayload[] | string
-    tipoExercicio?: string
     numeroPerguntas?: number
   }
 

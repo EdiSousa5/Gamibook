@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import UiBadge from '@/components/ui/UiBadge.vue'
+import { computed, onMounted, ref } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import UiCard from '@/components/ui/UiCard.vue'
-import UiChip from '@/components/ui/UiChip.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
+import { RouterLink } from 'vue-router'
 import {
   fetchApprovedBooks,
   fetchBooks,
-  fetchExercisesByModule,
-  fetchModulesByBook,
   fetchUserById,
   fetchUserBooks,
   getAssetUrl,
   isAdminUser,
-  updateUser,
   type Book,
-  type Exercise,
-  type Module,
   type User,
   type UserBook,
 } from '../services/directus'
@@ -28,13 +20,6 @@ const user = ref<User | null>(null)
 const error = ref('')
 const isLoading = ref(false)
 const selectedBookId = ref<number | null>(null)
-const modules = ref<Module[]>([])
-const selectedModuleId = ref<number | null>(null)
-const exercises = ref<Exercise[]>([])
-const completedExerciseIds = ref<number[]>([])
-const isLoadingModules = ref(false)
-const isLoadingExercises = ref(false)
-const pointsByExercise = 10
 
 const isAdmin = computed(() => isAdminUser(user.value))
 
@@ -65,14 +50,6 @@ const otherOwnedBooks = computed(() =>
     : ownedBooks.value,
 )
 
-const moduleOptions = computed(() =>
-  modules.value.map((moduleItem) => ({
-    label: moduleItem.module_title || `Modulo ${moduleItem.modules_id}`,
-    value: moduleItem.modules_id,
-  })),
-)
-
-
 onMounted(async () => {
   const storedId = localStorage.getItem('gb_user_id')
   if (!storedId) return
@@ -94,59 +71,6 @@ onMounted(async () => {
   }
 })
 
-const loadModulesForBook = async (bookId: number | null) => {
-  if (!bookId) {
-    modules.value = []
-    selectedModuleId.value = null
-    return
-  }
-  isLoadingModules.value = true
-  try {
-    modules.value = await fetchModulesByBook(bookId)
-    selectedModuleId.value = modules.value[0]?.modules_id ?? null
-  } catch {
-    error.value = 'Nao foi possivel carregar os modulos do livro.'
-  } finally {
-    isLoadingModules.value = false
-  }
-}
-
-const loadExercisesForModule = async (moduleId: number | null) => {
-  if (!moduleId) {
-    exercises.value = []
-    return
-  }
-  isLoadingExercises.value = true
-  try {
-    exercises.value = await fetchExercisesByModule(moduleId)
-  } catch {
-    error.value = 'Nao foi possivel carregar os exercicios.'
-  } finally {
-    isLoadingExercises.value = false
-  }
-}
-
-const completeExercise = async (exercise: Exercise) => {
-  if (!exercise.exercise_id || !user.value?.id) return
-  if (completedExerciseIds.value.includes(exercise.exercise_id)) return
-  const nextPoints = (user.value.points ?? 0) + pointsByExercise
-  try {
-    const updated = await updateUser(user.value.id, { points: nextPoints })
-    user.value = updated
-    completedExerciseIds.value = [...completedExerciseIds.value, exercise.exercise_id]
-    window.dispatchEvent(new Event('gb-auth-changed'))
-  } catch {
-    error.value = 'Nao foi possivel atualizar os pontos.'
-  }
-}
-
-watch(selectedBookId, (value) => {
-  loadModulesForBook(value)
-})
-
-watch(selectedModuleId, (value) => {
-  loadExercisesForModule(value)
-})
 </script>
 
 <template>
@@ -168,7 +92,9 @@ watch(selectedModuleId, (value) => {
             <p class="eyebrow">Livro selecionado</p>
             <h2>{{ featuredBook?.title || 'Sem titulo' }}</h2>
             <p class="meta">{{ featuredBook?.publisher || 'Sem editora' }}</p>
-            <UiButton size="sm" variant="outline">Fazer exercicios</UiButton>
+            <RouterLink v-if="featuredBook" :to="`/book/${featuredBook.book_id}`">
+              <UiButton size="sm" variant="outline">Fazer exercicios</UiButton>
+            </RouterLink>
           </div>
           <div class="featured-cover" :class="{ empty: !featuredBook?.cover_img }">
             <img v-if="featuredBook?.cover_img" :src="getAssetUrl(featuredBook.cover_img)" alt="" />
@@ -208,36 +134,6 @@ watch(selectedModuleId, (value) => {
       </section>
     </div>
     <p v-else class="state">Sem livros associados.</p>
-
-    <section class="module-exercises">
-      <h2>Exercicios do modulo</h2>
-      <p class="meta">Escolhe um modulo e completa exercicios para ganhar pontos.</p>
-      <div class="picker">
-        <UiSelect label="Modulo" :options="moduleOptions" :model-value="selectedModuleId"
-          :disabled="!selectedBookId || isLoadingModules" @update="selectedModuleId = $event ? Number($event) : null" />
-        <span class="meta" v-if="selectedBook">Livro: {{ selectedBook.title }}</span>
-      </div>
-
-      <p v-if="isLoadingModules" class="state">A carregar modulos...</p>
-      <p v-else-if="isLoadingExercises" class="state">A carregar exercicios...</p>
-
-      <div v-else-if="exercises.length" class="exercise-grid">
-        <UiCard v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-card">
-          <div class="exercise-top">
-            <UiBadge :label="exercise.type || 'exercicio'" />
-            <UiChip :label="`+${pointsByExercise} XP`" variant="outline" />
-          </div>
-          <p class="question">
-            {{ (exercise.content as any)?.pergunta || (exercise.content as any)?.question || 'Pergunta indisponivel' }}
-          </p>
-          <UiButton variant="ghost" type="button" :disabled="completedExerciseIds.includes(exercise.exercise_id || 0)"
-            @click="completeExercise(exercise)">
-            {{ completedExerciseIds.includes(exercise.exercise_id || 0) ? 'Concluido' : 'Concluir' }}
-          </UiButton>
-        </UiCard>
-      </div>
-      <p v-else class="state">Sem exercicios disponiveis.</p>
-    </section>
   </section>
 </template>
 
@@ -484,38 +380,6 @@ watch(selectedModuleId, (value) => {
 
 .error {
   color: var(--color-amber-700);
-}
-
-.module-exercises {
-  display: grid;
-  gap: var(--space-300);
-}
-
-.picker {
-  display: grid;
-  gap: 10px;
-}
-
-.exercise-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.exercise-card {
-  display: grid;
-  gap: 10px;
-}
-
-.exercise-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.question {
-  font-weight: 600;
 }
 
 @keyframes shelfFadeUp {
