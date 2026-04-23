@@ -91,7 +91,7 @@ onMounted(async () => {
           <div class="featured-info">
             <p class="eyebrow">Livro selecionado</p>
             <h2>{{ featuredBook?.title || 'Sem titulo' }}</h2>
-            <p class="meta">{{ featuredBook?.publisher || 'Sem editora' }}</p>
+            <p class="meta">{{ (featuredBook as any)?.editora?.nome_editora || 'Sem editora' }}</p>
             <RouterLink v-if="featuredBook" :to="`/book/${featuredBook.book_id}`">
               <UiButton size="sm" variant="outline">Fazer exercicios</UiButton>
             </RouterLink>
@@ -113,6 +113,7 @@ onMounted(async () => {
               <img v-if="book.cover_img" :src="getAssetUrl(book.cover_img)" alt="" />
               <span v-else>Livro</span>
             </div>
+            <p class="shelf-meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
             <p class="shelf-title">{{ book.title || 'Sem titulo' }}</p>
           </button>
         </div>
@@ -127,6 +128,7 @@ onMounted(async () => {
               <img v-if="book.cover_img" :src="getAssetUrl(book.cover_img)" alt="" />
               <span v-else>Livro</span>
             </div>
+            <p class="shelf-meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
             <p class="shelf-title">{{ book.title || 'Sem titulo' }}</p>
           </div>
         </div>
@@ -343,6 +345,12 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-mirage-700);
+}
+
+.shelf-meta {
+  font-size: 11px;
+  color: var(--color-mirage-500);
+  margin: 0;
 }
 
 .shelf-base {

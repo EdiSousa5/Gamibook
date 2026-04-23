@@ -7,7 +7,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      # OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     volumes:
       - ./docker/flowise_data:/root/.flowise
     restart: unless-stopped

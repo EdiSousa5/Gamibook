@@ -6,6 +6,7 @@ import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { gerarExercicios } from '@/services/flowise'
+import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import {
     createExercise,
     deleteExercise,
@@ -46,6 +47,7 @@ type Section = {
 const APPROVAL_THRESHOLD = 5
 const MAX_TOTAL_QUESTIONS = 40
 const MAX_EXAMPLES_TOTAL = 12
+const MAX_SELECTED_MODULES = 4
 let exerciseSeed = 0
 
 const books = ref<Book[]>([])
@@ -67,6 +69,7 @@ const info = ref('')
 const warning = ref('')
 const progressLabel = ref('')
 const approvingMap = ref<Record<string, boolean>>({})
+const expandedModules = ref<Record<number, boolean>>({})
 
 const elapsedLabel = computed(() => {
     const minutes = Math.floor(elapsedSeconds.value / 60)
@@ -105,6 +108,9 @@ const maxPerModule = computed(() => {
     const total = Math.max(1, selectedModuleIds.value.length)
     return Math.max(1, Math.floor(MAX_TOTAL_QUESTIONS / total))
 })
+
+const totalQuestions = computed(() => countPerModule.value * selectedModuleIds.value.length)
+const isOverMaxTotal = computed(() => totalQuestions.value > MAX_TOTAL_QUESTIONS)
 
 const approvedSummaries = computed(() =>
     selectedModules.value.map((moduleItem) => {
@@ -367,20 +373,18 @@ const toggleModuleSelection = (moduleId: number) => {
         if (selectedModuleId.value === moduleId) {
             selectedModuleId.value = selectedModuleIds.value[0] ?? null
         }
+        if (selectedModuleIds.value.length <= MAX_SELECTED_MODULES) {
+            warning.value = ''
+        }
     } else {
+        if (selectedModuleIds.value.length >= MAX_SELECTED_MODULES) {
+            warning.value = `Só podes selecionar até ${MAX_SELECTED_MODULES} módulos de cada vez.`
+            return
+        }
         selectedModuleIds.value = [...selectedModuleIds.value, moduleId]
         selectedModuleId.value = moduleId
+        warning.value = ''
     }
-}
-
-const selectAllModules = () => {
-    selectedModuleIds.value = filteredModules.value.map((item) => item.modules_id)
-    selectedModuleId.value = selectedModuleIds.value[0] ?? null
-}
-
-const clearSelectedModules = () => {
-    selectedModuleIds.value = []
-    selectedModuleId.value = null
 }
 
 const formatExamples = (examples: ExerciseExample[]) => {
@@ -539,6 +543,10 @@ const handleGenerate = async () => {
         error.value = 'Define uma quantidade maior que zero.'
         return
     }
+    if (isOverMaxTotal.value) {
+        error.value = `O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`
+        return
+    }
     isGenerating.value = true
     elapsedSeconds.value = 0
     if (elapsedTimer) window.clearInterval(elapsedTimer)
@@ -654,6 +662,10 @@ const handleRemoveApproved = async (exercise: Exercise) => {
     }
 }
 
+const toggleModuleExpanded = (moduleId: number) => {
+    expandedModules.value[moduleId] = !expandedModules.value[moduleId]
+}
+
 watch(selectedModuleId, async () => {
     generatedExercises.value = []
 })
@@ -672,6 +684,7 @@ watch(selectedBookId, () => {
     generatedExercises.value = []
     approvedExercisesByModule.value = {}
     rawFlowiseResponse.value = ''
+    warning.value = ''
 })
 
 onMounted(async () => {
@@ -686,7 +699,9 @@ onMounted(async () => {
             <div class="hero-content">
                 <h1 class="hero-title">Gerador de Exercícios</h1>
                 <p class="hero-subtitle">
-                    Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por módulo.
+                    Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões
+                    estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por
+                    módulo.
                 </p>
             </div>
         </header>
@@ -727,11 +742,8 @@ onMounted(async () => {
                             <div class="step-indicator">2</div>
                             <div class="header-text">
                                 <h2>Seleciona os Módulos</h2>
-                                <p class="meta">Marca os módulos que precisam de novos exercícios.</p>
-                            </div>
-                            <div class="header-actions" v-if="filteredModules.length">
-                                <UiButton variant="ghost" size="small" @click="selectAllModules">Todos</UiButton>
-                                <UiButton variant="ghost" size="small" @click="clearSelectedModules">Nenhum</UiButton>
+                                <p class="meta">Marca até {{ MAX_SELECTED_MODULES }} módulos que precisam de novos
+                                    exercícios.</p>
                             </div>
                         </div>
                         <div class="panel-body">
@@ -745,34 +757,56 @@ onMounted(async () => {
                 <!-- Approved Modules Summary -->
                 <section v-if="approvedSummaries.length" class="approved-section">
                     <div class="section-title">
-                        <h3>Estado das Aprovações</h3>
+                        <div class="title-with-icon">
+                            <h3>Estado das Aprovações</h3>
+                        </div>
+                        <p>Acompanha o progresso de cada módulo selecionado.</p>
                     </div>
                     <div class="approved-grid">
-                        <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id" class="approved-card" :class="{ 'is-approved': summary.isApproved }">
-                            <div class="card-top">
-                                <h4>{{ summary.moduleItem.module_title || 'Módulo' }}</h4>
-                                <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'" :variant="summary.isApproved ? 'filled' : 'outline'" />
-                            </div>
-                            <div class="progress-area">
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill" :style="{ width: Math.min(100, (summary.approvedCount / summary.required) * 100) + '%' }"></div>
+                        <div v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
+                            class="approved-module-block" :class="{ 'is-approved': summary.isApproved }">
+                            <div class="block-header" role="button" tabindex="0"
+                                @click="toggleModuleExpanded(summary.moduleItem.modules_id)">
+                                <div class="block-title">
+                                    <h4>{{ summary.moduleItem.module_title || 'Módulo' }}</h4>
+                                    <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
+                                        :variant="summary.isApproved ? 'filled' : 'outline'" />
                                 </div>
-                                <p class="progress-text"><strong>{{ summary.approvedCount }} / {{ summary.required }}</strong> aprovados</p>
+                                <div class="progress-area">
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill"
+                                            :style="{ width: Math.min(100, (summary.approvedCount / summary.required) * 100) + '%' }">
+                                        </div>
+                                    </div>
+                                    <p class="progress-text">
+                                        <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
+                                    </p>
+                                    <ChevronDownIcon class="accordion-icon" :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }" aria-hidden="true" />
+                                </div>
                             </div>
-                            <div class="approved-list-container" v-if="summary.approved.length">
-                                <ApprovedExercisesList :exercises="summary.approved" :type-labels="typeLabels" @remove="handleRemoveApproved" />
+                            <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[summary.moduleItem.modules_id] }">
+                                <div class="accordion-content">
+                                    <div class="approved-list-container">
+                                        <ApprovedExercisesList v-if="summary.approved.length" 
+                                            :exercises="summary.approved" :type-labels="typeLabels" @remove="handleRemoveApproved" />
+                                        <p v-else class="empty-approved">Sem exercícios aprovados neste módulo ainda.</p>
+                                    </div>
+                                </div>
                             </div>
-                        </UiCard>
+                        </div>
                     </div>
                 </section>
 
                 <!-- Generated Exercises -->
                 <div v-if="groupedSections.length" class="generated-section">
                     <div class="section-title">
-                        <h3>Exercícios Gerados</h3>
-                        <p>Revê e aprova as questões geradas pela IA.</p>
+                        <div class="title-with-icon">
+                            <h3>Exercícios Gerados pela IA</h3>
+                        </div>
+                        <p>Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
                     </div>
-                    <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels" :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
+                    <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels"
+                        :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
                 </div>
 
                 <!-- Raw Response -->
@@ -789,16 +823,21 @@ onMounted(async () => {
                         <div class="step-indicator">3</div>
                         <h2>Configuração</h2>
                     </div>
-                    
+
                     <div class="config-body" :class="{ 'is-disabled': !selectedModuleIds.length }">
                         <div class="config-group">
                             <div class="group-header">
                                 <label>Perguntas por Módulo</label>
                                 <span class="badge">Máx {{ maxPerModule }}</span>
                             </div>
-                            <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule" @update="countPerModule = Math.max(1, Number($event) || 1)" />
+                            <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule"
+                                @update="countPerModule = Math.max(1, Number($event) || 1)" />
+                            <p class="config-math" :class="{ 'is-warning': isOverMaxTotal }">
+                                Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIds.length }}
+                                (limite {{ MAX_TOTAL_QUESTIONS }})
+                            </p>
                         </div>
-                        
+
                         <div class="config-group">
                             <div class="group-header">
                                 <label>Tipos Suportados</label>
@@ -810,11 +849,15 @@ onMounted(async () => {
                         </div>
 
                         <div class="config-action">
-                            <UiButton variant="primary" size="large" class="generate-btn" :disabled="!selectedModuleIds.length || isGenerating" @click="handleGenerate">
+                            <UiButton variant="primary" size="md" class="generate-btn"
+                                :disabled="!selectedModuleIds.length || isGenerating || isOverMaxTotal"
+                                @click="handleGenerate">
                                 <span v-if="!isGenerating">Gerar Exercícios</span>
                                 <span v-else>A Gerar...</span>
                             </UiButton>
                             <p class="action-hint" v-if="!selectedModuleIds.length">Seleciona módulos para começar.</p>
+                            <p class="action-hint" v-else-if="isOverMaxTotal">Reduz o total para não ultrapassar o
+                                limite.</p>
                         </div>
                     </div>
                 </UiCard>
@@ -896,15 +939,29 @@ onMounted(async () => {
     box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-.alert-loading { background: var(--color-wild-200); }
-.alert-error { background: #fee2e2; color: #991b1b; }
-.alert-warning { background: #fef3c7; color: #92400e; }
-.alert-info { background: var(--color-deep-100); color: var(--color-deep-800); }
+.alert-loading {
+    background: var(--color-wild-200);
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.alert-info {
+    background: var(--color-deep-100);
+    color: var(--color-deep-800);
+}
 
 /* Workspace */
 .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: var(--space-500);
     align-items: start;
 }
@@ -1053,6 +1110,17 @@ onMounted(async () => {
     border-radius: var(--radius-full);
 }
 
+.config-math {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-mirage-600);
+    font-weight: 600;
+}
+
+.config-math.is-warning {
+    color: #8a5a00;
+}
+
 .types-list {
     display: flex;
     flex-wrap: wrap;
@@ -1078,8 +1146,8 @@ onMounted(async () => {
 
 .generate-btn {
     width: 100%;
-    height: 52px;
-    font-size: 16px;
+    height: 48px;
+    font-size: 15px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1094,7 +1162,20 @@ onMounted(async () => {
 
 /* Sections */
 .section-title {
-    margin-bottom: var(--space-300);
+    margin-bottom: var(--space-400);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-100);
+}
+
+.title-with-icon {
+    display: flex;
+    align-items: center;
+    gap: var(--space-200);
+}
+
+.title-with-icon .icon {
+    font-size: 24px;
 }
 
 .section-title h3 {
@@ -1104,62 +1185,133 @@ onMounted(async () => {
 }
 
 .section-title p {
-    margin: 4px 0 0;
+    margin: 0;
     color: var(--color-mirage-600);
+    font-size: 15px;
 }
 
 .approved-grid {
     display: grid;
-    gap: var(--space-400);
+    gap: var(--space-500);
 }
 
-.approved-card {
-    border-left: 6px solid var(--color-mirage-300);
+.approved-module-block {
+    background: var(--color-wild-50);
+    border: 2px solid var(--color-mirage-200);
+    border-radius: var(--radius-400);
+    overflow: hidden;
+    transition: border-color 0.3s ease;
 }
 
-.approved-card.is-approved {
-    border-left-color: var(--color-teal-500);
+.approved-module-block.is-approved {
+    border-color: var(--color-teal-500);
 }
 
-.card-top {
+.block-header {
+    padding: var(--space-400);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-300);
+    background: var(--color-wild-100);
+    border-bottom: 1px solid var(--color-mirage-100);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.block-header:hover {
+    background: var(--color-wild-200);
+}
+
+.approved-module-block.is-approved .block-header {
+    background: #f0faf4;
+    border-bottom-color: var(--color-teal-200);
+}
+
+.approved-module-block.is-approved .block-header:hover {
+    background: #e6f5eb;
+}
+
+.block-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-300);
 }
 
-.card-top h4 {
+.block-title h4 {
     margin: 0;
     font-size: 18px;
+    font-weight: 700;
+    color: var(--color-mirage-900);
 }
 
 .progress-area {
-    margin-bottom: var(--space-300);
+    display: flex;
+    align-items: center;
+    gap: var(--space-300);
 }
 
 .progress-bar-bg {
+    flex: 1;
     height: 8px;
     background: var(--color-mirage-100);
     border-radius: var(--radius-full);
     overflow: hidden;
-    margin-bottom: 8px;
 }
 
 .progress-bar-fill {
     height: 100%;
+    background: var(--color-deep-500);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.approved-module-block.is-approved .progress-bar-fill {
     background: var(--color-teal-500);
-    transition: width 0.3s ease;
 }
 
 .progress-text {
     margin: 0;
-    font-size: 13px;
-    color: var(--color-mirage-600);
+    font-size: 14px;
+    color: var(--color-mirage-700);
+    min-width: 48px;
+    text-align: right;
+}
+
+.accordion-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--color-mirage-500);
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-icon.is-rotated {
+    transform: rotate(180deg);
+}
+
+.accordion-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-wrapper.is-open {
+    grid-template-rows: 1fr;
+}
+
+.accordion-content {
+    overflow: hidden;
+    min-height: 0;
 }
 
 .approved-list-container {
-    border-top: 1px solid var(--color-mirage-100);
-    padding-top: var(--space-300);
+    padding: var(--space-400);
+    background: var(--color-wild-50);
+}
+
+.empty-approved {
+    margin: 0;
+    color: var(--color-mirage-500);
+    font-size: 14px;
 }
 
 /* Raw Panel */
@@ -1247,21 +1399,29 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Transitions */
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
     transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+
+.fade-enter-from,
+.fade-leave-to {
     opacity: 0;
 }
 
-.fade-slide-enter-active, .fade-slide-leave-active {
+.fade-slide-enter-active,
+.fade-slide-leave-active {
     transition: all 0.3s ease;
 }
-.fade-slide-enter-from, .fade-slide-leave-to {
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
     opacity: 0;
     transform: translateY(-10px);
 }
@@ -1271,7 +1431,7 @@ onMounted(async () => {
     .workspace {
         grid-template-columns: 1fr;
     }
-    
+
     .sidebar-column .sticky {
         position: static;
     }

@@ -66,16 +66,15 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                 <UiChip :label="`Modulo ${section.moduleId ?? '-'}`" variant="outline" />
             </div>
             <div v-for="typeSection in section.types" :key="`${section.moduleId}-${typeSection.type}`">
-                <h4>{{ typeLabels[typeSection.type] }}</h4>
                 <div class="grid">
                     <UiCard v-for="(exercise, index) in typeSection.items" :key="exercise.localId" class="card"
                         :style="{ '--i': index }">
                         <header>
-                            <UiBadge :label="`Exercicio ${index + 1}`" />
-                            <div>
-                                <p class="question">{{ exercise.questionText }}</p>
-                                <p class="hint">{{ typeLabels[exercise.exerciseType] }}</p>
+                            <div class="header-top">
+                                <UiBadge :label="`Exercicio ${index + 1}`" />
+                                <UiBadge :label="typeLabels[exercise.exerciseType]" />
                             </div>
+                            <p class="question">{{ exercise.questionText }}</p>
                         </header>
 
                         <div class="content">
@@ -86,23 +85,20 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                                         <strong>{{ option }}</strong>
                                     </li>
                                 </ul>
-                                <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta || 'Sem resposta'
-                                }}</p>
-                                <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
-                                </p>
+                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta || 'Semresposta' }}</p>
+                                <p><strong>Justificacao:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else-if="exercise.exerciseType === 'true-false'">
-                                <p><span>Resposta correta:</span> {{ exercise.content.resposta_correta ? 'Verdadeiro' :
-                                    'Falso' }}</p>
-                                <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
-                                </p>
+                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta ?
+                                    'Verdadeiro' : 'Falso' }}</p>
+                                <p><strong>Justificacao:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else-if="exercise.exerciseType === 'fill-blanks'">
-                                <p><span>Frase:</span> {{ exercise.questionText }}</p>
+                                <p><strong>Frase:</strong> {{ exercise.questionText }}</p>
                                 <div class="options">
-                                    <p><span>Opcoes</span></p>
+                                    <p><strong>Opcoes</strong></p>
                                     <ul>
                                         <li v-for="option in exercise.content.opcoes" :key="option"
                                             :class="{ correct: normalizeAnswers(exercise.content.respostas_corretas).includes(String(option)) }">
@@ -110,27 +106,25 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
                                         </li>
                                     </ul>
                                 </div>
-                                <p><span>Respostas corretas:</span> {{ getFillBlankAnswers(exercise) }}</p>
-                                <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
-                                </p>
+                                <p><strong>Respostas corretas:</strong> {{ getFillBlankAnswers(exercise) }}</p>
+                                <p><strong>Justificacao:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else>
                                 <div class="ordering">
                                     <div>
-                                        <p><span>Itens desordenados</span></p>
+                                        <p><strong>Itens desordenados</strong></p>
                                         <ol>
                                             <li v-for="item in exercise.content.itens_desordenados" :key="item">{{ item
                                                 }}</li>
                                         </ol>
                                     </div>
                                     <div>
-                                        <p><span>Ordem correta</span></p>
+                                        <p><strong>Ordem correta</strong></p>
                                         <p>{{ exercise.content.ordem_correta?.join(', ') || 'Sem ordem' }}</p>
                                     </div>
                                 </div>
-                                <p><span>Justificacao:</span> {{ exercise.content.justificacao || 'Sem justificacao.' }}
-                                </p>
+                                <p><strong>Justificacao:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
                             </template>
                         </div>
 
@@ -176,13 +170,6 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
     gap: 12px;
 }
 
-.group h4 {
-    margin: 0;
-    font-size: 14px;
-    color: #6f6f6f;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
 
 .grid {
     display: grid;
@@ -201,6 +188,13 @@ const getFillBlankAnswers = (exercise: GeneratedExercise) => {
 .card header {
     display: grid;
     gap: 8px;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 footer {

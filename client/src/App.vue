@@ -133,7 +133,6 @@ watch(
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  --sidebar-width: 260px;
   --topbar-height: 96px;
 }
 
@@ -143,11 +142,9 @@ watch(
 
 .content {
   flex: 1;
-  display: grid;
-  gap: var(--space-400);
-  padding: var(--space-500);
-  padding-left: calc(var(--sidebar-width) + var(--space-500));
-  padding-top: calc(var(--topbar-height) + var(--space-500));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .main {
@@ -155,6 +152,7 @@ watch(
   max-width: 1120px;
   width: 100%;
   margin: 0 auto;
+  padding: var(--space-400) var(--space-500) var(--space-500);
 }
 
 .main.landing {
@@ -185,16 +183,8 @@ watch(
     flex-direction: column;
   }
 
-  .content {
+  .main {
     padding: var(--space-400);
-    padding-left: var(--space-400);
-    padding-top: calc(var(--topbar-height) + var(--space-400));
-  }
-}
-
-@media (max-width: 900px) {
-  .app {
-    --sidebar-width: 200px;
   }
 }
 </style>

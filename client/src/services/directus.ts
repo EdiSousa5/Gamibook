@@ -8,6 +8,8 @@ export type Book = {
   ISBN?: string | null
   publish_date?: string | null
   publisher?: string
+  editora_id?: number | null
+  editora?: { id?: number; nome_editora?: string } | null
   is_approved?: boolean | null
   date_created?: string | null
   date_updated?: string | null
@@ -88,6 +90,20 @@ const USER_FIELDS = [
   'role.name',
 ]
 
+const BOOK_FIELDS = [
+  'book_id',
+  'title',
+  'cover_img',
+  'description',
+  'ISBN',
+  'publish_date',
+  'publisher',
+  'editora_id.*',
+  'is_approved',
+  'date_created',
+  'date_updated',
+]
+
 if (!directusUrl) {
   console.warn('VITE_DIRECTUS_URL is not set. Directus requests will fail.')
 }
@@ -152,23 +168,70 @@ const authFetch = async (path: string, options: RequestInit = {}) => {
   })
 }
 
-export const fetchBooks = () =>
-  directus.request(
+const attachEditorasToBooks = async (books: Book[]) => {
+  if (!books || books.length === 0) return books;
+
+  // Se o Directus já expandiu a relação (editora_id é um objeto), normalizamos para a propriedade 'editora'
+  books.forEach(book => {
+    if (typeof book.editora_id === 'object' && book.editora_id !== null) {
+      book.editora = book.editora_id;
+    }
+  });
+
+  // Verifica se há livros que tenham a editora_id como número (relação não expandida)
+  const needsFetching = books.some(b => typeof b.editora_id === 'number');
+  if (!needsFetching) return books;
+
+  try {
+    let editoras: any[] = [];
+    try {
+      const response = await authFetch('/items/editoras');
+      const data = await response.json().catch(() => null);
+      editoras = data?.data || [];
+    } catch {
+      editoras = await directus.request(readItems('editoras' as any)) as any[];
+    }
+
+    books.forEach(book => {
+      if (typeof book.editora_id === 'number') {
+        const ed = editoras.find((e: any) => e.id === book.editora_id || e.editora_id === book.editora_id);
+        if (ed) {
+          book.editora = ed;
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao carregar editoras:', err);
+  }
+  return books;
+}
+
+export const fetchBooks = async () => {
+  const books = await directus.request(
     readItems('books' as any, {
+      fields: BOOK_FIELDS,
       sort: ['-date_created'],
     }),
-  ) as Promise<Book[]>
+  ) as Book[];
+  return attachEditorasToBooks(books);
+}
 
-export const fetchApprovedBooks = () =>
-  directus.request(
+export const fetchApprovedBooks = async () => {
+  const books = await directus.request(
     readItems('books' as any, {
       filter: { is_approved: { _eq: true } },
+      fields: BOOK_FIELDS,
       sort: ['-date_created'],
     }),
-  ) as Promise<Book[]>
+  ) as Book[];
+  return attachEditorasToBooks(books);
+}
 
-export const fetchBook = (id: number | string) =>
-  directus.request(readItem('books' as any, id)) as Promise<Book>
+export const fetchBook = async (id: number | string) => {
+  const book = await directus.request(readItem('books' as any, id, { fields: BOOK_FIELDS })) as Book;
+  await attachEditorasToBooks([book]);
+  return book;
+}
 
 export const fetchModulesByBook = (bookId: number) =>
   directus.request(
@@ -321,7 +384,7 @@ export const fetchExerciseExamplesByModule = async (moduleId: number, limit = 12
 export const fetchUserBooks = async (userId: string) => {
   const params = new URLSearchParams({
     fields:
-      'user_book_id,book_id.book_id,book_id.title,book_id.publisher,book_id.cover_img,book_id.is_approved',
+      'user_book_id,book_id.*,book_id.editora_id.*',
     sort: '-user_book_id',
   })
   params.set('filter[user_id][_eq]', userId)
@@ -334,7 +397,12 @@ export const fetchUserBooks = async (userId: string) => {
   }
 
   const data = await response.json().catch(() => null)
-  return (data?.data ?? []) as UserBook[]
+  const userBooks = (data?.data ?? []) as UserBook[]
+
+  const booksToAttach = userBooks.map(ub => ub.book_id).filter(b => !!b) as Book[]
+  await attachEditorasToBooks(booksToAttach)
+
+  return userBooks
 }
 
 export const fetchUsers = (limit?: number) => fetchUsersWithAuth(limit)

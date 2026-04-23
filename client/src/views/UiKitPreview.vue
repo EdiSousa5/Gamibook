@@ -42,6 +42,14 @@ const segmentedOptions = [
   { label: 'Grelha', value: 'grid' },
   { label: 'Lista', value: 'list' },
 ]
+
+const dummyUsers = [
+  { id: '1', first_name: 'Ana', last_name: 'Silva', points: 1500 },
+  { id: '2', first_name: 'Bruno', last_name: 'Costa', points: 1200 },
+  { id: '3', first_name: 'Carlos', last_name: 'Santos', points: 1000 },
+  { id: '4', first_name: 'Diana', last_name: 'Martins', points: 800 },
+  { id: '5', first_name: 'Eduardo', last_name: 'Ferreira', points: 600 },
+]
 </script>
 
 <template>

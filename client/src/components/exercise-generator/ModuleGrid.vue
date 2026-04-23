@@ -80,17 +80,19 @@ defineEmits<{ toggle: [number]; active: [number] }>()
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 28px rgba(12, 122, 90, 0.16);
 }
 
 .card.selected {
     border-color: #0c7a5a;
-    box-shadow: 0 18px 32px rgba(12, 122, 90, 0.2);
 }
 
 .card.active {
     border-color: #0d5c91;
-    box-shadow: 0 18px 32px rgba(13, 92, 145, 0.2);
+}
+
+.card:active {
+    transform: translate(4px, 6px);
+    box-shadow: 1px 1px 0 var(--color-shadow);
 }
 
 

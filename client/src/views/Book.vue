@@ -98,7 +98,7 @@ watch(
       <div class="hero-info">
         <UiChip label="Biblioteca" variant="outline" />
         <h1>{{ book?.title || 'Sem titulo' }}</h1>
-        <p class="meta">{{ book?.publisher || 'Sem editora' }}</p>
+        <p class="meta">{{ (book as any)?.editora?.nome_editora || 'Sem editora' }}</p>
         <p class="description">{{ book?.description || 'Sem descricao.' }}</p>
       </div>
     </header>

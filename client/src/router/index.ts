@@ -50,11 +50,10 @@ const router = createRouter({
     },
     {
       path: '/settings',
-      name: 'settings',
       component: () => import('../views/Settings.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', redirect: '/settings/conta' },
+        { path: '', name: 'settings', redirect: '/settings/conta' },
         {
           path: 'conta',
           name: 'settings-conta',

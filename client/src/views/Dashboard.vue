@@ -19,9 +19,9 @@ import {
 } from '../services/directus'
 
 const user = ref<User | null>(null)
-const books = ref<Book[]>([])
-const ranking = ref<User[]>([])
-const error = ref('')
+const books = ref<Book[]>([]) // All approved books
+const ranking = ref<User[]>([]) // Top users for ranking
+const error = ref('') // General error message
 const userBooks = ref<UserBook[]>([])
 const pointsByExercise = 10
 
@@ -75,10 +75,13 @@ const loadProfile = async () => {
 onMounted(async () => {
   error.value = ''
   try {
+    // 1. PRIMEIRO: Carregamos o perfil do utilizador e os seus livros!
+    await loadProfile()
+
+    // 2. SEGUNDO: Carregamos o resto dos dados do dashboard (livros gerais e ranking)
     const [bookList, topUsers] = await Promise.all([fetchApprovedBooks(), fetchUsers(10)])
     books.value = bookList
     ranking.value = topUsers
-    await loadProfile()
   } catch {
     error.value = 'Nao foi possivel carregar os dados do dashboard.'
   }
@@ -91,7 +94,8 @@ onMounted(async () => {
       <div class="hero-copy">
         <h1>Aprende para além das páginas do livro.</h1>
         <p class="subtitle">
-          Explora conteúdos, desbloqueia módulos e pratica com exercícios gamificados pensados para reforçar a tua aprendizagem.
+          Explora conteúdos, desbloqueia módulos e pratica com exercícios gamificados pensados para reforçar a tua
+          aprendizagem.
         </p>
       </div>
       <div class="hero-visual">
@@ -173,7 +177,7 @@ onMounted(async () => {
           <li v-for="book in userBooksList" :key="book.book_id" class="panel-book">
             <div>
               <p class="title">{{ book.title || 'Sem titulo' }}</p>
-              <p class="meta">{{ book.publisher || 'Sem editora' }}</p>
+              <p class="meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
             </div>
             <RouterLink :to="`/book/${book.book_id}`" class="action">Abrir</RouterLink>
           </li>
@@ -200,7 +204,6 @@ onMounted(async () => {
         </div>
       </section>
     </div>
-
   </section>
 </template>
 

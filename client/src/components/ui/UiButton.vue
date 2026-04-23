@@ -84,9 +84,9 @@ const props = withDefaults(defineProps<Props>(), {
   align-items: center;
   justify-content: center;
   gap: var(--space-200);
-  padding: var(--space-200) var(--space-600);
-  min-height: 64px;
-  min-width: 240px;
+  padding: var(--space-200) var(--space-500);
+  min-height: 48px;
+  min-width: 180px;
   z-index: 1;
   transform: translate(0, 0);
   transition: transform 0.15s ease;
@@ -114,19 +114,19 @@ const props = withDefaults(defineProps<Props>(), {
 }
 
 .ui-button.sm .ui-button-content {
-  min-height: 52px;
-  padding: var(--space-150) var(--space-500);
-  min-width: 200px;
+  min-height: 40px;
+  padding: var(--space-150) var(--space-400);
+  min-width: 150px;
 }
 
 .ui-button.md .ui-button-content {
-  min-height: 64px;
+  min-height: 48px;
 }
 
 .ui-button.lg .ui-button-content {
-  min-height: 76px;
-  padding: var(--space-300) var(--space-700);
-  min-width: 280px;
+  min-height: 58px;
+  padding: var(--space-300) var(--space-600);
+  min-width: 220px;
 }
 
 .ui-button.primary {
