@@ -6,6 +6,7 @@ import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { gerarExercicios } from '@/services/flowise'
+import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import {
     createExercise,
     deleteExercise,
@@ -46,6 +47,7 @@ type Section = {
 const APPROVAL_THRESHOLD = 5
 const MAX_TOTAL_QUESTIONS = 40
 const MAX_EXAMPLES_TOTAL = 12
+const MAX_SELECTED_MODULES = 4
 let exerciseSeed = 0
 
 const books = ref<Book[]>([])
@@ -56,17 +58,27 @@ const selectedModuleIds = ref<number[]>([])
 const countPerModule = ref(5)
 const approvedExercisesByModule = ref<Record<number, Exercise[]>>({})
 const generatedExercises = ref<GeneratedExercise[]>([])
+const rawFlowiseResponse = ref('')
 
 const isLoadingData = ref(false)
 const isGenerating = ref(false)
+const elapsedSeconds = ref(0)
+let elapsedTimer: number | null = null
 const error = ref('')
 const info = ref('')
 const warning = ref('')
 const progressLabel = ref('')
 const approvingMap = ref<Record<string, boolean>>({})
+const expandedModules = ref<Record<number, boolean>>({})
+
+const elapsedLabel = computed(() => {
+    const minutes = Math.floor(elapsedSeconds.value / 60)
+    const seconds = elapsedSeconds.value % 60
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
 
 const typeLabels: Record<ExerciseType, string> = {
-    'multiple-choice': 'Escolha multipla',
+    'multiple-choice': 'Escolha múltipla',
     'true-false': 'Verdadeiro / Falso',
     'fill-blanks': 'Preencher lacunas',
     'ordering': 'Ordenar',
@@ -96,6 +108,9 @@ const maxPerModule = computed(() => {
     const total = Math.max(1, selectedModuleIds.value.length)
     return Math.max(1, Math.floor(MAX_TOTAL_QUESTIONS / total))
 })
+
+const totalQuestions = computed(() => countPerModule.value * selectedModuleIds.value.length)
+const isOverMaxTotal = computed(() => totalQuestions.value > MAX_TOTAL_QUESTIONS)
 
 const approvedSummaries = computed(() =>
     selectedModules.value.map((moduleItem) => {
@@ -130,7 +145,7 @@ const groupedSections = computed<Section[]>(() => {
     })
 
     const moduleTitleById = new Map(
-        modules.value.map((moduleItem) => [moduleItem.modules_id, moduleItem.module_title || 'Modulo']),
+        modules.value.map((moduleItem) => [moduleItem.modules_id, moduleItem.module_title || 'Módulo']),
     )
 
     const order = selectedModuleIds.value.length
@@ -139,8 +154,8 @@ const groupedSections = computed<Section[]>(() => {
 
     const sections = Array.from(grouped.entries()).map(([moduleId, typeMap]) => {
         const moduleTitle = moduleId
-            ? moduleTitleById.get(moduleId) || `Modulo ${moduleId}`
-            : 'Modulo desconhecido'
+            ? moduleTitleById.get(moduleId) || `Módulo ${moduleId}`
+            : 'Módulo desconhecido'
         const types = typeOrder
             .map((type) => ({ type, items: typeMap[type] }))
             .filter((entry) => entry.items.length > 0)
@@ -165,7 +180,7 @@ const loadInitialData = async () => {
         books.value = bookList
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel carregar os modulos.'
+        error.value = 'Não foi possível carregar os módulos.'
     } finally {
         isLoadingData.value = false
     }
@@ -191,7 +206,7 @@ const refreshApprovedExercises = async () => {
         approvedExercisesByModule.value = nextMap
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel carregar os exercicios aprovados.'
+        error.value = 'Não foi possível carregar os exercícios aprovados.'
     }
 }
 
@@ -205,7 +220,7 @@ const refreshApprovedExercisesForModule = async (moduleId: number) => {
         return list
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel carregar os exercicios aprovados.'
+        error.value = 'Não foi possível carregar os exercícios aprovados.'
         return []
     }
 }
@@ -277,7 +292,7 @@ const normalizeResultsByType = (payload: any, types: ExerciseType[]) => {
     if (Object.keys(results).length) return results
 
     const list = normalizeExerciseList(payload)
-    if (list.length && types.length && types[0]) {  // ← adiciona && types[0]
+    if (list.length && types.length && types[0]) {
         results[types[0]] = list
     }
 
@@ -358,20 +373,18 @@ const toggleModuleSelection = (moduleId: number) => {
         if (selectedModuleId.value === moduleId) {
             selectedModuleId.value = selectedModuleIds.value[0] ?? null
         }
+        if (selectedModuleIds.value.length <= MAX_SELECTED_MODULES) {
+            warning.value = ''
+        }
     } else {
+        if (selectedModuleIds.value.length >= MAX_SELECTED_MODULES) {
+            warning.value = `Só podes selecionar até ${MAX_SELECTED_MODULES} módulos de cada vez.`
+            return
+        }
         selectedModuleIds.value = [...selectedModuleIds.value, moduleId]
         selectedModuleId.value = moduleId
+        warning.value = ''
     }
-}
-
-const selectAllModules = () => {
-    selectedModuleIds.value = filteredModules.value.map((item) => item.modules_id)
-    selectedModuleId.value = selectedModuleIds.value[0] ?? null
-}
-
-const clearSelectedModules = () => {
-    selectedModuleIds.value = []
-    selectedModuleId.value = null
 }
 
 const formatExamples = (examples: ExerciseExample[]) => {
@@ -453,7 +466,7 @@ const generateForModules = async (count: number) => {
             const exemplos = await fetchExerciseExamplesByModule(moduleItem.modules_id, perModuleLimit)
             return {
                 id: moduleItem.modules_id,
-                titulo: moduleItem.module_title || `Modulo ${moduleItem.modules_id}`,
+                titulo: moduleItem.module_title || `Módulo ${moduleItem.modules_id}`,
                 descricao: moduleItem.additional_description || '',
                 exemplos: formatExamples(exemplos),
             }
@@ -461,11 +474,13 @@ const generateForModules = async (count: number) => {
     )
 
     const response = await gerarExercicios({
-        tituloLivro: selectedBook.value?.title || 'Sem titulo',
+        tituloLivro: selectedBook.value?.title || 'Sem título',
         modulos: modulePayload,
         numeroPerguntas: count,
-        tipoExercicio: 'multiple-choice, true-false',
     })
+
+    const rawResponse = (response as any)?.raw ?? response
+    const parsedResponse = (response as any)?.parsed ?? response
 
     const lookupByTitle = new Map(
         modulePayload.map((item) => [item.titulo.trim().toLowerCase(), Number(item.id)]),
@@ -474,8 +489,8 @@ const generateForModules = async (count: number) => {
         modulePayload.map((item) => [Number(item.id), item.titulo]),
     )
 
-    const results = normalizeModuleResults(response)
-    const fallbackList = normalizeExerciseList(response)
+    const results = normalizeModuleResults(parsedResponse)
+    const fallbackList = normalizeExerciseList(parsedResponse)
     const defaultModuleId = selectedModuleIds.value[0] ?? null
     const items: GeneratedExercise[] = []
 
@@ -516,39 +531,53 @@ const generateForModules = async (count: number) => {
         })
     }
 
-    return { items, receivedCount: items.length }
+    return { items, receivedCount: items.length, rawResponse }
 }
 
 const handleGenerate = async () => {
     if (!selectedModules.value.length) {
-        error.value = 'Seleciona pelo menos um modulo primeiro.'
+        error.value = 'Seleciona pelo menos um módulo primeiro.'
         return
     }
     if (countPerModule.value <= 0) {
         error.value = 'Define uma quantidade maior que zero.'
         return
     }
+    if (isOverMaxTotal.value) {
+        error.value = `O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`
+        return
+    }
     isGenerating.value = true
+    elapsedSeconds.value = 0
+    if (elapsedTimer) window.clearInterval(elapsedTimer)
+    elapsedTimer = window.setInterval(() => {
+        elapsedSeconds.value += 1
+    }, 1000)
     error.value = ''
     info.value = ''
     warning.value = ''
     progressLabel.value = ''
 
     try {
-        progressLabel.value = `A gerar exercicios para ${selectedModules.value.length} modulos`
+        progressLabel.value = `A gerar exercícios para ${selectedModules.value.length} módulos`
         const result = await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
+        rawFlowiseResponse.value = JSON.stringify(result.rawResponse ?? null, null, 2)
         if (!result.items.length) {
-            error.value = 'O Flowise nao devolveu exercicios. Tenta novamente.'
+            error.value = 'A IA não devolveu exercícios. Tenta novamente.'
             return
         }
         generatedExercises.value = [...generatedExercises.value, ...result.items]
-        info.value = 'Exercicios gerados. Reve e aprova os melhores.'
+        info.value = 'Exercícios gerados. Revê e aprova os melhores.'
     } catch (err) {
         console.error(err)
-        error.value = 'Erro ao gerar exercicios.'
+        error.value = 'Erro ao gerar exercícios.'
     } finally {
         isGenerating.value = false
         progressLabel.value = ''
+        if (elapsedTimer) {
+            window.clearInterval(elapsedTimer)
+            elapsedTimer = null
+        }
     }
 }
 
@@ -578,10 +607,10 @@ const handleApprove = async (exercise: GeneratedExercise) => {
         removeGenerated(exercise.localId)
         const list = await refreshApprovedExercisesForModule(targetModuleId)
         await syncModuleApproval(targetModuleId, list.length)
-        info.value = 'Exercicio aprovado e guardado no Directus.'
+        info.value = 'Exercício aprovado e guardado com sucesso.'
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel aprovar o exercicio.'
+        error.value = 'Não foi possível aprovar o exercício.'
     } finally {
         setApproving(exercise.localId, false)
     }
@@ -605,10 +634,10 @@ const handleReject = async (exercise: GeneratedExercise) => {
         removeGenerated(exercise.localId)
         const list = await refreshApprovedExercisesForModule(targetModuleId)
         await syncModuleApproval(targetModuleId, list.length)
-        info.value = 'Exercicio rejeitado e guardado como unapproved.'
+        info.value = 'Exercício rejeitado (marcado como não aprovado).'
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel guardar o exercicio rejeitado.'
+        error.value = 'Não foi possível guardar o exercício rejeitado.'
     } finally {
         setApproving(exercise.localId, false)
     }
@@ -626,11 +655,15 @@ const handleRemoveApproved = async (exercise: Exercise) => {
         } else {
             await refreshApprovedExercises()
         }
-        info.value = 'Exercicio removido com sucesso.'
+        info.value = 'Exercício removido com sucesso.'
     } catch (err) {
         console.error(err)
-        error.value = 'Nao foi possivel remover o exercicio.'
+        error.value = 'Não foi possível remover o exercício.'
     }
+}
+
+const toggleModuleExpanded = (moduleId: number) => {
+    expandedModules.value[moduleId] = !expandedModules.value[moduleId]
 }
 
 watch(selectedModuleId, async () => {
@@ -650,6 +683,8 @@ watch(selectedBookId, () => {
     selectedModuleIds.value = []
     generatedExercises.value = []
     approvedExercisesByModule.value = {}
+    rawFlowiseResponse.value = ''
+    warning.value = ''
 })
 
 onMounted(async () => {
@@ -658,416 +693,754 @@ onMounted(async () => {
 </script>
 
 <template>
-    <section class="generator">
+    <div class="exercise-generator-page">
+        <!-- Hero Section -->
         <header class="hero">
-            <div class="hero-text">
-                <UiChip label="Laboratorio de exercicios" variant="outline" />
-                <h1>Gerar exercicios com foco</h1>
-                <p class="subtitle">
-                    Escolhe um livro, define os modulos e gera questoes em lote. Um modulo fica aprovado com
-                    {{ APPROVAL_THRESHOLD }} exercicios aprovados.
+            <div class="hero-content">
+                <h1 class="hero-title">Gerador de Exercícios</h1>
+                <p class="hero-subtitle">
+                    Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões
+                    estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por
+                    módulo.
                 </p>
-                <div class="hero-meta">
-                    <div class="meta-card">
-                        <span>Modulos selecionados</span>
-                        <strong>{{ selectedModuleIds.length }}</strong>
-                    </div>
-                    <div class="meta-card">
-                        <span>Maximo por modulo</span>
-                        <strong>{{ maxPerModule }}</strong>
-                    </div>
-                </div>
-            </div>
-            <div class="hero-steps">
-                <div class="step">
-                    <span>01</span>
-                    <p>Seleciona um livro</p>
-                </div>
-                <div class="step">
-                    <span>02</span>
-                    <p>Marca os modulos certos</p>
-                </div>
-                <div class="step">
-                    <span>03</span>
-                    <p>Gera e aprova exercicios</p>
-                </div>
             </div>
         </header>
 
-        <div class="state-stack">
-            <p v-if="isLoadingData" class="state">A carregar livros e modulos...</p>
-            <p v-else-if="error" class="state error">{{ error }}</p>
-            <p v-else-if="warning" class="state warning">{{ warning }}</p>
-            <p v-else-if="info" class="state info">{{ info }}</p>
+        <!-- Status Stack -->
+        <div class="status-stack" v-if="isLoadingData || error || warning || info">
+            <div v-if="isLoadingData" class="alert alert-loading">A carregar os dados da plataforma...</div>
+            <div v-if="error" class="alert alert-error">{{ error }}</div>
+            <div v-if="warning" class="alert alert-warning">{{ warning }}</div>
+            <div v-if="info" class="alert alert-info">{{ info }}</div>
         </div>
 
-        <div class="layout">
-            <div class="column">
-                <UiCard class="panel">
+        <div class="workspace">
+            <!-- Left Column: Main flow (Books, Modules, Lists) -->
+            <div class="main-column">
+                <!-- Step 1: Book Selection -->
+                <UiCard class="workspace-panel" :class="{ 'is-completed': selectedBookId }">
                     <div class="panel-header">
-                        <div>
-                            <h2>1. Escolhe o livro</h2>
-                            <p class="meta">Seleciona o livro que queres trabalhar.</p>
+                        <div class="step-indicator">1</div>
+                        <div class="header-text">
+                            <h2>Escolhe um Livro</h2>
+                            <p v-if="selectedBookId" class="meta-selected">
+                                Livro selecionado: <strong>{{ selectedBook?.title }}</strong>
+                                <button class="text-button" @click="selectedBookId = null">Alterar</button>
+                            </p>
+                            <p v-else class="meta">Começa por selecionar o livro onde queres trabalhar.</p>
                         </div>
                     </div>
-                    <BookGrid :books="books" :selected-book-id="selectedBookId" @select="selectedBookId = $event" />
+                    <div class="panel-body" v-show="!selectedBookId">
+                        <BookGrid :books="books" :selected-book-id="selectedBookId" @select="selectedBookId = $event" />
+                    </div>
                 </UiCard>
 
-                <UiCard v-if="selectedBookId" class="panel">
-                    <div class="panel-header">
-                        <div>
-                            <h2>2. Escolhe os modulos</h2>
-                            <p class="meta">Marca os modulos que vao receber novos exercicios.</p>
+                <!-- Step 2: Module Selection -->
+                <Transition name="fade-slide">
+                    <UiCard v-if="selectedBookId" class="workspace-panel">
+                        <div class="panel-header">
+                            <div class="step-indicator">2</div>
+                            <div class="header-text">
+                                <h2>Seleciona os Módulos</h2>
+                                <p class="meta">Marca até {{ MAX_SELECTED_MODULES }} módulos que precisam de novos
+                                    exercícios.</p>
+                            </div>
                         </div>
-                    </div>
-                    <ModuleGrid :modules="filteredModules" :selected-module-ids="selectedModuleIds"
-                        :active-module-id="selectedModuleId" @toggle="toggleModuleSelection"
-                        @active="selectedModuleId = $event" />
-                </UiCard>
-            </div>
+                        <div class="panel-body">
+                            <ModuleGrid :modules="filteredModules" :selected-module-ids="selectedModuleIds"
+                                :active-module-id="selectedModuleId" @toggle="toggleModuleSelection"
+                                @active="selectedModuleId = $event" />
+                        </div>
+                    </UiCard>
+                </Transition>
 
-            <div class="column aside">
-                <UiCard v-if="selectedBookId" class="panel sticky">
-                    <div class="panel-header">
-                        <div>
-                            <h2>3. Geracao em lote</h2>
-                            <p class="meta">{{ selectedModuleIds.length }} modulos selecionados</p>
+                <!-- Approved Modules Summary -->
+                <section v-if="approvedSummaries.length" class="approved-section">
+                    <div class="section-title">
+                        <div class="title-with-icon">
+                            <h3>Estado das Aprovações</h3>
+                        </div>
+                        <p>Acompanha o progresso de cada módulo selecionado.</p>
+                    </div>
+                    <div class="approved-grid">
+                        <div v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
+                            class="approved-module-block" :class="{ 'is-approved': summary.isApproved }">
+                            <div class="block-header" role="button" tabindex="0"
+                                @click="toggleModuleExpanded(summary.moduleItem.modules_id)">
+                                <div class="block-title">
+                                    <h4>{{ summary.moduleItem.module_title || 'Módulo' }}</h4>
+                                    <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
+                                        :variant="summary.isApproved ? 'filled' : 'outline'" />
+                                </div>
+                                <div class="progress-area">
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill"
+                                            :style="{ width: Math.min(100, (summary.approvedCount / summary.required) * 100) + '%' }">
+                                        </div>
+                                    </div>
+                                    <p class="progress-text">
+                                        <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
+                                    </p>
+                                    <ChevronDownIcon class="accordion-icon" :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }" aria-hidden="true" />
+                                </div>
+                            </div>
+                            <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[summary.moduleItem.modules_id] }">
+                                <div class="accordion-content">
+                                    <div class="approved-list-container">
+                                        <ApprovedExercisesList v-if="summary.approved.length" 
+                                            :exercises="summary.approved" :type-labels="typeLabels" @remove="handleRemoveApproved" />
+                                        <p v-else class="empty-approved">Sem exercícios aprovados neste módulo ainda.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="selection-actions">
-                        <UiButton variant="outline" type="button" :disabled="!filteredModules.length"
-                            @click="selectAllModules">
-                            Selecionar todos
-                        </UiButton>
-                        <UiButton variant="ghost" type="button" :disabled="!selectedModuleIds.length"
-                            @click="clearSelectedModules">
-                            Limpar selecao
-                        </UiButton>
-                    </div>
-                    <div class="form-row">
-                        <div class="label">
-                            <span>Perguntas por modulo</span>
-                            <span class="hint">Maximo: {{ maxPerModule }}</span>
-                        </div>
-                        <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule"
-                            @update="countPerModule = Math.max(1, Number($event) || 1)" />
-                    </div>
-                    <div class="form-row">
-                        <label>Tipos de exercicio</label>
-                        <p class="hint">Escolha multipla + Verdadeiro/Falso</p>
-                    </div>
-                    <UiButton variant="primary" type="button" :disabled="!selectedModuleIds.length || isGenerating"
-                        @click="handleGenerate">
-                        Gerar exercicios (1 chamada)
-                    </UiButton>
-                </UiCard>
-            </div>
-        </div>
+                </section>
 
-        <section v-if="approvedSummaries.length" class="module-panels">
-            <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id" class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h2>{{ summary.moduleItem.module_title || 'Modulo' }}</h2>
-                        <p class="meta">Estado: {{ summary.isApproved ? 'Aprovado' : 'Por aprovar' }}</p>
+                <!-- Generated Exercises -->
+                <div v-if="groupedSections.length" class="generated-section">
+                    <div class="section-title">
+                        <div class="title-with-icon">
+                            <h3>Exercícios Gerados pela IA</h3>
+                        </div>
+                        <p>Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
                     </div>
-                    <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
-                        :variant="summary.isApproved ? 'filled' : 'outline'" />
+                    <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels"
+                        :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
                 </div>
-                <div class="status-check">
-                    <UiCheckbox :model-value="summary.isApproved" disabled />
-                    <div>
-                        <strong>{{ summary.approvedCount }} / {{ summary.required }} aprovados</strong>
-                        <p>Minimo necessario para aprovar o modulo</p>
+
+                <!-- Raw Response -->
+                <UiCard v-if="rawFlowiseResponse" class="raw-panel">
+                    <h3>Resposta Raw Flowise</h3>
+                    <pre class="raw-output">{{ rawFlowiseResponse }}</pre>
+                </UiCard>
+            </div>
+
+            <!-- Right Column: Generation Settings -->
+            <div class="sidebar-column">
+                <UiCard class="config-panel sticky">
+                    <div class="config-header">
+                        <div class="step-indicator">3</div>
+                        <h2>Configuração</h2>
                     </div>
-                </div>
-                <ApprovedExercisesList :exercises="summary.approved" :type-labels="typeLabels"
-                    @remove="handleRemoveApproved" />
-            </UiCard>
-        </section>
 
-        <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels" :approving-map="approvingMap"
-            @approve="handleApprove" @reject="handleReject" />
+                    <div class="config-body" :class="{ 'is-disabled': !selectedModuleIds.length }">
+                        <div class="config-group">
+                            <div class="group-header">
+                                <label>Perguntas por Módulo</label>
+                                <span class="badge">Máx {{ maxPerModule }}</span>
+                            </div>
+                            <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule"
+                                @update="countPerModule = Math.max(1, Number($event) || 1)" />
+                            <p class="config-math" :class="{ 'is-warning': isOverMaxTotal }">
+                                Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIds.length }}
+                                (limite {{ MAX_TOTAL_QUESTIONS }})
+                            </p>
+                        </div>
 
-        <div v-if="isGenerating" class="loading-overlay" role="status" aria-live="polite">
-            <div class="loading-card">
-                <h3>A gerar exercicios</h3>
-                <p v-if="progressLabel" class="loading-progress">{{ progressLabel }}</p>
-                <div class="loading-spinner" aria-hidden="true"></div>
+                        <div class="config-group">
+                            <div class="group-header">
+                                <label>Tipos Suportados</label>
+                            </div>
+                            <div class="types-list">
+                                <div class="type-tag">Escolha Múltipla</div>
+                                <div class="type-tag">Verdadeiro / Falso</div>
+                            </div>
+                        </div>
+
+                        <div class="config-action">
+                            <UiButton variant="primary" size="md" class="generate-btn"
+                                :disabled="!selectedModuleIds.length || isGenerating || isOverMaxTotal"
+                                @click="handleGenerate">
+                                <span v-if="!isGenerating">Gerar Exercícios</span>
+                                <span v-else>A Gerar...</span>
+                            </UiButton>
+                            <p class="action-hint" v-if="!selectedModuleIds.length">Seleciona módulos para começar.</p>
+                            <p class="action-hint" v-else-if="isOverMaxTotal">Reduz o total para não ultrapassar o
+                                limite.</p>
+                        </div>
+                    </div>
+                </UiCard>
             </div>
         </div>
-    </section>
+
+        <!-- Loading Overlay -->
+        <Transition name="fade">
+            <div v-if="isGenerating" class="loading-overlay">
+                <div class="loading-modal">
+                    <div class="spinner-container">
+                        <div class="fancy-spinner"></div>
+                    </div>
+                    <h3>Processamento IA em curso...</h3>
+                    <p class="progress-label" v-if="progressLabel">{{ progressLabel }}</p>
+                    <div class="timer">{{ elapsedLabel }}</div>
+                    <p class="loading-hint">Isto pode demorar alguns minutos. Por favor aguarda.</p>
+                </div>
+            </div>
+        </Transition>
+    </div>
 </template>
 
 <style scoped>
-.generator {
-    display: grid;
-    gap: var(--space-600);
-    color: var(--color-mirage-800);
+.exercise-generator-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-500);
+    color: var(--color-mirage-900);
 }
 
+/* Hero Section */
 .hero {
-    display: grid;
-    gap: var(--space-400);
-    padding: var(--space-500);
+    display: flex;
+    align-items: center;
+    gap: var(--space-600);
+    padding: var(--space-600);
     border-radius: var(--radius-400);
     background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-800);
-    box-shadow: 4px 4px 0 var(--color-shadow);
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    color: var(--color-mirage-900);
+    border: 2px solid var(--color-mirage-900);
+    box-shadow: 6px 6px 0 var(--color-shadow);
 }
 
-.hero h1 {
+.hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-300);
+    max-width: 800px;
+}
+
+.hero-title {
+    font-size: 36px;
     margin: 0;
+    line-height: 1.1;
+    color: var(--color-mirage-900);
     font-family: var(--font-display);
-    font-size: 30px;
 }
 
-.subtitle {
-    max-width: 560px;
+.hero-subtitle {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.5;
     color: var(--color-mirage-600);
-    margin: 0;
 }
 
-.hero-text {
-    display: grid;
+/* Status Stack */
+.status-stack {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-200);
 }
 
-.hero-meta {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--space-200);
-}
-
-.meta-card {
-    border: 2px solid var(--color-mirage-800);
-    border-radius: 14px;
-    padding: var(--space-200) var(--space-300);
-    background: var(--color-wild-100);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-    display: grid;
-    gap: 4px;
-}
-
-.meta-card span {
-    font-size: 12px;
-    color: var(--color-mirage-500);
-}
-
-.meta-card strong {
-    font-size: 18px;
-}
-
-.hero-steps {
-    display: grid;
-    gap: var(--space-200);
-}
-
-.step {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: var(--space-200);
-    padding: var(--space-200) var(--space-300);
-    border-radius: 14px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-    box-shadow: 3px 3px 0 var(--color-shadow);
+.alert {
+    padding: var(--space-300) var(--space-400);
+    border-radius: var(--radius-200);
+    border: 2px solid var(--color-mirage-900);
     font-weight: 600;
+    box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-.step span {
-    font-size: 12px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--color-mirage-500);
+.alert-loading {
+    background: var(--color-wild-200);
 }
 
-.step p {
-    margin: 0;
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
-.state-stack {
+.alert-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.alert-info {
+    background: var(--color-deep-100);
+    color: var(--color-deep-800);
+}
+
+/* Workspace */
+.workspace {
     display: grid;
-    gap: var(--space-200);
-}
-
-.layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: var(--space-500);
     align-items: start;
 }
 
-.column {
-    display: grid;
-    gap: var(--space-400);
-}
-
-.aside .sticky {
-    position: sticky;
-    top: calc(var(--topbar-height) + var(--space-400));
-}
-
-.state {
-    padding: var(--space-200) var(--space-300);
-    border-radius: 12px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-    font-weight: 600;
-}
-
-.state.error {
-    color: #b13b3b;
-    background: #fff2f2;
-}
-
-.state.info {
-    color: var(--color-deep-700);
-    background: var(--color-deep-100);
-}
-
-.state.warning {
-    color: #8a5a00;
-    background: #fff4dc;
-}
-
-.panel {
-    display: grid;
-    gap: var(--space-300);
-}
-
-.selection-actions {
+.main-column {
     display: flex;
-    gap: var(--space-200);
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: var(--space-500);
 }
 
-.form-row {
-    display: grid;
-    gap: var(--space-150);
-}
-
-.form-row .label {
-    font-weight: 700;
+.workspace-panel {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-200);
+    flex-direction: column;
 }
 
-.hint {
-    font-size: 12px;
-    color: var(--color-mirage-500);
-    font-weight: 600;
+.workspace-panel.is-completed {
+    border-color: var(--color-deep-400);
 }
 
 .panel-header {
     display: flex;
+    align-items: center;
+    gap: var(--space-300);
+    padding-bottom: var(--space-300);
+    border-bottom: 2px dashed var(--color-mirage-200);
+    margin-bottom: var(--space-400);
+}
+
+.workspace-panel.is-completed .panel-header {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.step-indicator {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--color-deep-600);
+    color: var(--color-wild-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    border: 2px solid var(--color-mirage-900);
+    box-shadow: 2px 2px 0 var(--color-shadow);
+    flex-shrink: 0;
+}
+
+.header-text h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.header-text .meta {
+    margin: 4px 0 0;
+    color: var(--color-mirage-500);
+    font-size: 14px;
+}
+
+.header-text .meta-selected {
+    margin: 4px 0 0;
+    font-size: 15px;
+    color: var(--color-deep-700);
+}
+
+.text-button {
+    background: none;
+    border: none;
+    color: var(--color-amber-600);
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0 0 0 8px;
+    font-size: 14px;
+}
+
+.header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: var(--space-200);
+}
+
+/* Sidebar Column */
+.sidebar-column .sticky {
+    position: sticky;
+    top: calc(var(--space-400));
+}
+
+.config-panel {
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-900);
+    border-radius: var(--radius-400);
+}
+
+.config-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-300);
+    padding-bottom: var(--space-400);
+    border-bottom: 2px dashed var(--color-mirage-200);
+    margin-bottom: var(--space-400);
+}
+
+.config-header h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.config-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-400);
+    transition: opacity 0.3s ease;
+}
+
+.config-body.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.config-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-200);
+}
+
+.group-header {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--space-200);
-    flex-wrap: wrap;
 }
 
-.panel-header h2 {
+.group-header label {
+    font-weight: 700;
+    color: var(--color-mirage-800);
+}
+
+.badge {
+    background: var(--color-mirage-100);
+    color: var(--color-mirage-600);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+
+.config-math {
     margin: 0;
-    font-size: 20px;
-}
-
-.panel-header .meta {
-    margin: 4px 0 0;
-    color: var(--color-mirage-600);
-}
-
-.status-check {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: var(--space-200);
-    padding: var(--space-300);
-    border-radius: var(--radius-400);
-    align-items: center;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-}
-
-.status-check p {
-    margin: 4px 0 0;
-    color: var(--color-mirage-600);
     font-size: 12px;
+    color: var(--color-mirage-600);
+    font-weight: 600;
 }
 
+.config-math.is-warning {
+    color: #8a5a00;
+}
+
+.types-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-200);
+}
+
+.type-tag {
+    background: var(--color-teal-100);
+    color: var(--color-teal-800);
+    border: 1px solid var(--color-teal-300);
+    padding: var(--space-150) var(--space-200);
+    border-radius: var(--radius-100);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.config-action {
+    margin-top: var(--space-200);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-200);
+}
+
+.generate-btn {
+    width: 100%;
+    height: 48px;
+    font-size: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.action-hint {
+    margin: 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-mirage-500);
+}
+
+/* Sections */
+.section-title {
+    margin-bottom: var(--space-400);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-100);
+}
+
+.title-with-icon {
+    display: flex;
+    align-items: center;
+    gap: var(--space-200);
+}
+
+.title-with-icon .icon {
+    font-size: 24px;
+}
+
+.section-title h3 {
+    margin: 0;
+    font-size: 24px;
+    font-family: var(--font-display);
+}
+
+.section-title p {
+    margin: 0;
+    color: var(--color-mirage-600);
+    font-size: 15px;
+}
+
+.approved-grid {
+    display: grid;
+    gap: var(--space-500);
+}
+
+.approved-module-block {
+    background: var(--color-wild-50);
+    border: 2px solid var(--color-mirage-200);
+    border-radius: var(--radius-400);
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+}
+
+.approved-module-block.is-approved {
+    border-color: var(--color-teal-500);
+}
+
+.block-header {
+    padding: var(--space-400);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-300);
+    background: var(--color-wild-100);
+    border-bottom: 1px solid var(--color-mirage-100);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.block-header:hover {
+    background: var(--color-wild-200);
+}
+
+.approved-module-block.is-approved .block-header {
+    background: #f0faf4;
+    border-bottom-color: var(--color-teal-200);
+}
+
+.approved-module-block.is-approved .block-header:hover {
+    background: #e6f5eb;
+}
+
+.block-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.block-title h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-mirage-900);
+}
+
+.progress-area {
+    display: flex;
+    align-items: center;
+    gap: var(--space-300);
+}
+
+.progress-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--color-mirage-100);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--color-deep-500);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.approved-module-block.is-approved .progress-bar-fill {
+    background: var(--color-teal-500);
+}
+
+.progress-text {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-mirage-700);
+    min-width: 48px;
+    text-align: right;
+}
+
+.accordion-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--color-mirage-500);
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-icon.is-rotated {
+    transform: rotate(180deg);
+}
+
+.accordion-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-wrapper.is-open {
+    grid-template-rows: 1fr;
+}
+
+.accordion-content {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.approved-list-container {
+    padding: var(--space-400);
+    background: var(--color-wild-50);
+}
+
+.empty-approved {
+    margin: 0;
+    color: var(--color-mirage-500);
+    font-size: 14px;
+}
+
+/* Raw Panel */
+.raw-panel {
+    background: var(--color-mirage-900);
+    color: var(--color-wild-100);
+}
+
+.raw-panel h3 {
+    margin: 0 0 var(--space-300);
+    color: var(--color-wild-100);
+}
+
+.raw-output {
+    margin: 0;
+    font-family: monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow: auto;
+    color: var(--color-teal-200);
+}
+
+/* Loading Overlay */
 .loading-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(2, 29, 32, 0.35);
-    display: grid;
-    place-items: center;
-    z-index: 40;
-    backdrop-filter: blur(2px);
+    background: rgba(2, 29, 32, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
 }
 
-.loading-card {
+.loading-modal {
     background: var(--color-wild-100);
-    border-radius: 16px;
-    padding: var(--space-500);
-    display: grid;
-    gap: var(--space-300);
+    padding: var(--space-600);
+    border-radius: var(--radius-400);
+    border: 2px solid var(--color-mirage-900);
+    box-shadow: 8px 8px 0 var(--color-shadow);
     text-align: center;
-    border: 2px solid var(--color-mirage-800);
-    box-shadow: 6px 6px 0 var(--color-shadow);
+    max-width: 400px;
+    width: 90%;
 }
 
-.loading-card h3 {
-    margin: 0;
-    font-size: 20px;
+.spinner-container {
+    margin-bottom: var(--space-400);
 }
 
-.loading-progress {
-    margin: 0;
-    font-size: 12px;
-    color: var(--color-mirage-600);
-}
-
-.loading-spinner {
-    width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    border: 4px solid var(--color-wild-300);
+.fancy-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--color-wild-300);
     border-top-color: var(--color-deep-600);
+    border-radius: 50%;
     margin: 0 auto;
     animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
+.loading-modal h3 {
+    margin: 0 0 var(--space-200);
+    font-size: 20px;
+}
 
+.progress-label {
+    margin: 0 0 var(--space-300);
+    color: var(--color-mirage-600);
+    font-weight: 600;
+}
+
+.timer {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-deep-600);
+    margin-bottom: var(--space-300);
+}
+
+.loading-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-mirage-500);
+}
+
+@keyframes spin {
     to {
         transform: rotate(360deg);
     }
 }
 
-.module-panels {
-    display: grid;
-    gap: var(--space-400);
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s;
 }
 
-@media (max-width: 720px) {
-    .hero {
-        padding: var(--space-400);
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: all 0.3s ease;
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .workspace {
         grid-template-columns: 1fr;
     }
 
-    .layout {
-        grid-template-columns: 1fr;
-    }
-
-    .aside .sticky {
+    .sidebar-column .sticky {
         position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 </style>

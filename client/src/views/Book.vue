@@ -3,10 +3,14 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import {
-  fetchApprovedModulesByBook,
+  fetchApprovedExerciseCountsByModule,
   fetchBook,
+  fetchModulesByBook,
+  fetchUserExerciseCountsByModule,
   getAssetUrl,
+  getStoredUserId,
   type Book,
   type Module,
 } from '../services/directus'
@@ -17,8 +21,18 @@ const bookId = computed(() => Number(route.params.id || 1))
 const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
 const approvedModules = ref<Module[]>([])
+const moduleStats = ref<Record<number, { total: number; done: number; correct: number; remaining: number }>>({})
 const error = ref('')
 const isLoading = ref(false)
+
+const moduleSummary = computed(() => {
+  const values = Object.values(moduleStats.value)
+  const total = values.reduce((sum, item) => sum + item.total, 0)
+  const done = values.reduce((sum, item) => sum + item.done, 0)
+  const correct = values.reduce((sum, item) => sum + item.correct, 0)
+  const remaining = Math.max(0, total - done)
+  return { total, done, correct, remaining }
+})
 
 const isMainChapter = (moduleItem: Module) => {
   if (moduleItem.order_number == null) return true
@@ -32,18 +46,40 @@ watch(
     error.value = ''
     isLoading.value = true
     try {
+      const userId = getStoredUserId()
       const [bookData, moduleList] = await Promise.all([
         fetchBook(id),
-        fetchApprovedModulesByBook(id),
+        fetchModulesByBook(id),
       ])
       book.value = bookData
-      modules.value = moduleList.filter(isMainChapter)
+      modules.value = moduleList
+        .filter(isMainChapter)
+        .filter((moduleItem) => moduleItem.status !== 'unapproved')
       approvedModules.value = modules.value
+      if (userId && approvedModules.value.length) {
+        const statsEntries = await Promise.all(
+          approvedModules.value.map(async (moduleItem) => {
+            const total = await fetchApprovedExerciseCountsByModule(moduleItem.modules_id)
+            const done = await fetchUserExerciseCountsByModule(userId, moduleItem.modules_id)
+            const correct = await fetchUserExerciseCountsByModule(
+              userId,
+              moduleItem.modules_id,
+              true,
+            )
+            const remaining = Math.max(0, total - done)
+            return [moduleItem.modules_id, { total, done, correct, remaining }] as const
+          }),
+        )
+        moduleStats.value = Object.fromEntries(statsEntries)
+      } else {
+        moduleStats.value = {}
+      }
     } catch {
       error.value = 'Nao foi possivel carregar o livro.'
       book.value = null
       modules.value = []
       approvedModules.value = []
+      moduleStats.value = {}
     } finally {
       isLoading.value = false
     }
@@ -62,7 +98,7 @@ watch(
       <div class="hero-info">
         <UiChip label="Biblioteca" variant="outline" />
         <h1>{{ book?.title || 'Sem titulo' }}</h1>
-        <p class="meta">{{ book?.publisher || 'Sem editora' }}</p>
+        <p class="meta">{{ (book as any)?.editora?.nome_editora || 'Sem editora' }}</p>
         <p class="description">{{ book?.description || 'Sem descricao.' }}</p>
       </div>
     </header>
@@ -70,19 +106,59 @@ watch(
     <UiCard class="panel">
       <div class="panel-header">
         <h2>Escolhe um modulo</h2>
-        <p>Seleciona o modulo para ver os exercicios.</p>
+        <p>Seleciona o modulo para iniciar os exercicios.</p>
+      </div>
+      <div v-if="approvedModules.length" class="module-overview">
+        <div class="overview-card">
+          <span>Total de exercicios</span>
+          <strong>{{ moduleSummary.total }}</strong>
+        </div>
+        <div class="overview-card">
+          <span>Feitos</span>
+          <strong>{{ moduleSummary.done }}</strong>
+        </div>
+        <div class="overview-card">
+          <span>Certos</span>
+          <strong>{{ moduleSummary.correct }}</strong>
+        </div>
+        <div class="overview-card">
+          <span>Faltam</span>
+          <strong>{{ moduleSummary.remaining }}</strong>
+        </div>
       </div>
       <p v-if="isLoading" class="state">A carregar modulos...</p>
       <p v-else-if="error" class="state error">{{ error }}</p>
       <div v-else-if="approvedModules.length" class="module-grid">
-        <RouterLink v-for="module in approvedModules" :key="module.modules_id" class="module-card"
-          :to="`/book/${bookId}/module/${module.modules_id}`">
-          <UiChip :label="String(module.order_number || '-')" variant="filled" />
-          <div>
-            <h3>{{ module.module_title || 'Sem titulo' }}</h3>
-            <p>{{ module.additional_description || 'Sem descricao' }}</p>
+        <article v-for="module in approvedModules" :key="module.modules_id" class="module-card">
+          <div class="module-top">
+            <UiChip :label="String(module.order_number || '-')" variant="filled" />
+            <div>
+              <h3>{{ module.module_title || 'Sem titulo' }}</h3>
+              <p>{{ module.additional_description || 'Sem descricao' }}</p>
+            </div>
           </div>
-        </RouterLink>
+          <div class="module-stats">
+            <div>
+              <span>Total</span>
+              <strong>{{ moduleStats[module.modules_id]?.total ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>Feitos</span>
+              <strong>{{ moduleStats[module.modules_id]?.done ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>Certos</span>
+              <strong>{{ moduleStats[module.modules_id]?.correct ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>Faltam</span>
+              <strong>{{ moduleStats[module.modules_id]?.remaining ?? 0 }}</strong>
+            </div>
+          </div>
+          <RouterLink :to="`/book/${bookId}/module/${module.modules_id}`" class="module-action">
+            <UiButton size="sm" variant="outline">Fazer exercicios</UiButton>
+          </RouterLink>
+        </article>
       </div>
       <p v-else class="state">Sem modulos aprovados para este livro.</p>
     </UiCard>
@@ -102,7 +178,8 @@ watch(
   padding: 20px;
   border-radius: 20px;
   background: linear-gradient(140deg, #f7f8ff, #f3fff4);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 6px 6px 0 rgba(46, 127, 123, 0.35);
 }
 
 .hero-info {
@@ -143,6 +220,38 @@ watch(
   gap: 14px;
 }
 
+.module-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.25);
+}
+
+.overview-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--color-deep-100);
+  border: 1px solid var(--color-mirage-800);
+  display: grid;
+  gap: 4px;
+}
+
+.overview-card span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-mirage-500);
+}
+
+.overview-card strong {
+  font-size: 18px;
+  color: var(--color-mirage-800);
+}
+
 .panel-header {
   display: grid;
   gap: 6px;
@@ -156,22 +265,20 @@ watch(
 
 .module-card {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
-  padding: 14px;
+  gap: 14px;
+  padding: 16px;
   border-radius: 16px;
-  text-decoration: none;
   color: inherit;
-  border: 2px solid transparent;
+  border: 2px solid var(--color-mirage-800);
   background: #ffffff;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
 }
 
-.module-card:hover {
-  transform: translateY(-2px);
-  border-color: #0c7a5a;
-  box-shadow: 0 16px 28px rgba(12, 122, 90, 0.16);
+.module-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
 }
 
 .module-card h3 {
@@ -183,6 +290,32 @@ watch(
   margin: 6px 0 0;
   color: #6f6f6f;
   font-size: 12px;
+}
+
+.module-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--color-wild-200);
+  border: 1px solid var(--color-mirage-800);
+}
+
+.module-stats span {
+  font-size: 11px;
+  color: var(--color-mirage-500);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.module-stats strong {
+  font-size: 16px;
+  color: var(--color-mirage-800);
+}
+
+.module-action {
+  justify-self: flex-start;
 }
 
 

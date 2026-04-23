@@ -31,6 +31,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/book/:id',
+      name: 'book',
+      component: () => import('../views/Book.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/book/:bookId/module/:moduleId',
+      name: 'module',
+      component: () => import('../views/Module.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/help',
       name: 'help',
       component: () => import('../views/Help.vue'),
@@ -38,11 +50,10 @@ const router = createRouter({
     },
     {
       path: '/settings',
-      name: 'settings',
       component: () => import('../views/Settings.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', redirect: '/settings/conta' },
+        { path: '', name: 'settings', redirect: '/settings/conta' },
         {
           path: 'conta',
           name: 'settings-conta',

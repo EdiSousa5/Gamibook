@@ -53,18 +53,17 @@ const initials = computed(() => {
 
 <style scoped>
 .sidebar {
-  width: var(--sidebar-width, 280px);
+  width: max-content;
+  min-width: 230px;
   background: var(--color-wild-100);
   border-right: 2px solid var(--color-mirage-800);
   display: flex;
   flex-direction: column;
-  padding: var(--space-400) var(--space-400);
+  padding: var(--space-400) var(--space-300);
   gap: var(--space-300);
-  min-height: 100vh;
-  position: fixed;
+  height: 100vh;
+  position: sticky;
   top: 0;
-  left: 0;
-  bottom: 0;
   z-index: 10;
   overflow: hidden;
 }
@@ -95,12 +94,12 @@ const initials = computed(() => {
 
 .nav {
   display: grid;
-  gap: var(--space-300);
+  gap: var(--space-400);
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: var(--space-200);
   padding-bottom: var(--space-200);
-  margin-top: var(--space-400);
+  margin-top: var(--space-600);
 }
 
 .spacer {
@@ -133,6 +132,20 @@ const initials = computed(() => {
 
   .logo img {
     width: 120px;
+  }
+
+  .sidebar {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    position: relative;
+    height: auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 2px solid var(--color-mirage-800);
   }
 }
 </style>

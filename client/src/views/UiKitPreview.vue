@@ -42,6 +42,14 @@ const segmentedOptions = [
   { label: 'Grelha', value: 'grid' },
   { label: 'Lista', value: 'list' },
 ]
+
+const dummyUsers = [
+  { id: '1', first_name: 'Ana', last_name: 'Silva', points: 1500 },
+  { id: '2', first_name: 'Bruno', last_name: 'Costa', points: 1200 },
+  { id: '3', first_name: 'Carlos', last_name: 'Santos', points: 1000 },
+  { id: '4', first_name: 'Diana', last_name: 'Martins', points: 800 },
+  { id: '5', first_name: 'Eduardo', last_name: 'Ferreira', points: 600 },
+]
 </script>
 
 <template>
@@ -209,6 +217,82 @@ const segmentedOptions = [
             <p>Completa mais duas atividades para subir de nivel.</p>
             <UiProgress :value="42" :max="100" />
           </article>
+        </div>
+      </UiCard>
+
+      <UiCard class="card-wide">
+        <h2>Exercicios</h2>
+        <div class="exercise-preview">
+          <div class="exercise-question">
+            <div class="exercise-question-shadow"></div>
+            <div class="exercise-question-panel">
+              <div class="exercise-timer">
+                <svg class="exercise-timer-ring" viewBox="0 0 72 72" aria-hidden="true">
+                  <circle class="exercise-timer-track" cx="36" cy="36" r="26" />
+                  <circle class="exercise-timer-progress" cx="36" cy="36" r="26" />
+                </svg>
+                <span class="exercise-timer-value">25</span>
+              </div>
+              <div class="exercise-question-top">
+                <div class="exercise-question-title">Pergunta <span>02</span></div>
+                <div class="exercise-attempts">2 tentativas</div>
+              </div>
+              <div class="exercise-divider"></div>
+              <p class="exercise-question-text">
+                Which of the following energy sources cannot be replenished naturally on a human timescale?
+              </p>
+            </div>
+          </div>
+          <div class="exercise-options">
+            <button class="exercise-option is-wrong">
+              <span class="exercise-option-shadow"></span>
+              <span class="exercise-option-panel"></span>
+              <span class="exercise-option-content">
+                <span class="exercise-letter">
+                  <span class="exercise-letter-shadow"></span>
+                  <span class="exercise-letter-face"></span>
+                  <span class="exercise-letter-text">A</span>
+                </span>
+                <span class="exercise-option-text">Adventure</span>
+              </span>
+            </button>
+            <button class="exercise-option is-hover">
+              <span class="exercise-option-shadow"></span>
+              <span class="exercise-option-panel"></span>
+              <span class="exercise-option-content">
+                <span class="exercise-letter">
+                  <span class="exercise-letter-shadow"></span>
+                  <span class="exercise-letter-face"></span>
+                  <span class="exercise-letter-text">B</span>
+                </span>
+                <span class="exercise-option-text">Adventure</span>
+              </span>
+            </button>
+            <button class="exercise-option is-selected">
+              <span class="exercise-option-shadow"></span>
+              <span class="exercise-option-panel"></span>
+              <span class="exercise-option-content">
+                <span class="exercise-letter">
+                  <span class="exercise-letter-shadow"></span>
+                  <span class="exercise-letter-face"></span>
+                  <span class="exercise-letter-text">C</span>
+                </span>
+                <span class="exercise-option-text">Adventure</span>
+              </span>
+            </button>
+            <button class="exercise-option">
+              <span class="exercise-option-shadow"></span>
+              <span class="exercise-option-panel"></span>
+              <span class="exercise-option-content">
+                <span class="exercise-letter">
+                  <span class="exercise-letter-shadow"></span>
+                  <span class="exercise-letter-face"></span>
+                  <span class="exercise-letter-text">D</span>
+                </span>
+                <span class="exercise-option-text">Adventure</span>
+              </span>
+            </button>
+          </div>
         </div>
       </UiCard>
 
@@ -643,6 +727,272 @@ h2 {
       transparent 10px,
       transparent 18px);
   border-radius: 999px;
+}
+
+.exercise-preview {
+  display: grid;
+  gap: var(--space-500);
+}
+
+.exercise-question {
+  position: relative;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.exercise-question-shadow {
+  position: absolute;
+  inset: 12px 0 0;
+  background: var(--color-deep-600);
+  border-radius: 16px;
+}
+
+.exercise-question-panel {
+  position: relative;
+  z-index: 1;
+  padding: 40px 32px 32px;
+  border-radius: 16px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
+}
+
+.exercise-timer {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 70px;
+  border-radius: 999px;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 0 rgba(46, 127, 123, 0.35);
+}
+
+.exercise-timer-ring {
+  width: 64px;
+  height: 64px;
+  transform: rotate(-90deg);
+}
+
+.exercise-timer-track {
+  fill: none;
+  stroke: rgba(46, 127, 123, 0.2);
+  stroke-width: 6;
+}
+
+.exercise-timer-progress {
+  fill: none;
+  stroke: var(--color-deep-500);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 110 163;
+}
+
+.exercise-timer-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-mirage-800);
+}
+
+.exercise-question-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-300);
+}
+
+.exercise-question-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
+}
+
+.exercise-question-title span {
+  color: var(--color-teal-600);
+}
+
+.exercise-attempts {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-teal-100);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-mirage-800);
+}
+
+.exercise-divider {
+  height: 1px;
+  background: var(--color-mirage-800);
+  margin: 18px 0;
+}
+
+.exercise-question-text {
+  margin: 0;
+  font-size: 22px;
+  line-height: 30px;
+  color: var(--color-mirage-800);
+}
+
+.exercise-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.exercise-option {
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  --option-press-x: clamp(3px, 0.6vw, 4px);
+  --option-press-y: clamp(4px, 0.9vw, 6px);
+  --option-shadow-x: clamp(12px, 2.6vw, 20px);
+  --option-shadow-y: clamp(10px, 2.2vw, 16px);
+}
+
+.exercise-option-shadow {
+  position: absolute;
+  inset: var(--option-shadow-y) 0 0 var(--option-shadow-x);
+  background: var(--color-shadow);
+  border-radius: 12px;
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-option-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--color-wild-100);
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  transition: transform 0.15s ease, background 0.2s ease;
+  transform: translate(0, 0);
+}
+
+.exercise-option-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 22px;
+  transform: translate(0, 0);
+  transition: transform 0.15s ease;
+}
+
+.exercise-letter {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+
+.exercise-letter-shadow {
+  position: absolute;
+  inset: 0;
+  background: var(--color-shadow);
+  border-radius: 999px;
+  transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-letter-face {
+  position: absolute;
+  inset: 0;
+  background: var(--color-wild-100);
+  border-radius: 999px;
+  border: 2px solid #373737;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.exercise-letter-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
+  transition: transform 0.2s ease;
+}
+
+.exercise-option-text {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
+}
+
+.exercise-option.is-hover .exercise-option-panel {
+  background: var(--color-teal-300);
+}
+
+.exercise-option.is-hover .exercise-letter-shadow {
+  background: var(--color-deep-600);
+}
+
+.exercise-option.is-hover .exercise-letter-face {
+  background: var(--color-teal-100);
+}
+
+.exercise-option.is-selected .exercise-option-panel {
+  background: var(--color-teal-500);
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-option.is-selected .exercise-option-shadow {
+  background: var(--color-deep-1000);
+}
+
+.exercise-option.is-selected .exercise-letter-shadow {
+  opacity: 0;
+}
+
+.exercise-option.is-selected .exercise-letter-face {
+  background: var(--color-deep-200);
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-option.is-selected .exercise-option-content {
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-option.is-selected .exercise-letter-text {
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.exercise-option.is-wrong .exercise-option-panel {
+  background: #f7c4c4;
+  border-color: #b13b3b;
+}
+
+.exercise-option.is-wrong .exercise-letter-face {
+  background: #fbe1e1;
+  border-color: #b13b3b;
+}
+
+.exercise-option.is-wrong .exercise-letter-shadow {
+  background: #b13b3b;
+}
+
+.exercise-option.is-wrong .exercise-letter-text,
+.exercise-option.is-wrong .exercise-option-text {
+  color: #7a1f1f;
+}
+
+.exercise-option.is-selected .exercise-option-text {
+  color: var(--color-wild-100);
 }
 
 @media (max-width: 720px) {

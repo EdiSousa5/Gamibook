@@ -165,12 +165,10 @@ watch(
   border-radius: 0;
   box-shadow: none;
   border-bottom: 2px solid var(--color-mirage-800);
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: var(--sidebar-width, 280px);
-  right: 0;
   height: var(--topbar-height, 72px);
-  z-index: 9;
+  z-index: 20;
 }
 
 .back {

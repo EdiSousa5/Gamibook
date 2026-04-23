@@ -60,7 +60,7 @@ const handleClick = (navigate?: () => void) => {
 
 <template>
   <RouterLink v-if="to" custom :to="to" v-slot="{ navigate }">
-    <UiButton size="sm" :variant="isActive ? 'primary' : 'ghost'" class="nav-item" :class="{ 'is-active': isActive }"
+    <UiButton size="lg" :variant="isActive ? 'primary' : 'ghost'" class="nav-item" :class="{ 'is-active': isActive }"
       @click="handleClick(navigate)">
       <template #icon-left>
         <span class="icon" aria-hidden="true">
@@ -70,7 +70,7 @@ const handleClick = (navigate?: () => void) => {
       {{ label }}
     </UiButton>
   </RouterLink>
-  <UiButton v-else size="sm" :variant="isAction ? 'outline' : 'ghost'" class="nav-item" @click="handleClick()">
+  <UiButton v-else size="lg" :variant="isAction ? 'outline' : 'ghost'" class="nav-item" @click="handleClick()">
     <template #icon-left>
       <span class="icon" aria-hidden="true">
         <component v-if="iconComponent" :is="iconComponent" class="icon-svg" aria-hidden="true" />
@@ -98,12 +98,14 @@ const handleClick = (navigate?: () => void) => {
   min-width: 0;
   width: 100%;
   justify-content: flex-start;
+  gap: 16px;
 }
 
 .nav-item :deep(.ui-button-label) {
   width: 100%;
   text-align: left;
   font-size: 16px;
+  justify-content: flex-start;
 }
 
 .nav-item :deep(.ui-button-surface) {
@@ -119,16 +121,18 @@ const handleClick = (navigate?: () => void) => {
 }
 
 .icon {
-  width: 22px;
-  height: 22px;
-  display: grid;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   stroke-width: var(--icon-stroke);
   color: var(--color-mirage-800);
 }
 
 .icon-svg {
-  width: 18px;
-  height: 18px;
+  width: 100%;
+  height: 100%;
   stroke-width: var(--icon-stroke);
 }
 
