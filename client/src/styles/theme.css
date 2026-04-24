@@ -109,8 +109,50 @@
   --color-shadow: var(--color-deep-400);
   --shadow-soft: 0 12px 28px rgba(2, 29, 32, 0.08);
   --shadow-strong: 0 18px 36px rgba(2, 29, 32, 0.16);
+
+  /* Variáveis de Fundo e Animação Globais */
+  --bg-size: 100% 100%;
+  --bg-animation: none;
+
+  /* Definições de Gradientes */
+  --grad-1: radial-gradient(circle at 15% 10%, var(--color-deep-300), transparent 55%), radial-gradient(circle at 90% 20%, var(--color-deep-500), transparent 45%), linear-gradient(160deg, var(--color-deep-100), var(--color-wild-400));
+  --grad-2: linear-gradient(135deg, var(--color-amber-300) 0%, var(--color-pumpkin-500) 50%, var(--color-amber-700) 100%);
+  --grad-3: radial-gradient(circle at 0% 0%, var(--color-teal-400), transparent 60%), radial-gradient(circle at 100% 100%, var(--color-deep-600), transparent 60%), var(--color-mirage-100);
+  --grad-4: conic-gradient(from 180deg at 50% 50%, var(--color-amber-200) 0deg, var(--color-teal-200) 120deg, var(--color-pumpkin-200) 240deg, var(--color-amber-200) 360deg);
+  --grad-5: linear-gradient(180deg, var(--color-wild-100) 0%, var(--color-mirage-200) 100%);
+  --grad-6: linear-gradient(135deg, var(--color-teal-500) 50%, var(--color-amber-500) 50%);
+  --grad-7: radial-gradient(ellipse at center, var(--color-wild-100) 0%, var(--color-deep-200) 100%);
+  
+  --grad-8: linear-gradient(270deg, var(--color-amber-400), var(--color-pumpkin-500), var(--color-amber-600), var(--color-pumpkin-400));
+  --grad-9: linear-gradient(270deg, var(--color-deep-500), var(--color-teal-600), var(--color-deep-700), var(--color-teal-500));
+  --grad-10: radial-gradient(circle, var(--color-mirage-200), var(--color-wild-100), var(--color-mirage-300));
+  --grad-11: radial-gradient(circle at 20% 30%, var(--color-pumpkin-400) 0%, transparent 60%), radial-gradient(circle at 80% 70%, var(--color-teal-400) 0%, transparent 60%), var(--color-wild-200);
+  --grad-12: linear-gradient(-45deg, var(--color-deep-600), var(--color-amber-500), var(--color-teal-500), var(--color-pumpkin-600));
+
+  /* Fundo da Aplicação */
+  --bg-app: var(--grad-1);
 }
 
+/* =========================================
+   MAPEAMENTO DO BODY
+   ========================================= */
+:root[data-bg='bg-1'] { --bg-app: var(--grad-1); }
+:root[data-bg='bg-2'] { --bg-app: var(--grad-2); }
+:root[data-bg='bg-3'] { --bg-app: var(--grad-3); }
+:root[data-bg='bg-4'] { --bg-app: var(--grad-4); }
+:root[data-bg='bg-5'] { --bg-app: var(--grad-5); }
+:root[data-bg='bg-6'] { --bg-app: var(--grad-6); }
+:root[data-bg='bg-7'] { --bg-app: var(--grad-7); }
+
+:root[data-bg='bg-8'] { --bg-app: var(--grad-8); --bg-size: 400% 400%; --bg-animation: animPanX 15s ease-in-out infinite; }
+:root[data-bg='bg-9'] { --bg-app: var(--grad-9); --bg-size: 400% 400%; --bg-animation: animPanX 18s ease-in-out infinite; }
+:root[data-bg='bg-10'] { --bg-app: var(--grad-10); --bg-size: 200% 200%; --bg-animation: animPulse 12s ease-in-out infinite; }
+:root[data-bg='bg-11'] { --bg-app: var(--grad-11); --bg-size: 200% 200%; --bg-animation: animOrbs 15s ease-in-out infinite alternate; }
+:root[data-bg='bg-12'] { --bg-app: var(--grad-12); --bg-size: 400% 400%; --bg-animation: animPanDiag 10s ease-in-out infinite; }
+
+/* =========================================
+   GLOBAL RESET E BASE HTML
+   ========================================= */
 * {
   box-sizing: border-box;
 }
@@ -119,10 +161,11 @@ body {
   margin: 0;
   font-family: var(--font-base);
   color: var(--color-text);
-  background:
-    radial-gradient(circle at 15% 10%, var(--color-deep-300), transparent 55%),
-    radial-gradient(circle at 90% 20%, var(--color-deep-500), transparent 45%),
-    linear-gradient(160deg, var(--color-deep-100), var(--color-wild-400));
+  background: var(--bg-app);
+  background-size: var(--bg-size);
+  animation: var(--bg-animation);
+  background-attachment: fixed;
+  transition: color 0.3s ease, background 0.5s ease;
   min-height: 100vh;
 }
 
@@ -149,4 +192,27 @@ textarea {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* =========================================
+   KEYFRAMES DE ANIMAÇÃO
+   ========================================= */
+@keyframes animPanX {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes animPanDiag {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+@keyframes animPulse {
+  0%, 100% { background-position: center; background-size: 100% 100%; }
+  50% { background-position: center; background-size: 150% 150%; }
+}
+@keyframes animOrbs {
+  0% { background-position: 0% 0%, 100% 100%, 0% 0%; }
+  50% { background-position: 100% 0%, 0% 100%, 0% 0%; }
+  100% { background-position: 0% 100%, 100% 0%, 0% 0%; }
 }

@@ -1,14 +1,42 @@
 version: "3.8"
+
 services:
-  # Flowise IA (novo!)
+  # 1. Serviço de Inteligência Artificial
   flowise:
     image: flowiseai/flowise
     container_name: gamibook-flowise
     ports:
       - "3000:3000"
-    environment:
-      # OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+    # environment:  <-- Comentei isto para não dar erro!
+    #   OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     volumes:
       - ./docker/flowise_data:/root/.flowise
     restart: unless-stopped
-    # Directus já roda separado
+
+  # 2. Serviço de Backend e Gestão de Conteúdos
+  directus:
+    image: directus/directus:latest
+    container_name: gamibook-directus
+    ports:
+      - "8055:8055"
+    volumes:
+      - ./uploads:/directus/uploads
+    environment:
+      KEY: "gamibook-vue-2026-supersecret"
+      SECRET: "gamibook-directus-vue-project2026"
+      DB_CLIENT: "mysql"
+      DB_HOST: "host.docker.internal"
+      DB_PORT: "3306"
+      DB_DATABASE: "gamibook"
+      DB_USER: "root"
+      DB_PASSWORD: "Edi49291600."
+
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "http://localhost:5173,http://127.0.0.1:5173"
+      CORS_METHODS: "GET,POST,PATCH,DELETE,OPTIONS,PUT"
+      CORS_HEADERS: "Content-Type,Authorization"
+      CORS_CREDENTIALS: "true"
+
+      ACCESS_TOKEN_TTL: "15m"
+      REFRESH_TOKEN_TTL: "30d"
+    restart: unless-stopped

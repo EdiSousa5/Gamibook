@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiChip from '@/components/ui/UiChip.vue'
+import BookMockup from '@/components/ui/BookMockup.vue'
 import { RouterLink } from 'vue-router'
 import {
   fetchApprovedBooks,
@@ -85,56 +88,77 @@ onMounted(async () => {
     <p v-if="isLoading" class="state">A carregar livros...</p>
     <p v-else-if="error" class="state error">{{ error }}</p>
 
-    <div v-else-if="ownedBooks.length || missingBooks.length" class="shelves">
-      <section class="featured-shelf">
-        <div class="featured-card">
-          <div class="featured-info">
-            <p class="eyebrow">Livro selecionado</p>
-            <h2>{{ featuredBook?.title || 'Sem titulo' }}</h2>
-            <p class="meta">{{ (featuredBook as any)?.editora?.nome_editora || 'Sem editora' }}</p>
-            <RouterLink v-if="featuredBook" :to="`/book/${featuredBook.book_id}`">
-              <UiButton size="sm" variant="outline">Fazer exercicios</UiButton>
+    <UiCard v-else-if="ownedBooks.length || missingBooks.length" class="cartao-principal">
+
+      <!-- DESTAQUE (ESTANTE SUPERIOR) -->
+      <div class="destaque-wrapper" v-if="featuredBook">
+        <div class="destaque-info">
+          <div class="destaque-tags">
+            <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
+              variant="outline" />
+            <UiChip v-if="(featuredBook as any)?.editora?.nome_editora"
+              :label="(featuredBook as any).editora.nome_editora" variant="soft" />
+          </div>
+          <h2 class="titulo-livro">{{ featuredBook.title || 'Sem título' }}</h2>
+          <p class="descricao">
+            {{ featuredBook.description || 'Explora os conteúdos deste livro, desbloqueia módulos e ganha mais pontos respondendo aos desafios criados para ti.' }}
+          </p>
+          <div class="destaque-actions">
+            <RouterLink :to="`/book/${featuredBook.book_id}`">
+              <UiButton size="lg" variant="primary">Fazer Exercícios</UiButton>
             </RouterLink>
           </div>
-          <div class="featured-cover" :class="{ empty: !featuredBook?.cover_img }">
-            <img v-if="featuredBook?.cover_img" :src="getAssetUrl(featuredBook.cover_img)" alt="" />
-            <span v-else>Livro</span>
+        </div>
+
+        <div class="destaque-visual">
+          <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg" />
+        </div>
+      </div>
+
+      <!-- Geometria 3D: Prateleira Grande (Sair do componente) -->
+      <div class="estante-wrapper grande" v-if="featuredBook">
+        <div class="estante-topo"></div>
+        <div class="estante-frente"></div>
+      </div>
+
+      <!-- OUTROS LIVROS (ESTANTE MEIO) -->
+      <div class="lista-wrapper" v-if="otherOwnedBooks.length">
+        <h3 class="titulo-secao">A Tua Coleção</h3>
+
+        <div class="livros-fila">
+          <div v-for="book in otherOwnedBooks" :key="book.book_id" class="livro-item"
+            :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
+            tabindex="0" role="button">
+            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
+            <span class="nome-livro">{{ book.title || 'Sem título' }}</span>
           </div>
         </div>
-        <div class="shelf-base"></div>
-      </section>
+      </div>
 
-      <section v-if="otherOwnedBooks.length" class="shelf-row">
-        <h3>Livros do utilizador</h3>
-        <div class="shelf-books">
-          <button v-for="book in otherOwnedBooks" :key="book.book_id" class="shelf-book" type="button"
-            :class="{ selected: book.book_id === selectedBookId }" @click="selectedBookId = book.book_id">
-            <div class="shelf-cover" :class="{ empty: !book.cover_img }">
-              <img v-if="book.cover_img" :src="getAssetUrl(book.cover_img)" alt="" />
-              <span v-else>Livro</span>
-            </div>
-            <p class="shelf-meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
-            <p class="shelf-title">{{ book.title || 'Sem titulo' }}</p>
-          </button>
-        </div>
-        <div class="shelf-base"></div>
-      </section>
+      <!-- Geometria 3D: Prateleira Pequena (Dentro do componente) -->
+      <div class="estante-wrapper pequena" v-if="otherOwnedBooks.length">
+        <div class="estante-topo"></div>
+        <div class="estante-frente"></div>
+      </div>
 
-      <section v-if="missingBooks.length" class="shelf-row">
-        <h3>Livros que nao tens</h3>
-        <div class="shelf-books">
-          <div v-for="book in missingBooks" :key="book.book_id" class="shelf-book is-locked" aria-disabled="true">
-            <div class="shelf-cover" :class="{ empty: !book.cover_img }">
-              <img v-if="book.cover_img" :src="getAssetUrl(book.cover_img)" alt="" />
-              <span v-else>Livro</span>
-            </div>
-            <p class="shelf-meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
-            <p class="shelf-title">{{ book.title || 'Sem titulo' }}</p>
+      <!-- LIVROS QUE NÃO TENS (ESTANTE BAIXO) -->
+      <div class="lista-wrapper" v-if="missingBooks.length">
+        <h3 class="titulo-secao">Para Descobrir</h3>
+
+        <div class="livros-fila">
+          <div v-for="book in missingBooks" :key="book.book_id" class="livro-item is-locked">
+            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
+            <span class="nome-livro">{{ book.title || 'Sem título' }}</span>
           </div>
         </div>
-        <div class="shelf-base"></div>
-      </section>
-    </div>
+      </div>
+
+      <!-- Geometria 3D: Prateleira Pequena -->
+      <div class="estante-wrapper pequena" v-if="missingBooks.length">
+        <div class="estante-topo"></div>
+        <div class="estante-frente"></div>
+      </div>
+    </UiCard>
     <p v-else class="state">Sem livros associados.</p>
   </section>
 </template>
@@ -156,234 +180,209 @@ onMounted(async () => {
   gap: var(--space-300);
 }
 
-.shelves {
-  display: grid;
-  gap: var(--space-600);
-  padding: var(--space-500);
-  border-radius: 24px;
-  background: var(--color-wild-100);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 8px 8px 0 var(--color-shadow);
+.cartao-principal {
+  padding: var(--space-600) 0 0 0 !important;
+  /* Sobrescreve o UiCard para não ter padding em baixo, nem overflow hidden.
+     Desta forma, a prateleira grande pode sair para fora da borda. */
+  overflow: visible !important;
 }
 
-.featured-shelf {
-  display: grid;
-  gap: var(--space-300);
-  position: relative;
-}
-
-.featured-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-500);
-  align-items: center;
-  padding: var(--space-500);
-  border-radius: 20px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 6px 6px 0 var(--color-shadow);
-  position: relative;
-  overflow: hidden;
-  animation: shelfFadeUp 0.5s ease both;
-}
-
-.featured-card::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 14px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(2, 29, 32, 0.08));
-  pointer-events: none;
-}
-
-.featured-info {
-  display: grid;
-  gap: var(--space-200);
-}
-
-.featured-info h2 {
-  margin: 0;
-}
-
-.eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-mirage-500);
-}
-
-.featured-cover {
-  width: 220px;
-  height: 280px;
-  border-radius: 16px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  font-weight: 700;
-  box-shadow: 10px 12px 0 rgba(2, 29, 32, 0.18);
-  transform: translateY(-10px);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  animation: bookFloat 5s ease-in-out infinite;
-}
-
-.featured-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.featured-cover:hover {
-  transform: translateY(-14px);
-  box-shadow: 12px 14px 0 rgba(2, 29, 32, 0.2);
-}
-
-.shelf-row {
-  display: grid;
-  gap: var(--space-300);
-  animation: shelfFadeUp 0.55s ease both;
-  animation-delay: 0.05s;
-  position: relative;
-}
-
-.shelf-row h3 {
-  margin: 0;
-}
-
-.shelf-books {
+/* =========================================
+   1. ESTANTE SUPERIOR (DESTAQUE)
+   ========================================= */
+.destaque-wrapper {
   display: flex;
-  gap: var(--space-300);
-  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: flex-end;
-  padding: 0 var(--space-300);
+  /* Assenta o livro na estante */
+  gap: var(--space-500);
+  padding: 0 var(--space-500);
+  margin-bottom: 0;
+  position: relative;
+  z-index: 10;
+  animation: shelfFadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.shelf-book {
-  display: grid;
-  gap: var(--space-150);
-  background: transparent;
-  border: none;
-  text-align: left;
+.destaque-info {
+  flex: 1;
+  max-width: 540px;
+  padding-bottom: var(--space-600);
+}
+
+.destaque-tags {
+  display: flex;
+  gap: var(--space-200);
+  margin-bottom: var(--space-300);
+}
+
+.titulo-livro {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--color-mirage-900);
+  margin: 0 0 var(--space-300);
+}
+
+.descricao {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-mirage-700);
+  margin: 0 0 var(--space-400);
+}
+
+.destaque-visual {
+  flex-shrink: 0;
+  padding-right: var(--space-500);
+  /* Assenta perfeitamente na estante (flex-end trata disso) */
+  transform: translateY(2px);
+  /* Toca perfeitamente na estante sem folga, descendo um pouco o livro */
+}
+
+/* =========================================
+   2. ESTRUTURA DA ESTANTE 3D
+   ========================================= */
+.estante-wrapper {
+  width: 100%;
+  position: relative;
+  z-index: 5;
+  perspective: 500px;
+}
+
+/* Estante Principal (Sai para fora do cartão) */
+.estante-wrapper.grande {
+  /* Extende o tamanho para além das bordas em 24px para cada lado */
+  margin: 0 -24px;
+  width: calc(100% + 48px);
+  margin-bottom: var(--space-600);
+  margin-top: -12px;
+  /* Sobe a estante ligeiramente para se encontrar melhor com o livro */
+}
+
+.estante-wrapper.grande .estante-topo {
+  height: 28px;
+  background: linear-gradient(to bottom, var(--color-deep-200), var(--color-deep-400));
+  border: 2px solid var(--color-mirage-800);
+  border-top: none;
+  border-bottom: none;
+  transform-origin: bottom;
+  transform: rotateX(45deg);
+}
+
+.estante-wrapper.grande .estante-frente {
+  position: relative;
+  height: 18px;
+  background: var(--color-deep-600);
+  border: 2px solid var(--color-mirage-800);
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  /* Sombra para dar flutuação */
+  box-shadow: 0 16px 20px -8px rgba(2, 29, 32, 0.5);
+  /* Opcional: reflexo fino para detalhe metálico/madeira */
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Estantes Secundárias (Encaixam dentro do cartão) */
+.estante-wrapper.pequena {
+  /* Respeita o padding interno (aproximadamente var(--space-400)) */
+  margin: 0 var(--space-400);
+  width: calc(100% - (var(--space-400) * 2));
+  margin-bottom: var(--space-600);
+  margin-top: -8px;
+  /* Subir a estante para aproximar dos livros da lista */
+}
+
+.estante-wrapper.pequena .estante-topo {
+  height: 18px;
+  background: linear-gradient(to bottom, var(--color-deep-200), var(--color-deep-400));
+  border: 2px solid var(--color-mirage-800);
+  border-top: none;
+  border-bottom: none;
+  transform-origin: bottom;
+  transform: rotateX(45deg);
+}
+
+.estante-wrapper.pequena .estante-frente {
+  position: relative;
+  height: 14px;
+  background: var(--color-deep-600);
+  border: 2px solid var(--color-mirage-800);
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  box-shadow: 0 8px 12px -5px rgba(2, 29, 32, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* =========================================
+   3. LISTA DE LIVROS (ESTANTE INFERIOR)
+   ========================================= */
+.lista-wrapper {
+  padding: 0 var(--space-500);
+  position: relative;
+  z-index: 10;
+  animation: shelfFadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: 0.15s;
+}
+
+.titulo-secao {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 var(--space-200) 0;
+}
+
+.livros-fila {
+  display: flex;
+  gap: var(--space-500);
+  align-items: flex-end;
+  overflow-x: auto;
+  padding: var(--space-300) var(--space-600);
+  /* Afasta o início e o fim da estante */
+  scrollbar-width: thin;
+}
+
+.livros-fila::-webkit-scrollbar {
+  height: 8px;
+}
+
+.livros-fila::-webkit-scrollbar-thumb {
+  background: var(--color-mirage-400);
+  border-radius: 4px;
+}
+
+.livro-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--space-300);
   cursor: pointer;
-  transform: translateY(0);
   transition: transform 0.2s ease;
-  animation: bookPop 0.5s ease both;
 }
 
-.shelf-book:hover {
-  transform: translateY(-6px);
+.livro-item:hover:not(.is-locked) {
+  transform: translateY(-8px);
 }
 
-.shelf-book.is-locked {
+.livro-item.is-selected {
+  transform: translateY(-8px);
+}
+
+.livro-item.is-selected .nome-livro {
+  color: var(--color-deep-600);
+}
+
+.livro-item.is-locked {
   cursor: not-allowed;
   filter: grayscale(1);
-  opacity: 0.55;
-  transform: none;
+  opacity: 0.6;
 }
 
-.shelf-book.is-locked:hover {
-  transform: none;
-}
-
-.shelf-book.is-locked .shelf-cover {
-  box-shadow: none;
-  background: var(--color-wild-400);
-  border-color: var(--color-mirage-400);
-}
-
-.shelf-book.is-locked .shelf-title {
-  color: var(--color-mirage-500);
-}
-
-.shelf-cover {
-  width: 110px;
-  height: 150px;
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  box-shadow: 6px 6px 0 rgba(2, 29, 32, 0.18);
-  position: relative;
-}
-
-.shelf-cover::before {
-  content: '';
-  position: absolute;
-  inset: 6px 6px auto 6px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.45);
-  pointer-events: none;
-}
-
-.shelf-cover::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(2, 29, 32, 0.12));
-  pointer-events: none;
-}
-
-.shelf-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.shelf-book.selected .shelf-cover {
-  border-color: var(--color-deep-600);
-  background: #eef7f2;
-}
-
-.shelf-title {
-  max-width: 120px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-mirage-700);
-}
-
-.shelf-meta {
-  font-size: 11px;
-  color: var(--color-mirage-500);
-  margin: 0;
-}
-
-.shelf-base {
-  height: 22px;
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, var(--color-pumpkin-200) 0%, var(--color-pumpkin-400) 55%, var(--color-pumpkin-600) 100%);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 8px 8px 0 rgba(2, 29, 32, 0.18);
-  position: relative;
-  overflow: hidden;
-}
-
-.shelf-base::before {
-  content: '';
-  position: absolute;
-  inset: 4px 16px auto 16px;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.shelf-base::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 6px;
-  background: rgba(2, 29, 32, 0.2);
-}
-
-.state {
+.nome-livro {
   font-weight: 600;
-  color: var(--color-mirage-500);
+  font-size: 14px;
+  color: var(--color-mirage-800);
+  text-align: left;
+  width: 120px;
+  line-height: 1.3;
+  margin-bottom: 6px;
 }
 
 .error {
@@ -402,38 +401,20 @@ onMounted(async () => {
   }
 }
 
-@keyframes bookFloat {
-
-  0%,
-  100% {
-    transform: translateY(-10px);
-  }
-
-  50% {
-    transform: translateY(-16px);
-  }
-}
-
-@keyframes bookPop {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (max-width: 900px) {
-  .featured-card {
-    grid-template-columns: 1fr;
+  .destaque-wrapper {
+    flex-direction: column-reverse;
+    align-items: center;
+    text-align: center;
   }
 
-  .featured-cover {
-    width: 100%;
-    height: 220px;
+  .destaque-visual {
+    padding-right: 0;
+    margin-bottom: var(--space-400);
+  }
+
+  .destaque-info {
+    padding-bottom: var(--space-400);
   }
 }
 </style>

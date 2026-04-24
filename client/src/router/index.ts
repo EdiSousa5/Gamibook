@@ -70,9 +70,14 @@ const router = createRouter({
           component: () => import('../views/settings/SettingsNotifications.vue'),
         },
         {
-          path: 'idioma',
-          name: 'settings-idioma',
-          component: () => import('../views/settings/SettingsLanguage.vue'),
+          path: 'aparencia',
+          name: 'settings-aparencia',
+          component: () => import('../views/settings/Appearance.vue'),
+        },
+        {
+          path: 'privacidade',
+          name: 'settings-privacidade',
+          component: () => import('../views/settings/Privacy.vue'),
         },
       ],
     },
