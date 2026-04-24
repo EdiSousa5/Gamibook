@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSideMenuItem from '@/components/ui/UiSideMenuItem.vue'
+import {
+  UserIcon,
+  IdentificationIcon,
+  BellIcon,
+  PaintBrushIcon,
+  ShieldCheckIcon
+} from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 
 const sections = [
-  { id: 'conta', label: 'Conta', description: 'Perfil e avatar', path: '/settings/conta' },
-  { id: 'dados', label: 'Dados do utilizador', description: 'Informacao da conta', path: '/settings/dados' },
-  { id: 'notificacoes', label: 'Notificacoes', description: 'Alertas e resumos', path: '/settings/notificacoes' },
-  { id: 'idioma', label: 'Idioma', description: 'Preferencias de idioma', path: '/settings/idioma' },
+  { id: 'conta', label: 'Conta', description: 'Perfil e avatar', path: '/settings/conta', icon: UserIcon },
+  { id: 'dados', label: 'Dados Pessoais', description: 'Informação do utilizador', path: '/settings/dados', icon: IdentificationIcon },
+  { id: 'aparencia', label: 'Aparência', description: 'Temas e cores', path: '/settings/aparencia', icon: PaintBrushIcon },
+  { id: 'notificacoes', label: 'Notificações', description: 'Alertas e resumos', path: '/settings/notificacoes', icon: BellIcon },
+  { id: 'privacidade', label: 'Privacidade', description: 'Segurança e dados', path: '/settings/privacidade', icon: ShieldCheckIcon },
 ] as const
 
 const isActive = (path: string) => route.path === path
@@ -26,11 +35,8 @@ const isActive = (path: string) => route.path === path
 
     <div class="settings-body">
       <nav class="side-nav">
-        <RouterLink v-for="section in sections" :key="section.id" class="side-item"
-          :class="{ active: isActive(section.path) }" :to="section.path">
-          <span class="side-title">{{ section.label }}</span>
-          <span class="side-desc">{{ section.description }}</span>
-        </RouterLink>
+        <UiSideMenuItem v-for="section in sections" :key="section.id" :to="section.path" :label="section.label"
+          :description="section.description" :icon="section.icon" :is-active="isActive(section.path)" />
       </nav>
 
       <div class="panel">
@@ -60,36 +66,10 @@ const isActive = (path: string) => route.path === path
 }
 
 .side-nav {
-  display: grid;
-  gap: var(--space-200);
-}
-
-.side-item {
-  display: grid;
-  gap: 6px;
-  padding: var(--space-200) var(--space-300);
-  border-radius: 14px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  text-align: left;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 var(--color-shadow);
-  text-decoration: none;
-  color: inherit;
-}
-
-.side-item.active {
-  border-color: var(--color-deep-600);
-  background: #eef7f2;
-}
-
-.side-title {
-  font-weight: 700;
-}
-
-.side-desc {
-  font-size: 12px;
-  color: var(--color-mirage-600);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: start;
 }
 
 .panel {

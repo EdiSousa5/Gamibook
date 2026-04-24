@@ -85,6 +85,12 @@ const handleBack = () => {
 }
 
 onMounted(() => {
+  // Recuperar Fundo Pessoal do Utilizador ao abrir o site
+  const savedBg = localStorage.getItem('gb_bg')
+  if (savedBg) {
+    document.documentElement.setAttribute('data-bg', savedBg)
+  }
+
   loadUser()
   updateCanGoBack()
   window.addEventListener('gb-auth-changed', loadUser)

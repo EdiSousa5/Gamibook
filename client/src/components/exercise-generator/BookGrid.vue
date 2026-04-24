@@ -87,20 +87,32 @@ defineEmits<{ select: [number] }>()
 .cover {
     width: 72px;
     height: 96px;
-    border-radius: 12px;
-    overflow: hidden;
-    background: linear-gradient(160deg, #0c7a5a, #6bd3b0);
-    color: #ffffff;
+    border-radius: 3px 8px 8px 3px;
+    background: var(--color-wild-300);
+    color: var(--color-mirage-500);
     display: grid;
     place-items: center;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 12px;
+    position: relative;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1) inset, 4px 4px 10px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--color-mirage-800);
+}
+
+.cover::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 100%);
+    pointer-events: none;
 }
 
 .cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 2px 7px 7px 2px;
 }
 
 .info {

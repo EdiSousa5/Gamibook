@@ -5,7 +5,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import type { Exercise } from '@/services/directus'
-import { TrashIcon } from '@heroicons/vue/24/outline'
+import { TrashIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
@@ -41,7 +41,7 @@ const getOptionLabel = (value: string) => String(value || '').trim()
 
 const getOptionLetter = (value: string) => {
     const trimmed = getOptionLabel(value)
-    const match = trimmed.match(/^([A-D])\)/i)
+    const match = trimmed.match(/^([A-F])\)/i)
     return match?.[1] ? match[1].toUpperCase() : ''
 }
 
@@ -100,8 +100,8 @@ const getAnswer = (exercise: Exercise) => {
                 <div class="top">
                     <UiBadge :label="typeLabels[exercise.type || 'multiple-choice']" />
                     <UiIconButton size="md" shape="square" variant="outline" class="remove-button"
-                        aria-label="Remover exercicio" @click="openConfirm(exercise)">
-                        <TrashIcon class="remove-icon" aria-hidden="true" />
+                        aria-label="Detalhes do exercicio" @click="openConfirm(exercise)">
+                        <InformationCircleIcon class="remove-icon" aria-hidden="true" />
                     </UiIconButton>
                 </div>
                 <p class="question">{{ getQuestion(exercise) }}</p>
@@ -113,10 +113,11 @@ const getAnswer = (exercise: Exercise) => {
             <div class="confirm-modal" role="dialog" aria-modal="true">
                 <div class="confirm-header">
                     <div class="confirm-icon-title">
-                        <h3>Remover Exercício</h3>
+                        <h3>Detalhes do Exercício</h3>
+                        <UiIconButton size="md" shape="square" variant="outline" @click="confirmRemove" title="Apagar exercício">
+                            <TrashIcon class="remove-icon" aria-hidden="true" />
+                        </UiIconButton>
                     </div>
-                    <p class="confirm-text">Tens a certeza que pretendes remover este exercício aprovado? Esta ação não
-                        pode ser desfeita.</p>
                 </div>
 
                 <div class="exercise-preview">
@@ -133,14 +134,16 @@ const getAnswer = (exercise: Exercise) => {
                         <p class="answer-text"><strong>Resposta correta:</strong> {{ (pendingExercise.content as
                             any)?.resposta_correta || 'Sem resposta' }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação:</strong> {{ (pendingExercise.content as any).justificacao }}</p>
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                        </p>
                     </template>
 
                     <template v-else-if="pendingExercise.type === 'true-false'">
                         <p class="answer-text"><strong>Resposta correta:</strong> {{ (pendingExercise.content as
                             any)?.resposta_correta ? 'Verdadeiro' : 'Falso' }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação:</strong> {{ (pendingExercise.content as any).justificacao }}</p>
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                        </p>
                     </template>
 
                     <template v-else-if="pendingExercise.type === 'fill-blanks'">
@@ -156,13 +159,13 @@ const getAnswer = (exercise: Exercise) => {
                         <p class="answer-text"><strong>Respostas corretas:</strong> {{
                             getFillBlankAnswers(pendingExercise) }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação:</strong> {{ (pendingExercise.content as any).justificacao }}</p>
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                        </p>
                     </template>
                 </div>
 
                 <div class="confirm-actions">
-                    <UiButton variant="outline" size="sm" type="button" @click="closeConfirm">Cancelar</UiButton>
-                    <UiButton variant="primary" size="sm" type="button" @click="confirmRemove">Sim, remover</UiButton>
+                    <UiButton variant="outline" size="sm" type="button" @click="closeConfirm">Fechar</UiButton>
                 </div>
             </div>
         </div>
@@ -261,17 +264,14 @@ const getAnswer = (exercise: Exercise) => {
 .confirm-icon-title {
     display: flex;
     align-items: center;
-    gap: var(--space-200);
+    justify-content: space-between;
+    width: 100%;
 }
 
 .confirm-icon-title h3 {
     margin: 0;
     font-size: 20px;
     font-weight: 800;
-}
-
-.warning-icon {
-    font-size: 24px;
 }
 
 .confirm-text {

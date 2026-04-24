@@ -5,19 +5,18 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import { gerarExercicios } from '@/services/flowise'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import {
     createExercise,
     deleteExercise,
     fetchApprovedExercisesByModule,
-    fetchExerciseExamplesByModule,
     fetchBooks,
     fetchModulesByBook,
     fetchModules,
     updateModuleApproval,
     updateBookApproval,
-    type ExerciseExample,
     type Book,
     type Exercise,
     type Module,
@@ -46,10 +45,10 @@ type Section = {
 
 const APPROVAL_THRESHOLD = 5
 const MAX_TOTAL_QUESTIONS = 40
-const MAX_EXAMPLES_TOTAL = 12
 const MAX_SELECTED_MODULES = 4
 let exerciseSeed = 0
 
+const generationMode = ref<'module' | 'daily'>('module')
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
@@ -59,6 +58,7 @@ const countPerModule = ref(5)
 const approvedExercisesByModule = ref<Record<number, Exercise[]>>({})
 const generatedExercises = ref<GeneratedExercise[]>([])
 const rawFlowiseResponse = ref('')
+const rawFlowiseRequest = ref('')
 
 const isLoadingData = ref(false)
 const isGenerating = ref(false)
@@ -207,6 +207,25 @@ const refreshApprovedExercises = async () => {
     } catch (err) {
         console.error(err)
         error.value = 'Não foi possível carregar os exercícios aprovados.'
+    }
+}
+
+const refreshAllApprovedExercisesForBook = async () => {
+    if (!filteredModules.value.length) return
+    try {
+        const entries = await Promise.all(
+            filteredModules.value.map(async (m) => [
+                m.modules_id,
+                await fetchApprovedExercisesByModule(m.modules_id)
+            ] as const)
+        )
+        const nextMap: Record<number, Exercise[]> = {}
+        entries.forEach(([moduleId, list]) => {
+            nextMap[moduleId] = list
+        })
+        approvedExercisesByModule.value = nextMap
+    } catch (err) {
+        console.error(err)
     }
 }
 
@@ -387,21 +406,24 @@ const toggleModuleSelection = (moduleId: number) => {
     }
 }
 
-const formatExamples = (examples: ExerciseExample[]) => {
-    if (!examples.length) return 'Sem exemplos anteriores.'
-    return examples
-        .map((example) => {
-            const statusLabel = example.status === 'approved' ? 'APROVADO' : 'REJEITADO'
-            const typeLabel = example.type || 'desconhecido'
-            const questionText =
-                example.content?.pergunta ||
-                example.content?.question ||
-                example.content?.enunciado ||
-                example.content?.frase ||
-                'Sem pergunta'
-            return `[${statusLabel}] Tipo: ${typeLabel} | Pergunta: ${questionText}`
-        })
-        .join('\n')
+const gerarPerguntasDiarias = async (payload: any) => {
+    const response = await fetch("http://localhost:3000/api/v1/prediction/17ac9a00-1a6c-47c0-9544-2ef5a2d02bc2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: JSON.stringify(payload) })
+    })
+    if (!response.ok) throw new Error('Falha ao comunicar com a IA')
+    
+    const data = await response.json()
+    let parsed = null
+    const text = data.text || data
+    try {
+        const cleanText = String(text).replace(/```json\n?|```/g, '').trim()
+        parsed = JSON.parse(cleanText)
+    } catch (e) {
+        parsed = text
+    }
+    return { raw: data, parsed }
 }
 
 const mapExercises = (list: any[], exerciseType: ExerciseType, limit: number) =>
@@ -439,7 +461,8 @@ const resolveModuleId = (
         result?.id ??
         result?.modules_id
     const parsed = Number(rawId)
-    if (Number.isFinite(parsed)) return parsed
+    // Ignora IDs inválidos como 0 ou números negativos que a IA possa gerar
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
 
     const rawTitle =
         item?.modulo_titulo ||
@@ -460,24 +483,32 @@ const resolveModuleTitle = (moduleId: number | null, lookupById: Map<number, str
 }
 
 const generateForModules = async (count: number) => {
-    const perModuleLimit = Math.max(2, Math.floor(MAX_EXAMPLES_TOTAL / selectedModules.value.length))
-    const modulePayload = await Promise.all(
-        selectedModules.value.map(async (moduleItem) => {
-            const exemplos = await fetchExerciseExamplesByModule(moduleItem.modules_id, perModuleLimit)
-            return {
-                id: moduleItem.modules_id,
-                titulo: moduleItem.module_title || `Módulo ${moduleItem.modules_id}`,
-                descricao: moduleItem.additional_description || '',
-                exemplos: formatExamples(exemplos),
-            }
-        }),
-    )
-
-    const response = await gerarExercicios({
-        tituloLivro: selectedBook.value?.title || 'Sem título',
-        modulos: modulePayload,
-        numeroPerguntas: count,
+    const modulePayload = selectedModules.value.map((moduleItem) => {
+        return {
+            id: moduleItem.modules_id,
+            titulo: moduleItem.module_title || `Módulo ${moduleItem.modules_id}`,
+            descricao: moduleItem.additional_description || '',
+        }
     })
+
+    const perguntasJaCriadas = selectedModules.value.flatMap((moduleItem) => {
+        const list = approvedExercisesByModule.value[moduleItem.modules_id] || []
+        return list.map((item) => getQuestionText(item.content || item))
+    }).join('\n')
+
+    const moduloAtual = (Array.isArray(modulePayload) && modulePayload.length > 0) ? modulePayload[0] : ({} as any);
+    const temaDoModulo = `${moduloAtual.titulo || ''}. ${moduloAtual.descricao || ''}`;
+
+    const requestPayload = {
+        titulo_livro: selectedBook.value?.title || 'Ciências da Vida',
+        numero_perguntas: Number(count),
+        descricao_adicional: temaDoModulo,
+        perguntas_existentes: perguntasJaCriadas,
+    }
+
+    rawFlowiseRequest.value = JSON.stringify(requestPayload, null, 2)
+
+    const response = await gerarExercicios(requestPayload)
 
     const rawResponse = (response as any)?.raw ?? response
     const parsedResponse = (response as any)?.parsed ?? response
@@ -535,15 +566,19 @@ const generateForModules = async (count: number) => {
 }
 
 const handleGenerate = async () => {
-    if (!selectedModules.value.length) {
+    if (generationMode.value === 'module' && !selectedModules.value.length) {
         error.value = 'Seleciona pelo menos um módulo primeiro.'
+        return
+    }
+    if (generationMode.value === 'daily' && !selectedBookId.value) {
+        error.value = 'Seleciona um livro primeiro.'
         return
     }
     if (countPerModule.value <= 0) {
         error.value = 'Define uma quantidade maior que zero.'
         return
     }
-    if (isOverMaxTotal.value) {
+    if (generationMode.value === 'module' && isOverMaxTotal.value) {
         error.value = `O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`
         return
     }
@@ -557,6 +592,8 @@ const handleGenerate = async () => {
     info.value = ''
     warning.value = ''
     progressLabel.value = ''
+    rawFlowiseResponse.value = ''
+    rawFlowiseRequest.value = ''
 
     try {
         progressLabel.value = `A gerar exercícios para ${selectedModules.value.length} módulos`
@@ -666,6 +703,13 @@ const toggleModuleExpanded = (moduleId: number) => {
     expandedModules.value[moduleId] = !expandedModules.value[moduleId]
 }
 
+watch(generationMode, () => {
+    generatedExercises.value = []
+    error.value = ''
+    info.value = ''
+    warning.value = ''
+})
+
 watch(selectedModuleId, async () => {
     generatedExercises.value = []
 })
@@ -684,6 +728,7 @@ watch(selectedBookId, () => {
     generatedExercises.value = []
     approvedExercisesByModule.value = {}
     rawFlowiseResponse.value = ''
+    rawFlowiseRequest.value = ''
     warning.value = ''
 })
 
@@ -717,10 +762,27 @@ onMounted(async () => {
         <div class="workspace">
             <!-- Left Column: Main flow (Books, Modules, Lists) -->
             <div class="main-column">
-                <!-- Step 1: Book Selection -->
+                <!-- Step 1: Mode Selection -->
+                <UiCard class="workspace-panel is-completed">
+                    <div class="panel-header" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
+                        <div class="step-indicator">1</div>
+                        <div class="header-text mode-header-flex">
+                            <div>
+                                <h2>Modo de Geração</h2>
+                                <p class="meta">Escolhe o tipo de exercícios que pretendes criar.</p>
+                            </div>
+                            <UiSegmented :model-value="generationMode" :options="[
+                                { label: 'Por Módulo', value: 'module' },
+                                { label: 'Perguntas Diárias', value: 'daily' }
+                            ]" @update="generationMode = $event as 'module' | 'daily'" />
+                        </div>
+                    </div>
+                </UiCard>
+
+                <!-- Step 2: Book Selection -->
                 <UiCard class="workspace-panel" :class="{ 'is-completed': selectedBookId }">
                     <div class="panel-header">
-                        <div class="step-indicator">1</div>
+                        <div class="step-indicator">2</div>
                         <div class="header-text">
                             <h2>Escolhe um Livro</h2>
                             <p v-if="selectedBookId" class="meta-selected">
@@ -735,11 +797,11 @@ onMounted(async () => {
                     </div>
                 </UiCard>
 
-                <!-- Step 2: Module Selection -->
+                <!-- Step 3: Module Selection -->
                 <Transition name="fade-slide">
-                    <UiCard v-if="selectedBookId" class="workspace-panel">
+                    <UiCard v-if="selectedBookId && generationMode === 'module'" class="workspace-panel">
                         <div class="panel-header">
-                            <div class="step-indicator">2</div>
+                            <div class="step-indicator">3</div>
                             <div class="header-text">
                                 <h2>Seleciona os Módulos</h2>
                                 <p class="meta">Marca até {{ MAX_SELECTED_MODULES }} módulos que precisam de novos
@@ -755,7 +817,7 @@ onMounted(async () => {
                 </Transition>
 
                 <!-- Approved Modules Summary -->
-                <section v-if="approvedSummaries.length" class="approved-section">
+                <section v-if="generationMode === 'module' && approvedSummaries.length" class="approved-section">
                     <div class="section-title">
                         <div class="title-with-icon">
                             <h3>Estado das Aprovações</h3>
@@ -781,15 +843,20 @@ onMounted(async () => {
                                     <p class="progress-text">
                                         <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
                                     </p>
-                                    <ChevronDownIcon class="accordion-icon" :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }" aria-hidden="true" />
+                                    <ChevronDownIcon class="accordion-icon"
+                                        :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }"
+                                        aria-hidden="true" />
                                 </div>
                             </div>
-                            <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[summary.moduleItem.modules_id] }">
+                            <div class="accordion-wrapper"
+                                :class="{ 'is-open': expandedModules[summary.moduleItem.modules_id] }">
                                 <div class="accordion-content">
                                     <div class="approved-list-container">
-                                        <ApprovedExercisesList v-if="summary.approved.length" 
-                                            :exercises="summary.approved" :type-labels="typeLabels" @remove="handleRemoveApproved" />
-                                        <p v-else class="empty-approved">Sem exercícios aprovados neste módulo ainda.</p>
+                                        <ApprovedExercisesList v-if="summary.approved.length"
+                                            :exercises="summary.approved" :type-labels="typeLabels"
+                                            @remove="handleRemoveApproved" />
+                                        <p v-else class="empty-approved">Sem exercícios aprovados neste módulo ainda.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -814,25 +881,32 @@ onMounted(async () => {
                     <h3>Resposta Raw Flowise</h3>
                     <pre class="raw-output">{{ rawFlowiseResponse }}</pre>
                 </UiCard>
+
+                <!-- Raw Request -->
+                <UiCard v-if="rawFlowiseRequest" class="raw-panel">
+                    <h3>Pedido Raw Flowise (Enviado)</h3>
+                    <pre class="raw-output">{{ rawFlowiseRequest }}</pre>
+                </UiCard>
             </div>
 
             <!-- Right Column: Generation Settings -->
             <div class="sidebar-column">
                 <UiCard class="config-panel sticky">
                     <div class="config-header">
-                        <div class="step-indicator">3</div>
+                        <div class="step-indicator">{{ generationMode === 'module' ? '4' : '3' }}</div>
                         <h2>Configuração</h2>
                     </div>
 
-                    <div class="config-body" :class="{ 'is-disabled': !selectedModuleIds.length }">
+                    <div class="config-body" :class="{ 'is-disabled': (generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) }">
                         <div class="config-group">
                             <div class="group-header">
-                                <label>Perguntas por Módulo</label>
-                                <span class="badge">Máx {{ maxPerModule }}</span>
+                                <label>{{ generationMode === 'module' ? 'Perguntas por Módulo' : 'Total de Perguntas Diárias' }}</label>
+                                <span class="badge" v-if="generationMode === 'module'">Máx {{ maxPerModule }}</span>
+                                <span class="badge" v-else>Máx 15</span>
                             </div>
-                            <UiInput type="number" :min="1" :max="maxPerModule" :model-value="countPerModule"
+                            <UiInput type="number" :min="1" :max="generationMode === 'module' ? maxPerModule : 15" :model-value="countPerModule"
                                 @update="countPerModule = Math.max(1, Number($event) || 1)" />
-                            <p class="config-math" :class="{ 'is-warning': isOverMaxTotal }">
+                            <p class="config-math" :class="{ 'is-warning': generationMode === 'module' && isOverMaxTotal }" v-if="generationMode === 'module'">
                                 Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIds.length }}
                                 (limite {{ MAX_TOTAL_QUESTIONS }})
                             </p>
@@ -850,13 +924,14 @@ onMounted(async () => {
 
                         <div class="config-action">
                             <UiButton variant="primary" size="md" class="generate-btn"
-                                :disabled="!selectedModuleIds.length || isGenerating || isOverMaxTotal"
+                                :disabled="(generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) || isGenerating || (generationMode === 'module' && isOverMaxTotal)"
                                 @click="handleGenerate">
                                 <span v-if="!isGenerating">Gerar Exercícios</span>
                                 <span v-else>A Gerar...</span>
                             </UiButton>
-                            <p class="action-hint" v-if="!selectedModuleIds.length">Seleciona módulos para começar.</p>
-                            <p class="action-hint" v-else-if="isOverMaxTotal">Reduz o total para não ultrapassar o
+                            <p class="action-hint" v-if="generationMode === 'module' && !selectedModuleIds.length">Seleciona módulos para começar.</p>
+                            <p class="action-hint" v-else-if="generationMode === 'daily' && !selectedBookId">Seleciona um livro para começar.</p>
+                            <p class="action-hint" v-else-if="generationMode === 'module' && isOverMaxTotal">Reduz o total para não ultrapassar o
                                 limite.</p>
                         </div>
                     </div>
@@ -1010,6 +1085,15 @@ onMounted(async () => {
     border: 2px solid var(--color-mirage-900);
     box-shadow: 2px 2px 0 var(--color-shadow);
     flex-shrink: 0;
+}
+
+.mode-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--space-300);
 }
 
 .header-text h2 {

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import heroUrl from '@/assets/images/person_and_books.png'
-import { BookOpenIcon, FireIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { BookOpenIcon, FireIcon, QuestionMarkCircleIcon, TrophyIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import {
-  fetchApprovedBooks,
   fetchUserById,
   fetchUserBooks,
-  fetchUsers,
   getAssetUrl,
   getUserAvatarId,
   getUserDisplayName,
@@ -19,8 +18,6 @@ import {
 } from '../services/directus'
 
 const user = ref<User | null>(null)
-const books = ref<Book[]>([]) // All approved books
-const ranking = ref<User[]>([]) // Top users for ranking
 const error = ref('') // General error message
 const userBooks = ref<UserBook[]>([])
 const pointsByExercise = 10
@@ -31,18 +28,12 @@ const userBooksList = computed(() =>
   userBooks.value.map((entry) => entry.book_id).filter((book): book is Book => !!book),
 )
 
+// O Último livro a ser apresentado como destaque (Continuar a Ler)
+const recentBook = computed(() => userBooksList.value.length > 0 ? userBooksList.value[0] : null)
+
 const booksObtained = computed(() => userBooksList.value.length)
 const answeredQuestions = computed(() => Math.max(0, Math.floor((user.value?.points ?? 0) / pointsByExercise)))
 const levelProgress = computed(() => getLevelProgressFromPoints(user.value?.points ?? 0))
-const bookProgress = computed(() => {
-  const total = Math.max(books.value.length, 1)
-  const current = userBooksList.value.length
-  return {
-    current,
-    total,
-    percent: Math.min(100, Math.round((current / total) * 100)),
-  }
-})
 
 const avatar = computed(() => getAssetUrl(getUserAvatarId(user.value)))
 
@@ -75,13 +66,8 @@ const loadProfile = async () => {
 onMounted(async () => {
   error.value = ''
   try {
-    // 1. PRIMEIRO: Carregamos o perfil do utilizador e os seus livros!
+    // Carregamos o perfil do utilizador e os seus livros
     await loadProfile()
-
-    // 2. SEGUNDO: Carregamos o resto dos dados do dashboard (livros gerais e ranking)
-    const [bookList, topUsers] = await Promise.all([fetchApprovedBooks(), fetchUsers(10)])
-    books.value = bookList
-    ranking.value = topUsers
   } catch {
     error.value = 'Nao foi possivel carregar os dados do dashboard.'
   }
@@ -168,39 +154,87 @@ onMounted(async () => {
     </section>
 
     <div class="layout">
-      <section class="panel">
+      <!-- Destaque: Continuar a Jogar -->
+      <section class="panel feature-panel">
         <div class="panel-header">
-          <h2>Livros</h2>
-          <span class="meta">{{ bookProgress.current }}</span>
+          <div>
+            <h2>Retomar Aprendizagem</h2>
+            <p class="meta">Continua a fazer os exercícios do teu último livro acedido.</p>
+          </div>
         </div>
-        <ul v-if="userBooksList.length" class="book-list">
-          <li v-for="book in userBooksList" :key="book.book_id" class="panel-book">
-            <div>
-              <p class="title">{{ book.title || 'Sem titulo' }}</p>
-              <p class="meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
+        <div v-if="recentBook" class="featured-book">
+          <div class="book-cover">
+            <img v-if="recentBook.cover_img" :src="getAssetUrl(recentBook.cover_img)" alt="Capa" />
+            <span v-else>Livro</span>
+          </div>
+          <div class="book-info">
+            <p class="eyebrow">A ler atualmente</p>
+            <h3 class="title">{{ recentBook.title || 'Sem título' }}</h3>
+            <p class="meta">{{ (recentBook as any).editora?.nome_editora || 'Sem editora' }}</p>
+            <div class="book-action">
+              <RouterLink :to="`/book/${(recentBook as any).book_id}`">
+                <UiButton variant="primary">Fazer Exercícios</UiButton>
+              </RouterLink>
             </div>
-            <RouterLink :to="`/book/${book.book_id}`" class="action">Abrir</RouterLink>
-          </li>
-        </ul>
-        <p v-else class="empty">Sem livros associados.</p>
-        <div class="panel-footer">
-          <UiButton size="sm" variant="outline">Ver mais</UiButton>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <div class="empty-icon-wrap">
+            <BookOpenIcon class="icon-lg" aria-hidden="true" />
+          </div>
+          <h3>Nenhum livro na coleção</h3>
+          <p class="empty-desc">Ainda não adicionaste nenhum livro. Explora o catálogo para começares a tua aventura!
+          </p>
+          <RouterLink to="/collection" class="mt-3 block">
+            <UiButton variant="primary">Explorar Catálogo</UiButton>
+          </RouterLink>
         </div>
       </section>
 
-      <section class="panel">
+      <!-- Atalhos / Explorar -->
+      <section class="panel explore-panel">
         <div class="panel-header">
-          <h2>Estatisticas</h2>
+          <div>
+            <h2>Explorar o GamiBook</h2>
+            <p class="meta">Descobre novos conteúdos e acompanha o teu progresso.</p>
+          </div>
         </div>
-        <ol v-if="ranking.length" class="rank-list">
-          <li v-for="rankUser in ranking" :key="rankUser.id || rankUser.email || rankUser.name">
-            <span>{{ displayUserName(rankUser) }}</span>
-            <strong>{{ rankUser.points ?? '-' }}</strong>
-          </li>
-        </ol>
-        <p v-else class="empty">Sem ranking disponivel.</p>
-        <div class="panel-footer">
-          <UiButton size="sm" variant="outline">Ver mais</UiButton>
+        <div class="explore-grid">
+          <RouterLink to="/collection" class="explore-link">
+            <UiCard class="explore-card">
+              <div class="explore-icon bg-pumpkin">
+                <BookOpenIcon class="icon text-white" aria-hidden="true" />
+              </div>
+              <div class="explore-text">
+                <h3>Catálogo</h3>
+                <p>Encontra novos livros e adiciona-os à tua coleção.</p>
+              </div>
+            </UiCard>
+          </RouterLink>
+
+          <RouterLink to="/leaderboard" class="explore-link">
+            <UiCard class="explore-card">
+              <div class="explore-icon bg-blue">
+                <TrophyIcon class="icon text-white" aria-hidden="true" />
+              </div>
+              <div class="explore-text">
+                <h3>Classificação</h3>
+                <p>Compara a tua pontuação com a de outros utilizadores.</p>
+              </div>
+            </UiCard>
+          </RouterLink>
+
+          <RouterLink to="/settings/conta" class="explore-link">
+            <UiCard class="explore-card">
+              <div class="explore-icon bg-green">
+                <Cog6ToothIcon class="icon text-white" aria-hidden="true" />
+              </div>
+              <div class="explore-text">
+                <h3>A Minha Conta</h3>
+                <p>Gere o teu perfil, avatar e definições pessoais.</p>
+              </div>
+            </UiCard>
+          </RouterLink>
         </div>
       </section>
     </div>
@@ -366,8 +400,8 @@ onMounted(async () => {
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--space-400);
 }
 
@@ -402,71 +436,170 @@ onMounted(async () => {
   color: var(--color-mirage-600);
 }
 
-.book-list,
-.rank-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+/* Destaque Livro */
+.featured-book {
   display: grid;
-  gap: var(--space-200);
-}
-
-.panel-book,
-.rank-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-200);
-  padding: var(--space-200);
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-400);
+  padding: var(--space-400);
   border-radius: 12px;
+  background: var(--color-wild-200);
   border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
+  box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
-.title {
-  font-weight: 700;
-}
-
-.meta {
-  font-size: 12px;
-  color: var(--color-mirage-600);
-}
-
-
-.bar {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
+.book-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
   overflow: hidden;
+  background: var(--color-wild-300);
   border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-}
-
-.fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-500));
-}
-
-.action {
-  justify-self: start;
-  text-decoration: none;
-  font-weight: 600;
-  color: var(--color-deep-700);
-}
-
-.edit-link {
-  text-decoration: none;
-}
-
-.empty {
-  margin-top: 12px;
+  box-shadow: 3px 3px 0 rgba(2, 29, 32, 0.15);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
   color: var(--color-mirage-600);
-  font-weight: 600;
+}
+
+.book-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--color-mirage-500);
+  margin-bottom: 4px;
+}
+
+.book-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.book-info h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--color-mirage-900);
+}
+
+.book-action {
+  margin-top: var(--space-200);
+}
+
+/* Empty State Livro */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-500) 0;
+  gap: var(--space-200);
+}
+
+.empty-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-wild-200);
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-200);
+}
+
+.empty-state h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-mirage-900);
+}
+
+.empty-desc {
+  margin: 0;
+  color: var(--color-mirage-600);
+  max-width: 400px;
+}
+
+/* Grelha de Atalhos (Explorar) */
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-400);
+}
+
+.explore-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.explore-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-300);
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.explore-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 8px 8px 0 var(--color-shadow);
+}
+
+.explore-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.explore-text h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+}
+
+.explore-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-600);
+}
+
+.mt-3 {
+  margin-top: 12px;
 }
 
 .error {
   color: #b13b3b;
   font-weight: 600;
+}
+
+/* Utilitários de Cor */
+.bg-pumpkin {
+  background: var(--color-pumpkin-500);
+}
+
+.bg-blue {
+  background: #3b82f6;
+}
+
+.bg-green {
+  background: #10b981;
+}
+
+.text-white {
+  color: #ffffff !important;
+}
+
+.edit-link {
+  text-decoration: none;
 }
 
 @media (max-width: 900px) {
@@ -479,9 +612,20 @@ onMounted(async () => {
   }
 }
 
-.panel-footer {
-  display: flex;
-  justify-content: center;
+@media (max-width: 600px) {
+  .featured-book {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .book-cover {
+    width: 140px;
+    margin: 0 auto;
+  }
+
+  .book-action {
+    align-self: center;
+  }
 }
 
 .icon {
@@ -489,5 +633,11 @@ onMounted(async () => {
   height: 18px;
   color: var(--color-mirage-800);
   stroke-width: var(--icon-stroke);
+}
+
+.icon-lg {
+  width: 28px;
+  height: 28px;
+  color: var(--color-mirage-500);
 }
 </style>

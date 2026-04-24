@@ -1,21 +1,11 @@
 const FLOWISE_URL = 'http://localhost:3000'
 const CHATFLOW_ID = '18a5aadf-041b-4c26-ba74-a062281b843d'
 
-export async function gerarExercicios({ tituloLivro, modulos, numeroPerguntas = 5 }) {
+export async function gerarExercicios(promptValues) {
   console.log('[Flowise] A fazer ligacao', { url: FLOWISE_URL, chatflow: CHATFLOW_ID })
 
-  const totalPerguntas = Number(numeroPerguntas || 5)
-  const modulosPayload =
-    typeof modulos === 'string' ? modulos : JSON.stringify(modulos ?? [], null, 0)
-
-  const promptValues = {
-    titulo_livro: tituloLivro || 'Sem título',
-    modulos: modulosPayload,
-    numero_perguntas: Number.isFinite(totalPerguntas) ? totalPerguntas : 5,
-  }
-
   console.log('[Flowise] Ligacao feita. A enviar pedido...', {
-    totalPerguntas,
+    promptValues,
   })
 
   const response = await fetch(`${FLOWISE_URL}/api/v1/prediction/${CHATFLOW_ID}`, {
