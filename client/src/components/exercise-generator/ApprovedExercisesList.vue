@@ -4,7 +4,7 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
-import type { Exercise } from '@/services/directus'
+import type { Exercise } from '@/types'
 import { TrashIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
@@ -114,7 +114,8 @@ const getAnswer = (exercise: Exercise) => {
                 <div class="confirm-header">
                     <div class="confirm-icon-title">
                         <h3>Detalhes do Exercício</h3>
-                        <UiIconButton size="md" shape="square" variant="outline" @click="confirmRemove" title="Apagar exercício">
+                        <UiIconButton size="md" shape="square" variant="outline" @click="confirmRemove"
+                            title="Apagar exercício">
                             <TrashIcon class="remove-icon" aria-hidden="true" />
                         </UiIconButton>
                     </div>
@@ -134,7 +135,8 @@ const getAnswer = (exercise: Exercise) => {
                         <p class="answer-text"><strong>Resposta correta:</strong> {{ (pendingExercise.content as
                             any)?.resposta_correta || 'Sem resposta' }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as
+                            any).justificacao }}
                         </p>
                     </template>
 
@@ -142,7 +144,8 @@ const getAnswer = (exercise: Exercise) => {
                         <p class="answer-text"><strong>Resposta correta:</strong> {{ (pendingExercise.content as
                             any)?.resposta_correta ? 'Verdadeiro' : 'Falso' }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as
+                            any).justificacao }}
                         </p>
                     </template>
 
@@ -159,7 +162,8 @@ const getAnswer = (exercise: Exercise) => {
                         <p class="answer-text"><strong>Respostas corretas:</strong> {{
                             getFillBlankAnswers(pendingExercise) }}</p>
                         <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as any).justificacao }}
+                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as
+                            any).justificacao }}
                         </p>
                     </template>
                 </div>

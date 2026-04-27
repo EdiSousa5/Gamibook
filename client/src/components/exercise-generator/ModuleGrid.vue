@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
-import type { Module } from '@/services/directus'
+import type { Module } from '@/types'
 
 type Props = {
     modules: Module[]

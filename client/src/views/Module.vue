@@ -3,20 +3,18 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import {
-    createUserExercise,
     fetchBook,
-    fetchExercisesByModule,
     fetchModule,
+} from '../services/books'
+import {
+    createUserExercise,
+    fetchExercisesByModule,
     fetchUserExercisesByModule,
-    fetchUserById,
-    getStoredUserId,
-    type Book,
-    type Exercise,
-    type Module,
-    type UserExercise,
-    updateUser,
     updateUserExercise,
-} from '../services/directus'
+} from '../services/exercises'
+import { fetchUserById, updateUser } from '../services/auth'
+import { getStoredUserId } from '../services/client'
+import type { Book, Exercise, Module, UserExercise } from '@/types'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
@@ -190,7 +188,9 @@ const shuffleArray = <T,>(values: T[]) => {
     const result = [...values]
     for (let i = result.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1))
-            ;[result[i], result[j]] = [result[j], result[i]]
+        const temp = result[i] as T
+        result[i] = result[j] as T
+        result[j] = temp
     }
     return result
 }
@@ -319,12 +319,13 @@ const recordResult = (isCorrect: boolean, attempts: number, points: number) => {
 
 const persistResults = async () => {
     if (!userId.value) return
+    const currentUserId = userId.value
     const updates = pendingResults.value.map(async (result) => {
         const existing = existingRecords.value[result.exerciseId]
         const timestamp = new Date().toISOString()
         if (existing?.is_correct === true) return
         const payload = {
-            user_id: userId.value,
+            user_id: currentUserId,
             exercise_id: result.exerciseId,
             module_id: moduleId.value,
             is_correct: result.isCorrect,

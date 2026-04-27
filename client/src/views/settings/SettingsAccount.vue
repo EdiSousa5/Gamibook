@@ -6,12 +6,12 @@ import UiInput from '@/components/ui/UiInput.vue'
 import { PaperClipIcon } from '@heroicons/vue/24/outline'
 import {
     fetchUserById,
-    getAssetUrl,
     getUserAvatarId,
     updateUser,
     uploadUserAvatar,
-    type User,
-} from '../../services/directus'
+} from '../../services/auth'
+import { getAssetUrl } from '../../services/client'
+import type { User } from '@/types'
 
 const user = ref<User | null>(null)
 const name = ref('')

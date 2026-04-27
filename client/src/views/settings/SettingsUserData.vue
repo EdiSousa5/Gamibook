@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { fetchUserById, type User } from '../../services/directus'
+import { fetchUserById } from '../../services/auth'
+import type { User } from '@/types'
 
 const user = ref<User | null>(null)
 const error = ref('')
