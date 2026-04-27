@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UiCard from '@/components/ui/UiCard.vue'
-import { getAssetUrl, type Book } from '@/services/directus'
+import { getAssetUrl } from '@/services/client'
+import type { Book } from '@/types'
 
 type Props = {
     books: Book[]
@@ -30,6 +31,8 @@ defineEmits<{ select: [number] }>()
                     <h3>{{ book.title || `Livro ${book.book_id}` }}</h3>
                     <p class="meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
                     <p>{{ book.description || 'Sem descricao' }}</p>
+                    <p class="status" :class="{ 'is-approved': book.is_approved }">Estado: {{ book.is_approved ?
+                        'Aprovado' : 'Por aprovar' }}</p>
                 </div>
             </UiCard>
         </div>
@@ -123,5 +126,16 @@ defineEmits<{ select: [number] }>()
     font-weight: 600;
     color: var(--color-mirage-600);
     margin-bottom: 2px;
+}
+
+.status {
+    font-size: 11px !important;
+    font-weight: 700;
+    color: var(--color-amber-600) !important;
+    margin-top: auto !important;
+}
+
+.status.is-approved {
+    color: var(--color-teal-600) !important;
 }
 </style>

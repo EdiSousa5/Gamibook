@@ -5,15 +5,15 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import {
-  fetchApprovedExerciseCountsByModule,
   fetchBook,
   fetchModulesByBook,
+} from '../services/books'
+import {
+  fetchApprovedExerciseCountsByModule,
   fetchUserExerciseCountsByModule,
-  getAssetUrl,
-  getStoredUserId,
-  type Book,
-  type Module,
-} from '../services/directus'
+} from '../services/exercises'
+import { getAssetUrl, getStoredUserId } from '../services/client'
+import type { Book, Module } from '@/types'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.id || 1))

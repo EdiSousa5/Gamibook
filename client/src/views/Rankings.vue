@@ -9,10 +9,9 @@ import {
   fetchUsers,
   getUserDisplayName,
   getUserAvatarId,
-  getAssetUrl,
-  getStoredUserId,
-  type User
-} from '../services/directus'
+} from '../services/auth'
+import { getAssetUrl, getStoredUserId } from '../services/client'
+import type { User } from '@/types'
 
 const topGlobal = ref<User[]>([])
 const error = ref('')
@@ -53,7 +52,7 @@ onMounted(async () => {
   error.value = ''
   isLoading.value = true
   try {
-    // DICA: O ideal será atualizar a função fetchUsers no ficheiro directus.ts
+    // DICA: O ideal sera atualizar a funcao fetchUsers no ficheiro services/auth.ts
     // para passar o filtro nativamente: { filter: { role: { name: { _eq: "Utilizador" } } } }
     // Para já, buscamos mais utilizadores e filtramos no lado do cliente:
     const users = await fetchUsers(50)

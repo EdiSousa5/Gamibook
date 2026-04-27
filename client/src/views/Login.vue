@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import { loginUser } from '../services/directus'
+import { loginUser } from '../services/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,20 +41,10 @@ const submit = async () => {
       <p class="hint">Entra para continuar a tua missao.</p>
 
       <form @submit.prevent="submit">
-        <UiInput
-          label="Email"
-          type="email"
-          placeholder="email@exemplo.com"
-          :model-value="email"
-          @update="email = String($event)"
-        />
-        <UiInput
-          label="Password"
-          type="password"
-          placeholder="********"
-          :model-value="password"
-          @update="password = String($event)"
-        />
+        <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
+          @update="email = String($event)" />
+        <UiInput label="Password" type="password" placeholder="********" :model-value="password"
+          @update="password = String($event)" />
 
         <p v-if="info" class="info">{{ info }}</p>
         <p v-if="error" class="error">{{ error }}</p>

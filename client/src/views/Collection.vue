@@ -8,14 +8,11 @@ import { RouterLink } from 'vue-router'
 import {
   fetchApprovedBooks,
   fetchBooks,
-  fetchUserById,
   fetchUserBooks,
-  getAssetUrl,
-  isAdminUser,
-  type Book,
-  type User,
-  type UserBook,
-} from '../services/directus'
+} from '../services/books'
+import { fetchUserById, isAdminUser } from '../services/auth'
+import { getAssetUrl } from '../services/client'
+import type { Book, User, UserBook } from '@/types'
 
 const userBooks = ref<UserBook[]>([])
 const allBooks = ref<Book[]>([])
@@ -23,6 +20,7 @@ const user = ref<User | null>(null)
 const error = ref('')
 const isLoading = ref(false)
 const selectedBookId = ref<number | null>(null)
+const featuredDescriptionFallback = 'Explora os conteúdos deste livro, desbloqueia módulos e ganha mais pontos respondendo aos desafios criados para ti.'
 
 const isAdmin = computed(() => isAdminUser(user.value))
 
@@ -101,7 +99,7 @@ onMounted(async () => {
           </div>
           <h2 class="titulo-livro">{{ featuredBook.title || 'Sem título' }}</h2>
           <p class="descricao">
-            {{ featuredBook.description || 'Explora os conteúdos deste livro, desbloqueia módulos e ganha mais pontos respondendo aos desafios criados para ti.' }}
+            {{ featuredBook.description || featuredDescriptionFallback }}
           </p>
           <div class="destaque-actions">
             <RouterLink :to="`/book/${featuredBook.book_id}`">

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import { loginUser, registerUser, uploadUserAvatar } from '../services/directus'
+import { loginUser, registerUser, uploadUserAvatar } from '../services/auth'
 
 const router = useRouter()
 const name = ref('')
@@ -70,26 +70,11 @@ const submit = async () => {
       <p class="hint">Cria a tua conta e desbloqueia a aventura.</p>
 
       <form @submit.prevent="submit">
-        <UiInput
-          label="Nome"
-          placeholder="O teu nome"
-          :model-value="name"
-          @update="name = String($event)"
-        />
-        <UiInput
-          label="Email"
-          type="email"
-          placeholder="email@exemplo.com"
-          :model-value="email"
-          @update="email = String($event)"
-        />
-        <UiInput
-          label="Password"
-          type="password"
-          placeholder="********"
-          :model-value="password"
-          @update="password = String($event)"
-        />
+        <UiInput label="Nome" placeholder="O teu nome" :model-value="name" @update="name = String($event)" />
+        <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
+          @update="email = String($event)" />
+        <UiInput label="Password" type="password" placeholder="********" :model-value="password"
+          @update="password = String($event)" />
         <label class="file">
           Avatar
           <input type="file" accept="image/*" @change="onAvatarChange" />

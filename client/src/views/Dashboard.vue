@@ -6,16 +6,12 @@ import UiIconButton from '@/components/ui/UiIconButton.vue'
 import heroUrl from '@/assets/images/person_and_books.png'
 import { BookOpenIcon, FireIcon, QuestionMarkCircleIcon, TrophyIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import {
-  fetchUserById,
   fetchUserBooks,
-  getAssetUrl,
-  getUserAvatarId,
-  getUserDisplayName,
-  getLevelProgressFromPoints,
-  type Book,
-  type User,
-  type UserBook,
-} from '../services/directus'
+} from '../services/books'
+import { fetchUserById, getUserAvatarId, getUserDisplayName } from '../services/auth'
+import { getAssetUrl } from '../services/client'
+import { getLevelProgressFromPoints } from '../utils/gamification'
+import type { Book, User, UserBook } from '@/types'
 
 const user = ref<User | null>(null)
 const error = ref('') // General error message

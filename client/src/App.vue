@@ -7,14 +7,12 @@ import UiButton from './components/ui/UiButton.vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import {
   clearAccessToken,
-  fetchUserById,
-  getUserDisplayName,
   getAssetUrl,
-  getLevelProgressFromPoints,
-  isAdminUser,
   setStoredUserId,
-  type User,
-} from './services/directus'
+} from './services/client'
+import { fetchUserById, getUserDisplayName, isAdminUser } from './services/auth'
+import { getLevelProgressFromPoints } from './utils/gamification'
+import type { User } from './types'
 
 const router = useRouter()
 const route = useRoute()

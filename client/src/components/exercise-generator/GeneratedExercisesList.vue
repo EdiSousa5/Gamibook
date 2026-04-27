@@ -152,7 +152,8 @@ const canSave = computed(() => {
                                     <UiBadge :label="`Exercicio ${index + 1}`" />
                                     <UiBadge :label="typeLabels[exercise.exerciseType]" />
                                 </div>
-                                <UiIconButton size="md" shape="square" variant="outline" @click="openEdit(exercise)" title="Editar exercício">
+                                <UiIconButton size="md" shape="square" variant="outline" @click="openEdit(exercise)"
+                                    title="Editar exercício">
                                     <PencilIcon class="remove-icon" aria-hidden="true" />
                                 </UiIconButton>
                             </div>
@@ -164,16 +165,21 @@ const canSave = computed(() => {
                                 <ul>
                                     <li v-for="(option, idx) in exercise.content.opcoes" :key="idx"
                                         :class="{ correct: isOptionCorrect(option, exercise.content.resposta_correta) }">
-                                        <strong>{{ String.fromCharCode(65 + idx) }}) {{ getOptionText(option) }}</strong>
+                                        <strong>{{ String.fromCharCode(65 + Number(idx)) }}) {{ getOptionText(option)
+                                            }}</strong>
                                     </li>
                                 </ul>
-                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta || 'Semresposta' }}</p>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
+                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta ||
+                                    'Semresposta' }}</p>
+                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
+                                    || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else-if="exercise.exerciseType === 'true-false'">
-                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta ? 'Verdadeiro' : 'Falso' }}</p>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
+                                <p><strong>Resposta correta:</strong> {{ exercise.content.resposta_correta ?
+                                    'Verdadeiro' : 'Falso' }}</p>
+                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
+                                    || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else-if="exercise.exerciseType === 'fill-blanks'">
@@ -188,7 +194,8 @@ const canSave = computed(() => {
                                     </ul>
                                 </div>
                                 <p><strong>Respostas corretas:</strong> {{ getFillBlankAnswers(exercise) }}</p>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
+                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
+                                    || 'Sem justificacao.' }}</p>
                             </template>
 
                             <template v-else>
@@ -197,7 +204,7 @@ const canSave = computed(() => {
                                         <p><strong>Itens desordenados</strong></p>
                                         <ol>
                                             <li v-for="item in exercise.content.itens_desordenados" :key="item">{{ item
-                                            }}</li>
+                                                }}</li>
                                         </ol>
                                     </div>
                                     <div>
@@ -205,7 +212,8 @@ const canSave = computed(() => {
                                         <p>{{ exercise.content.ordem_correta?.join(', ') || 'Sem ordem' }}</p>
                                     </div>
                                 </div>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao || 'Sem justificacao.' }}</p>
+                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
+                                    || 'Sem justificacao.' }}</p>
                             </template>
                         </div>
 
@@ -225,33 +233,49 @@ const canSave = computed(() => {
 
                         <!-- MODAL DE EDIÇÃO -->
                         <Teleport to="body">
-                            <div v-if="editingId === exercise.localId && editDraft" class="edit-overlay" @click.self="closeEdit">
+                            <div v-if="editingId === exercise.localId && editDraft" class="edit-overlay"
+                                @click.self="closeEdit">
                                 <div class="edit-modal">
                                     <h3>Editar Exercício</h3>
-                                    
+
                                     <div class="edit-field">
                                         <label>Pergunta</label>
-                                        <UiTextarea :model-value="editDraft.questionText" @update="editDraft.questionText = $event" :rows="2" />
-                                        <p class="edit-hint" :class="{ 'is-error': (editDraft.questionText?.trim().length || 0) < 10 }">A pergunta deve ter pelo menos 10 caracteres e não pode estar vazia.</p>
+                                        <UiTextarea :model-value="editDraft.questionText"
+                                            @update="editDraft.questionText = $event" :rows="2" />
+                                        <p class="edit-hint"
+                                            :class="{ 'is-error': (editDraft.questionText?.trim().length || 0) < 10 }">A
+                                            pergunta deve ter pelo menos 10 caracteres e não pode estar vazia.</p>
                                     </div>
 
                                     <template v-if="editDraft.exerciseType === 'multiple-choice'">
                                         <div class="edit-field">
                                             <label>Alíneas (Selecione a correta)</label>
-                                            <p class="edit-hint" :class="{ 'is-error': (editDraft.content.opcoes?.length < 4 || editDraft.content.opcoes?.length > 6) }">O exercício deve ter no mínimo 4 e no máximo 6 alíneas e todas devem ser preenchidas.</p>
+                                            <p class="edit-hint"
+                                                :class="{ 'is-error': (editDraft.content.opcoes?.length < 4 || editDraft.content.opcoes?.length > 6) }">
+                                                O exercício deve ter no mínimo 4 e no máximo 6 alíneas e todas devem ser
+                                                preenchidas.</p>
                                             <div class="options-edit-list">
-                                                <div v-for="(opt, idx) in editDraft.content.opcoes" :key="idx" class="option-edit-item">
-                                                    <UiRadio :value="idx" name="correct_option_edit" :model-value="correctOptionIndex" @update="correctOptionIndex = Number($event)" title="Marcar como correta" />
-                                                    <span class="option-letter">{{ String.fromCharCode(65 + idx) }})</span>
+                                                <div v-for="(opt, idx) in editDraft.content.opcoes" :key="idx"
+                                                    class="option-edit-item">
+                                                    <UiRadio :value="idx" name="correct_option_edit"
+                                                        :model-value="correctOptionIndex"
+                                                        @update="correctOptionIndex = Number($event)"
+                                                        title="Marcar como correta" />
+                                                    <span class="option-letter">{{ String.fromCharCode(65 + Number(idx))
+                                                        }})</span>
                                                     <div class="option-input-wrapper">
-                                                        <UiInput :model-value="editDraft.content.opcoes[idx]" @update="editDraft.content.opcoes[idx] = String($event)" />
+                                                        <UiInput :model-value="editDraft.content.opcoes[idx]"
+                                                            @update="editDraft.content.opcoes[idx] = String($event)" />
                                                     </div>
-                                                    <UiIconButton size="md" shape="square" variant="outline" @click="removeOption(idx)" title="Remover alínea">
+                                                    <UiIconButton size="md" shape="square" variant="outline"
+                                                        @click="removeOption(Number(idx))" title="Remover alínea">
                                                         <TrashIcon class="remove-icon" aria-hidden="true" />
                                                     </UiIconButton>
                                                 </div>
                                             </div>
-                                            <UiButton v-if="editDraft.content.opcoes.length < 6" variant="outline" size="sm" @click="addOption" style="align-self: flex-start; margin-top: 8px;">
+                                            <UiButton v-if="editDraft.content.opcoes.length < 6" variant="outline"
+                                                size="sm" @click="addOption"
+                                                style="align-self: flex-start; margin-top: 8px;">
                                                 <PlusIcon class="btn-icon" /> Adicionar Alínea
                                             </UiButton>
                                         </div>
@@ -260,24 +284,28 @@ const canSave = computed(() => {
                                     <template v-else-if="editDraft.exerciseType === 'true-false'">
                                         <div class="edit-field">
                                             <label>Resposta Correta</label>
-                                            <UiSelect 
-                                                :options="[{ label: 'Verdadeiro', value: 'true' }, { label: 'Falso', value: 'false' }]" 
-                                                :model-value="editDraft.content.resposta_correta ? 'true' : 'false'" 
-                                                @update="editDraft.content.resposta_correta = ($event === 'true')" 
-                                            />
+                                            <UiSelect
+                                                :options="[{ label: 'Verdadeiro', value: 'true' }, { label: 'Falso', value: 'false' }]"
+                                                :model-value="editDraft.content.resposta_correta ? 'true' : 'false'"
+                                                @update="editDraft.content.resposta_correta = ($event === 'true')" />
                                         </div>
                                     </template>
-                                    
+
                                     <template v-else>
                                         <div class="edit-field">
-                                            <p style="font-size: 13px; color: var(--color-mirage-600); margin: 0;">A edição detalhada das respostas não está disponível para este formato no menu rápido. Podes alterar a pergunta livremente.</p>
+                                            <p style="font-size: 13px; color: var(--color-mirage-600); margin: 0;">A
+                                                edição detalhada das respostas não está disponível para este formato no
+                                                menu rápido. Podes alterar a pergunta livremente.</p>
                                         </div>
                                     </template>
 
                                     <div class="edit-actions">
                                         <UiButton variant="outline" size="sm" @click="closeEdit">Cancelar</UiButton>
-                                        <UiButton variant="ghost" size="sm" @click="resetEdit(exercise)">Resetar</UiButton>
-                                        <UiButton variant="primary" size="sm" :disabled="!canSave" @click="saveEdit(exercise)">Guardar</UiButton>
+                                        <UiButton variant="ghost" size="sm" @click="resetEdit(exercise)">Resetar
+                                        </UiButton>
+                                        <UiButton variant="primary" size="sm" :disabled="!canSave"
+                                            @click="saveEdit(exercise)">Guardar
+                                        </UiButton>
                                     </div>
                                 </div>
                             </div>
@@ -355,7 +383,8 @@ footer {
     align-items: center;
 }
 
-.footer-left, .footer-right {
+.footer-left,
+.footer-right {
     display: flex;
     gap: 10px;
 }
@@ -420,6 +449,7 @@ footer {
     place-items: center;
     z-index: 9999;
 }
+
 .edit-modal {
     width: min(680px, 90vw);
     background: #ffffff;
@@ -433,30 +463,36 @@ footer {
     max-height: 90vh;
     overflow-y: auto;
 }
+
 .edit-modal h3 {
     margin: 0;
     font-size: 20px;
     font-weight: 800;
 }
+
 .edit-field {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
+
 .edit-field label {
     font-weight: 700;
     font-size: 14px;
     color: #1a262e;
 }
+
 .edit-hint {
     margin: 0;
     font-size: 13px;
     color: var(--color-mirage-600);
 }
+
 .edit-hint.is-error {
     color: #ef4444;
     font-weight: 600;
 }
+
 .option-letter {
     font-weight: 700;
     font-size: 14px;
@@ -464,20 +500,24 @@ footer {
     min-width: 22px;
     text-align: right;
 }
+
 .option-input-wrapper {
     flex: 1;
     min-width: 0;
 }
+
 .options-edit-list {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
+
 .option-edit-item {
     display: flex;
     align-items: center;
     gap: 16px;
 }
+
 .edit-actions {
     display: flex;
     justify-content: flex-end;
@@ -485,6 +525,7 @@ footer {
     gap: 12px;
     margin-top: 16px;
 }
+
 .remove-icon {
     width: 20px;
     height: 20px;
@@ -513,7 +554,9 @@ footer {
         flex-direction: column;
         align-items: stretch;
     }
-    .footer-left, .footer-right {
+
+    .footer-left,
+    .footer-right {
         flex-direction: column;
         align-items: stretch;
     }

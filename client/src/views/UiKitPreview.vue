@@ -20,11 +20,11 @@ import UiTextarea from '@/components/ui/UiTextarea.vue'
 import wintonUrl from '@/assets/images/winton.webp'
 import { BellAlertIcon, CheckCircleIcon, ExclamationTriangleIcon, PaperClipIcon } from '@heroicons/vue/24/outline'
 
-const inputValue = ref('')
+const inputValue = ref<string | number>('')
 const textareaValue = ref('')
 const selectValue = ref<string | number | null>('level-1')
 const checkboxValue = ref(false)
-const radioValue = ref('a')
+const radioValue = ref<string | number>('a')
 const switchValue = ref(true)
 const switchValueAlt = ref(false)
 const sliderValue = ref(35)
@@ -126,7 +126,8 @@ const dummyUsers = [
           <UiCheckbox tone="accent" label="Newsletter" :model-value="checkboxValue" @update="checkboxValue = $event" />
           <UiRadio name="demo" label="Opcao A" value="a" :model-value="radioValue" @update="radioValue = $event" />
           <UiRadio name="demo" label="Opcao B" value="b" :model-value="radioValue" @update="radioValue = $event" />
-          <UiRadio name="demo" label="Opcao C" value="c" tone="accent" :model-value="radioValue"@update="radioValue = $event" />
+          <UiRadio name="demo" label="Opcao C" value="c" tone="accent" :model-value="radioValue"
+            @update="radioValue = $event" />
           <div class="row">
             <UiSwitch :model-value="switchValue" @update="switchValue = $event" />
             <span class="helper">Notificacoes ativas</span>

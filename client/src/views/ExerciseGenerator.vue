@@ -5,22 +5,25 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import UiSegmented from '@/components/ui/UiSegmented.vue'
-import { gerarExercicios } from '@/services/flowise'
+import { gerarExercicios, gerarPerguntasDiarias } from '@/services/flowise.ts'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import {
-    createExercise,
-    deleteExercise,
-    fetchApprovedExercisesByModule,
     fetchBooks,
     fetchModulesByBook,
     fetchModules,
     updateModuleApproval,
     updateBookApproval,
-    type Book,
-    type Exercise,
-    type Module,
-} from '@/services/directus'
+} from '@/services/books'
+import {
+    createDailyExercise,
+    createExercise,
+    deleteDailyExercise,
+    deleteExercise,
+    fetchApprovedExercisesByModule,
+    fetchDailyExercisesByBook,
+    fetchExerciseExamplesByModule,
+} from '@/services/exercises'
+import type { Book, DailyExercise, Exercise, ExerciseExample, Module } from '@/types'
 import BookGrid from '@/components/exercise-generator/BookGrid.vue'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
@@ -56,6 +59,7 @@ const selectedModuleId = ref<number | null>(null)
 const selectedModuleIds = ref<number[]>([])
 const countPerModule = ref(5)
 const approvedExercisesByModule = ref<Record<number, Exercise[]>>({})
+const approvedDailyExercises = ref<DailyExercise[]>([])
 const generatedExercises = ref<GeneratedExercise[]>([])
 const rawFlowiseResponse = ref('')
 const rawFlowiseRequest = ref('')
@@ -70,6 +74,12 @@ const warning = ref('')
 const progressLabel = ref('')
 const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
+
+const questionsLabel = computed(() =>
+    generationMode.value === 'module'
+        ? 'Perguntas por Módulo'
+        : 'Total de Perguntas Diárias',
+)
 
 const elapsedLabel = computed(() => {
     const minutes = Math.floor(elapsedSeconds.value / 60)
@@ -153,9 +163,14 @@ const groupedSections = computed<Section[]>(() => {
         : Array.from(grouped.keys()).filter((id): id is number => id !== null)
 
     const sections = Array.from(grouped.entries()).map(([moduleId, typeMap]) => {
-        const moduleTitle = moduleId
-            ? moduleTitleById.get(moduleId) || `Módulo ${moduleId}`
-            : 'Módulo desconhecido'
+        let moduleTitle = ''
+        if (generationMode.value === 'daily') {
+            moduleTitle = ''
+        } else {
+            moduleTitle = moduleId
+                ? moduleTitleById.get(moduleId) || `Módulo ${moduleId}`
+                : 'Módulo desconhecido'
+        }
         const types = typeOrder
             .map((type) => ({ type, items: typeMap[type] }))
             .filter((entry) => entry.items.length > 0)
@@ -241,6 +256,17 @@ const refreshApprovedExercisesForModule = async (moduleId: number) => {
         console.error(err)
         error.value = 'Não foi possível carregar os exercícios aprovados.'
         return []
+    }
+}
+
+const refreshDailyExercises = async () => {
+    if (!selectedBookId.value) return
+    try {
+        const list = await fetchDailyExercisesByBook(selectedBookId.value)
+        approvedDailyExercises.value = list
+    } catch (err) {
+        console.error(err)
+        error.value = 'Não foi possível carregar os exercícios diários.'
     }
 }
 
@@ -406,26 +432,6 @@ const toggleModuleSelection = (moduleId: number) => {
     }
 }
 
-const gerarPerguntasDiarias = async (payload: any) => {
-    const response = await fetch("http://localhost:3000/api/v1/prediction/17ac9a00-1a6c-47c0-9544-2ef5a2d02bc2", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: JSON.stringify(payload) })
-    })
-    if (!response.ok) throw new Error('Falha ao comunicar com a IA')
-    
-    const data = await response.json()
-    let parsed = null
-    const text = data.text || data
-    try {
-        const cleanText = String(text).replace(/```json\n?|```/g, '').trim()
-        parsed = JSON.parse(cleanText)
-    } catch (e) {
-        parsed = text
-    }
-    return { raw: data, parsed }
-}
-
 const mapExercises = (list: any[], exerciseType: ExerciseType, limit: number) =>
     list.slice(0, limit).map((item) => {
         const questionText = getQuestionText(item)
@@ -461,7 +467,6 @@ const resolveModuleId = (
         result?.id ??
         result?.modules_id
     const parsed = Number(rawId)
-    // Ignora IDs inválidos como 0 ou números negativos que a IA possa gerar
     if (Number.isFinite(parsed) && parsed > 0) return parsed
 
     const rawTitle =
@@ -483,6 +488,7 @@ const resolveModuleTitle = (moduleId: number | null, lookupById: Map<number, str
 }
 
 const generateForModules = async (count: number) => {
+    // Mantemos este array internamente apenas para gerar os Map lookups do response da IA
     const modulePayload = selectedModules.value.map((moduleItem) => {
         return {
             id: moduleItem.modules_id,
@@ -496,14 +502,11 @@ const generateForModules = async (count: number) => {
         return list.map((item) => getQuestionText(item.content || item))
     }).join('\n')
 
-    const moduloAtual = (Array.isArray(modulePayload) && modulePayload.length > 0) ? modulePayload[0] : ({} as any);
-    const temaDoModulo = `${moduloAtual.titulo || ''}. ${moduloAtual.descricao || ''}`;
-
     const requestPayload = {
         titulo_livro: selectedBook.value?.title || 'Ciências da Vida',
-        numero_perguntas: Number(count),
-        descricao_adicional: temaDoModulo,
-        perguntas_existentes: perguntasJaCriadas,
+        numero_perguntas: count,
+        perguntas_existentes: perguntasJaCriadas || 'Nenhuma pergunta existente.',
+        modulos: modulePayload,
     }
 
     rawFlowiseRequest.value = JSON.stringify(requestPayload, null, 2)
@@ -565,6 +568,69 @@ const generateForModules = async (count: number) => {
     return { items, receivedCount: items.length, rawResponse }
 }
 
+const generateForDaily = async (count: number) => {
+    // 1. Modulos listados numa unica string separados por quebra de linha (\n)
+    const modulosEmExtenso = filteredModules.value
+        .map(m => m.module_title || `Módulo ${m.modules_id}`)
+        .join('\n')
+
+    // 2. Obtem APENAS os exercicios diarios (user_daily_exercise via approvedDailyExercises)
+    const perguntasJaCriadas = approvedDailyExercises.value.map((item: any) => {
+        return getQuestionText(item.content || item)
+    }).join('\n')
+
+    const requestPayload = {
+        titulo_livro: selectedBook.value?.title || 'Livro',
+        descricao_livro: selectedBook.value?.description || '',
+        modulos_livro: modulosEmExtenso,
+        numero_perguntas: count,
+        perguntas_existentes: perguntasJaCriadas || 'Nenhuma pergunta existente. Podes começar do zero.',
+    }
+
+    rawFlowiseRequest.value = JSON.stringify(requestPayload, null, 2)
+
+    const response = await gerarPerguntasDiarias(requestPayload)
+    const rawResponse = (response as any)?.raw ?? response
+    const parsedResponse = (response as any)?.parsed ?? response
+
+    const results = normalizeModuleResults(parsedResponse)
+    const fallbackList = normalizeExerciseList(parsedResponse)
+    const items: GeneratedExercise[] = []
+
+    if (results.length) {
+        results.forEach((result: any) => {
+            const list = Array.isArray(result?.exercicios) ? result.exercicios : (Array.isArray(result?.quiz) ? result.quiz : [])
+            list.forEach((item: any) => {
+                const exerciseType = resolveExerciseType(item?.tipo || item?.type || result?.tipo)
+                const questionText = getQuestionText(item)
+                items.push({
+                    localId: `gen-${Date.now()}-${exerciseSeed++}`,
+                    questionText,
+                    content: buildContent(item, exerciseType, questionText),
+                    exerciseType,
+                    moduleId: null,
+                    moduleTitle: '',
+                })
+            })
+        })
+    } else {
+        fallbackList.forEach((item: any) => {
+            const exerciseType = resolveExerciseType(item?.tipo || item?.type)
+            const questionText = getQuestionText(item)
+            items.push({
+                localId: `gen-${Date.now()}-${exerciseSeed++}`,
+                questionText,
+                content: buildContent(item, exerciseType, questionText),
+                exerciseType,
+                moduleId: null,
+                moduleTitle: '',
+            })
+        })
+    }
+
+    return { items, receivedCount: items.length, rawResponse }
+}
+
 const handleGenerate = async () => {
     if (generationMode.value === 'module' && !selectedModules.value.length) {
         error.value = 'Seleciona pelo menos um módulo primeiro.'
@@ -596,8 +662,14 @@ const handleGenerate = async () => {
     rawFlowiseRequest.value = ''
 
     try {
-        progressLabel.value = `A gerar exercícios para ${selectedModules.value.length} módulos`
-        const result = await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
+        let result: any
+        if (generationMode.value === 'module') {
+            progressLabel.value = `A gerar exercícios para ${selectedModules.value.length} módulos`
+            result = await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
+        } else {
+            progressLabel.value = `A gerar perguntas diárias`
+            result = await generateForDaily(Math.min(countPerModule.value, 15))
+        }
         rawFlowiseResponse.value = JSON.stringify(result.rawResponse ?? null, null, 2)
         if (!result.items.length) {
             error.value = 'A IA não devolveu exercícios. Tenta novamente.'
@@ -627,23 +699,32 @@ const setApproving = (localId: string, value: boolean) => {
 }
 
 const handleApprove = async (exercise: GeneratedExercise) => {
-    const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
-    if (!targetModuleId) return
     setApproving(exercise.localId, true)
     error.value = ''
     info.value = ''
 
     try {
-        await createExercise({
-            id_module: targetModuleId,
-            status: 'approved',
-            type: exercise.exerciseType,
-            content: exercise.content,
-        })
-
-        removeGenerated(exercise.localId)
-        const list = await refreshApprovedExercisesForModule(targetModuleId)
-        await syncModuleApproval(targetModuleId, list.length)
+        if (generationMode.value === 'module') {
+            const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
+            if (!targetModuleId) return
+            await createExercise({
+                id_module: targetModuleId,
+                type: exercise.exerciseType,
+                content: exercise.content,
+            })
+            removeGenerated(exercise.localId)
+            const list = await refreshApprovedExercisesForModule(targetModuleId)
+            await syncModuleApproval(targetModuleId, list.length)
+        } else {
+            if (!selectedBookId.value) return
+            await createDailyExercise({
+                book_id: selectedBookId.value,
+                type: exercise.exerciseType,
+                content: exercise.content,
+            })
+            removeGenerated(exercise.localId)
+            await refreshDailyExercises()
+        }
         info.value = 'Exercício aprovado e guardado com sucesso.'
     } catch (err) {
         console.error(err)
@@ -661,20 +742,11 @@ const handleReject = async (exercise: GeneratedExercise) => {
     info.value = ''
 
     try {
-        await createExercise({
-            id_module: targetModuleId,
-            status: 'unapproved',
-            type: exercise.exerciseType,
-            content: exercise.content,
-        })
-
         removeGenerated(exercise.localId)
-        const list = await refreshApprovedExercisesForModule(targetModuleId)
-        await syncModuleApproval(targetModuleId, list.length)
-        info.value = 'Exercício rejeitado (marcado como não aprovado).'
+        info.value = 'Exercício rejeitado e removido da lista.'
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível guardar o exercício rejeitado.'
+        error.value = 'Ocorreu um erro ao rejeitar o exercício.'
     } finally {
         setApproving(exercise.localId, false)
     }
@@ -699,6 +771,21 @@ const handleRemoveApproved = async (exercise: Exercise) => {
     }
 }
 
+const handleRemoveDaily = async (exercise: any) => {
+    const id = exercise.daily_exercise_id || exercise.exercise_id
+    if (!id) return
+    error.value = ''
+    info.value = ''
+    try {
+        await deleteDailyExercise(id)
+        await refreshDailyExercises()
+        info.value = 'Exercício diário removido com sucesso.'
+    } catch (err) {
+        console.error(err)
+        error.value = 'Não foi possível remover o exercício diário.'
+    }
+}
+
 const toggleModuleExpanded = (moduleId: number) => {
     expandedModules.value[moduleId] = !expandedModules.value[moduleId]
 }
@@ -708,6 +795,10 @@ watch(generationMode, () => {
     error.value = ''
     info.value = ''
     warning.value = ''
+    if (generationMode.value === 'daily' && selectedBookId.value) {
+        refreshDailyExercises()
+        refreshAllApprovedExercisesForBook()
+    }
 })
 
 watch(selectedModuleId, async () => {
@@ -727,9 +818,14 @@ watch(selectedBookId, () => {
     selectedModuleIds.value = []
     generatedExercises.value = []
     approvedExercisesByModule.value = {}
+    approvedDailyExercises.value = []
     rawFlowiseResponse.value = ''
     rawFlowiseRequest.value = ''
     warning.value = ''
+    if (generationMode.value === 'daily') {
+        refreshDailyExercises()
+        refreshAllApprovedExercisesForBook()
+    }
 })
 
 onMounted(async () => {
@@ -739,7 +835,6 @@ onMounted(async () => {
 
 <template>
     <div class="exercise-generator-page">
-        <!-- Hero Section -->
         <header class="hero">
             <div class="hero-content">
                 <h1 class="hero-title">Gerador de Exercícios</h1>
@@ -751,7 +846,6 @@ onMounted(async () => {
             </div>
         </header>
 
-        <!-- Status Stack -->
         <div class="status-stack" v-if="isLoadingData || error || warning || info">
             <div v-if="isLoadingData" class="alert alert-loading">A carregar os dados da plataforma...</div>
             <div v-if="error" class="alert alert-error">{{ error }}</div>
@@ -760,29 +854,10 @@ onMounted(async () => {
         </div>
 
         <div class="workspace">
-            <!-- Left Column: Main flow (Books, Modules, Lists) -->
             <div class="main-column">
-                <!-- Step 1: Mode Selection -->
-                <UiCard class="workspace-panel is-completed">
-                    <div class="panel-header" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
-                        <div class="step-indicator">1</div>
-                        <div class="header-text mode-header-flex">
-                            <div>
-                                <h2>Modo de Geração</h2>
-                                <p class="meta">Escolhe o tipo de exercícios que pretendes criar.</p>
-                            </div>
-                            <UiSegmented :model-value="generationMode" :options="[
-                                { label: 'Por Módulo', value: 'module' },
-                                { label: 'Perguntas Diárias', value: 'daily' }
-                            ]" @update="generationMode = $event as 'module' | 'daily'" />
-                        </div>
-                    </div>
-                </UiCard>
-
-                <!-- Step 2: Book Selection -->
                 <UiCard class="workspace-panel" :class="{ 'is-completed': selectedBookId }">
                     <div class="panel-header">
-                        <div class="step-indicator">2</div>
+                        <div class="step-indicator">1</div>
                         <div class="header-text">
                             <h2>Escolhe um Livro</h2>
                             <p v-if="selectedBookId" class="meta-selected">
@@ -797,7 +872,26 @@ onMounted(async () => {
                     </div>
                 </UiCard>
 
-                <!-- Step 3: Module Selection -->
+                <Transition name="fade-slide">
+                    <UiCard v-if="selectedBookId" class="workspace-panel is-completed">
+                        <div class="panel-header" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
+                            <div class="step-indicator">2</div>
+                            <div class="header-text mode-header-flex">
+                                <div>
+                                    <h2>Modo de Geração</h2>
+                                    <p class="meta">Escolhe o tipo de exercícios que pretendes criar.</p>
+                                </div>
+                                <div class="mode-buttons">
+                                    <UiButton :variant="generationMode === 'module' ? 'primary' : 'outline'"
+                                        @click="generationMode = 'module'">Por Módulo</UiButton>
+                                    <UiButton :variant="generationMode === 'daily' ? 'primary' : 'outline'"
+                                        @click="generationMode = 'daily'">Perguntas Diárias</UiButton>
+                                </div>
+                            </div>
+                        </div>
+                    </UiCard>
+                </Transition>
+
                 <Transition name="fade-slide">
                     <UiCard v-if="selectedBookId && generationMode === 'module'" class="workspace-panel">
                         <div class="panel-header">
@@ -816,7 +910,6 @@ onMounted(async () => {
                     </UiCard>
                 </Transition>
 
-                <!-- Approved Modules Summary -->
                 <section v-if="generationMode === 'module' && approvedSummaries.length" class="approved-section">
                     <div class="section-title">
                         <div class="title-with-icon">
@@ -864,7 +957,39 @@ onMounted(async () => {
                     </div>
                 </section>
 
-                <!-- Generated Exercises -->
+                <section v-if="generationMode === 'daily' && selectedBookId" class="approved-section">
+                    <div class="section-title">
+                        <div class="title-with-icon">
+                            <h3>Exercícios Diários Guardados</h3>
+                        </div>
+                        <p>Acompanha as perguntas diárias associadas ao livro selecionado.</p>
+                    </div>
+                    <div class="approved-grid">
+                        <div class="approved-module-block is-approved">
+                            <div class="block-header" role="button" tabindex="0" @click="toggleModuleExpanded(-1)">
+                                <div class="block-title">
+                                    <h4>Perguntas Diárias</h4>
+                                    <UiChip :label="approvedDailyExercises.length + ' Guardadas'" variant="filled" />
+                                </div>
+                                <div class="progress-area">
+                                    <ChevronDownIcon class="accordion-icon"
+                                        :class="{ 'is-rotated': expandedModules[-1] }" aria-hidden="true" />
+                                </div>
+                            </div>
+                            <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[-1] }">
+                                <div class="accordion-content">
+                                    <div class="approved-list-container">
+                                        <ApprovedExercisesList v-if="approvedDailyExercises.length"
+                                            :exercises="(approvedDailyExercises as any)" :type-labels="typeLabels"
+                                            @remove="handleRemoveDaily" />
+                                        <p v-else class="empty-approved">Sem exercícios diários guardados ainda.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <div v-if="groupedSections.length" class="generated-section">
                     <div class="section-title">
                         <div class="title-with-icon">
@@ -876,20 +1001,17 @@ onMounted(async () => {
                         :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
                 </div>
 
-                <!-- Raw Response -->
                 <UiCard v-if="rawFlowiseResponse" class="raw-panel">
                     <h3>Resposta Raw Flowise</h3>
                     <pre class="raw-output">{{ rawFlowiseResponse }}</pre>
                 </UiCard>
 
-                <!-- Raw Request -->
                 <UiCard v-if="rawFlowiseRequest" class="raw-panel">
                     <h3>Pedido Raw Flowise (Enviado)</h3>
                     <pre class="raw-output">{{ rawFlowiseRequest }}</pre>
                 </UiCard>
             </div>
 
-            <!-- Right Column: Generation Settings -->
             <div class="sidebar-column">
                 <UiCard class="config-panel sticky">
                     <div class="config-header">
@@ -897,16 +1019,20 @@ onMounted(async () => {
                         <h2>Configuração</h2>
                     </div>
 
-                    <div class="config-body" :class="{ 'is-disabled': (generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) }">
+                    <div class="config-body"
+                        :class="{ 'is-disabled': (generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) }">
                         <div class="config-group">
                             <div class="group-header">
-                                <label>{{ generationMode === 'module' ? 'Perguntas por Módulo' : 'Total de Perguntas Diárias' }}</label>
+                                <label>{{ questionsLabel }}</label>
                                 <span class="badge" v-if="generationMode === 'module'">Máx {{ maxPerModule }}</span>
                                 <span class="badge" v-else>Máx 15</span>
                             </div>
-                            <UiInput type="number" :min="1" :max="generationMode === 'module' ? maxPerModule : 15" :model-value="countPerModule"
+                            <UiInput type="number" :min="1" :max="generationMode === 'module' ? maxPerModule : 15"
+                                :model-value="countPerModule"
                                 @update="countPerModule = Math.max(1, Number($event) || 1)" />
-                            <p class="config-math" :class="{ 'is-warning': generationMode === 'module' && isOverMaxTotal }" v-if="generationMode === 'module'">
+                            <p class="config-math"
+                                :class="{ 'is-warning': generationMode === 'module' && isOverMaxTotal }"
+                                v-if="generationMode === 'module'">
                                 Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIds.length }}
                                 (limite {{ MAX_TOTAL_QUESTIONS }})
                             </p>
@@ -929,9 +1055,12 @@ onMounted(async () => {
                                 <span v-if="!isGenerating">Gerar Exercícios</span>
                                 <span v-else>A Gerar...</span>
                             </UiButton>
-                            <p class="action-hint" v-if="generationMode === 'module' && !selectedModuleIds.length">Seleciona módulos para começar.</p>
-                            <p class="action-hint" v-else-if="generationMode === 'daily' && !selectedBookId">Seleciona um livro para começar.</p>
-                            <p class="action-hint" v-else-if="generationMode === 'module' && isOverMaxTotal">Reduz o total para não ultrapassar o
+                            <p class="action-hint" v-if="generationMode === 'module' && !selectedModuleIds.length">
+                                Seleciona módulos para começar.</p>
+                            <p class="action-hint" v-else-if="generationMode === 'daily' && !selectedBookId">Seleciona
+                                um livro para começar.</p>
+                            <p class="action-hint" v-else-if="generationMode === 'module' && isOverMaxTotal">Reduz o
+                                total para não ultrapassar o
                                 limite.</p>
                         </div>
                     </div>
@@ -939,7 +1068,6 @@ onMounted(async () => {
             </div>
         </div>
 
-        <!-- Loading Overlay -->
         <Transition name="fade">
             <div v-if="isGenerating" class="loading-overlay">
                 <div class="loading-modal">
@@ -1094,6 +1222,11 @@ onMounted(async () => {
     width: 100%;
     flex-wrap: wrap;
     gap: var(--space-300);
+}
+
+.mode-buttons {
+    display: flex;
+    gap: var(--space-200);
 }
 
 .header-text h2 {

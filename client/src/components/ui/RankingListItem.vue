@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import type { User } from '@/services/directus'
+import type { User } from '@/types'
 
 defineProps<{
     user: User

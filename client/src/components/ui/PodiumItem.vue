@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import type { User } from '@/services/directus'
+import type { User } from '@/types'
 
 const props = defineProps<{
     user: User
