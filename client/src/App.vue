@@ -12,7 +12,9 @@ import {
 } from './services/client'
 import { fetchUserById, getUserDisplayName, isAdminUser } from './services/auth'
 import { getLevelProgressFromPoints } from './utils/gamification'
-import type { User } from './types'
+import LevelUpModal from './components/ui/LevelUpModal.vue'
+import BookUnlockModal from './components/ui/BookUnlockModal.vue'
+import type { User, Book } from './types'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,10 +29,32 @@ const avatarUrl = computed(() =>
 const progress = computed(() => getLevelProgressFromPoints(user.value?.points ?? 0))
 const canGoBack = ref(false)
 
+const levelUpVisible = ref(false)
+const levelUpOld = ref(1)
+const levelUpNew = ref(2)
+const levelUpPoints = ref(0)
+
+const unlockVisible = ref(false)
+const unlockedBook = ref<Book | null>(null)
+
+const handleBookUnlocked = (book: Book) => {
+  unlockedBook.value = book
+  unlockVisible.value = true
+}
+
+const handleLevelUp = (e: Event) => {
+  const { oldLevel, newLevel, currentPoints } = (e as CustomEvent<{ oldLevel: number; newLevel: number; currentPoints: number }>).detail
+  levelUpOld.value = oldLevel
+  levelUpNew.value = newLevel
+  levelUpPoints.value = currentPoints
+  levelUpVisible.value = true
+}
+
 const navItems = computed(() => {
   if (isAdmin.value) {
     return [
-      { label: 'Criar livros', to: '/admin/books', icon: 'create' },
+      { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
+      { label: 'Estatísticas', to: '/admin/stats', icon: 'stats' },
       { label: 'Gerar exercicios', to: '/exercise-generator', icon: 'generate' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
@@ -92,10 +116,12 @@ onMounted(() => {
   loadUser()
   updateCanGoBack()
   window.addEventListener('gb-auth-changed', loadUser)
+  window.addEventListener('gb-level-up', handleLevelUp)
 })
 
 onUnmounted(() => {
   window.removeEventListener('gb-auth-changed', loadUser)
+  window.removeEventListener('gb-level-up', handleLevelUp)
 })
 
 watch(
@@ -107,12 +133,15 @@ watch(
 </script>
 
 <template>
+  <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
+  <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
       <AppSidebar :items="navItems" :username="displayName" :avatar-url="avatarUrl" @action="onNavClick" />
       <div class="content">
         <AppTopbar :username="displayName" :avatar-url="avatarUrl" :level="progress.level"
-          :progress-value="progress.progress" :progress-total="progress.nextLevelXp" @action="onNavClick" />
+          :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
+          :is-admin="isAdmin" @action="onNavClick" @book-unlocked="handleBookUnlocked" />
         <main class="main">
           <RouterView />
         </main>

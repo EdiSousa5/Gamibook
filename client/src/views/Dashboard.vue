@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
@@ -11,12 +11,19 @@ import {
 import { fetchUserById, getUserAvatarId, getUserDisplayName } from '../services/auth'
 import { getAssetUrl } from '../services/client'
 import { getLevelProgressFromPoints } from '../utils/gamification'
-import type { Book, User, UserBook } from '@/types'
+import { fetchLatestUserDailyExercise, fetchDailyExercisesForBooks } from '../services/exercises'
+import type { Book, DailyExercise, User, UserBook } from '@/types'
 
 const user = ref<User | null>(null)
-const error = ref('') // General error message
+const error = ref('')
 const userBooks = ref<UserBook[]>([])
 const pointsByExercise = 10
+
+type DailyStatus = 'loading' | 'ready' | 'cooldown' | 'no-exercises'
+const dailyStatus = ref<DailyStatus>('loading')
+const dailyCooldownSeconds = ref(0)
+const dailyLastQuestion = ref('')
+let dailyTimer: number | null = null
 
 const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
 
@@ -24,7 +31,6 @@ const userBooksList = computed(() =>
   userBooks.value.map((entry) => entry.book_id).filter((book): book is Book => !!book),
 )
 
-// O Último livro a ser apresentado como destaque (Continuar a Ler)
 const recentBook = computed(() => userBooksList.value.length > 0 ? userBooksList.value[0] : null)
 
 const booksObtained = computed(() => userBooksList.value.length)
@@ -32,6 +38,66 @@ const answeredQuestions = computed(() => Math.max(0, Math.floor((user.value?.poi
 const levelProgress = computed(() => getLevelProgressFromPoints(user.value?.points ?? 0))
 
 const avatar = computed(() => getAssetUrl(getUserAvatarId(user.value)))
+
+const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
+
+const formatDailyCooldown = computed(() => {
+  const h = Math.floor(dailyCooldownSeconds.value / 3600)
+  const m = Math.floor((dailyCooldownSeconds.value % 3600) / 60)
+  const s = dailyCooldownSeconds.value % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+})
+
+const startDailyCooldownTimer = (lastDate: string) => {
+  const nextTime = new Date(lastDate).getTime() + 24 * 60 * 60 * 1000
+  const update = () => {
+    dailyCooldownSeconds.value = Math.max(0, Math.floor((nextTime - Date.now()) / 1000))
+    if (dailyCooldownSeconds.value <= 0 && dailyTimer !== null) {
+      clearInterval(dailyTimer)
+      dailyTimer = null
+      dailyStatus.value = 'ready'
+    }
+  }
+  update()
+  dailyTimer = window.setInterval(update, 1000)
+}
+
+const loadDailyExerciseStatus = async (userId: string, books: UserBook[]) => {
+  try {
+    const latestRecord = await fetchLatestUserDailyExercise(userId)
+
+    if (latestRecord?.date_created) {
+      const elapsed = Date.now() - new Date(latestRecord.date_created).getTime()
+      if (elapsed < 24 * 60 * 60 * 1000) {
+        const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
+        if (lastEx?.content) {
+          dailyLastQuestion.value =
+            lastEx.content.pergunta || lastEx.content.question || lastEx.content.enunciado || ''
+        }
+        startDailyCooldownTimer(latestRecord.date_created)
+        dailyStatus.value = 'cooldown'
+        return
+      }
+    }
+
+    const bookIds = books
+      .map((ub) => {
+        const book = ub.book_id
+        return typeof book === 'object' ? book?.book_id : undefined
+      })
+      .filter((id): id is number => typeof id === 'number')
+
+    if (!bookIds.length) {
+      dailyStatus.value = 'no-exercises'
+      return
+    }
+
+    const exercises = await fetchDailyExercisesForBooks(bookIds)
+    dailyStatus.value = exercises.length ? 'ready' : 'no-exercises'
+  } catch {
+    dailyStatus.value = 'no-exercises'
+  }
+}
 
 const loadUserBooks = async (userId: string) => {
   if (!userId) return
@@ -54,6 +120,7 @@ const loadProfile = async () => {
     const me = await fetchUserById(storedId)
     user.value = me
     await loadUserBooks(me.id ? String(me.id) : '')
+    await loadDailyExerciseStatus(String(me.id), userBooks.value)
   } catch {
     error.value = 'Nao foi possivel carregar o perfil.'
   }
@@ -62,11 +129,14 @@ const loadProfile = async () => {
 onMounted(async () => {
   error.value = ''
   try {
-    // Carregamos o perfil do utilizador e os seus livros
     await loadProfile()
   } catch {
     error.value = 'Nao foi possivel carregar os dados do dashboard.'
   }
+})
+
+onUnmounted(() => {
+  if (dailyTimer !== null) clearInterval(dailyTimer)
 })
 </script>
 
@@ -86,6 +156,45 @@ onMounted(async () => {
     </header>
 
     <p v-if="error" class="error">{{ error }}</p>
+
+    <!-- Exercício Diário -->
+    <section class="panel daily-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Exercício Diário</h2>
+          <p class="meta">Uma pergunta por dia para manter o teu streak!</p>
+        </div>
+        <div class="streak-info" :class="{ 'streak-active': dailyStreak >= 2 }">
+          <FireIcon class="icon" aria-hidden="true" />
+          <strong>{{ dailyStreak }}</strong>
+          <span>streak</span>
+        </div>
+      </div>
+
+      <p v-if="dailyStatus === 'loading'" class="daily-loading">A verificar...</p>
+
+      <div v-else-if="dailyStatus === 'no-exercises'" class="daily-empty">
+        <p>Ainda não há exercícios diários disponíveis para os teus livros.</p>
+      </div>
+
+      <div v-else-if="dailyStatus === 'cooldown'" class="daily-cooldown">
+        <div class="cooldown-block">
+          <span class="cooldown-label">Próximo exercício em</span>
+          <strong class="cooldown-value">{{ formatDailyCooldown }}</strong>
+        </div>
+        <div v-if="dailyLastQuestion" class="daily-last">
+          <p class="daily-last__label">Última pergunta</p>
+          <p class="daily-last__text">{{ dailyLastQuestion }}</p>
+        </div>
+      </div>
+
+      <div v-else-if="dailyStatus === 'ready'" class="daily-ready">
+        <p class="daily-ready__text">O teu exercício diário está disponível!</p>
+        <RouterLink to="/daily-exercise">
+          <UiButton variant="primary">Responder Agora</UiButton>
+        </RouterLink>
+      </div>
+    </section>
 
     <section class="profile-card">
       <div class="profile-left">
@@ -187,52 +296,6 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Atalhos / Explorar -->
-      <section class="panel explore-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Explorar o GamiBook</h2>
-            <p class="meta">Descobre novos conteúdos e acompanha o teu progresso.</p>
-          </div>
-        </div>
-        <div class="explore-grid">
-          <RouterLink to="/collection" class="explore-link">
-            <UiCard class="explore-card">
-              <div class="explore-icon bg-pumpkin">
-                <BookOpenIcon class="icon text-white" aria-hidden="true" />
-              </div>
-              <div class="explore-text">
-                <h3>Catálogo</h3>
-                <p>Encontra novos livros e adiciona-os à tua coleção.</p>
-              </div>
-            </UiCard>
-          </RouterLink>
-
-          <RouterLink to="/leaderboard" class="explore-link">
-            <UiCard class="explore-card">
-              <div class="explore-icon bg-blue">
-                <TrophyIcon class="icon text-white" aria-hidden="true" />
-              </div>
-              <div class="explore-text">
-                <h3>Classificação</h3>
-                <p>Compara a tua pontuação com a de outros utilizadores.</p>
-              </div>
-            </UiCard>
-          </RouterLink>
-
-          <RouterLink to="/settings/conta" class="explore-link">
-            <UiCard class="explore-card">
-              <div class="explore-icon bg-green">
-                <Cog6ToothIcon class="icon text-white" aria-hidden="true" />
-              </div>
-              <div class="explore-text">
-                <h3>A Minha Conta</h3>
-                <p>Gere o teu perfil, avatar e definições pessoais.</p>
-              </div>
-            </UiCard>
-          </RouterLink>
-        </div>
-      </section>
     </div>
   </section>
 </template>
@@ -635,5 +698,130 @@ onMounted(async () => {
   width: 28px;
   height: 28px;
   color: var(--color-mirage-500);
+}
+
+/* Daily Exercise Panel */
+
+.streak-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  font-weight: 700;
+}
+
+.streak-info strong {
+  font-size: 18px;
+  color: var(--color-mirage-800);
+}
+
+.streak-info span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-600);
+}
+
+.streak-active {
+  background: var(--color-teal-200);
+}
+
+.daily-loading {
+  color: var(--color-mirage-500);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.daily-empty p {
+  margin: 0;
+  color: var(--color-mirage-500);
+  font-size: 14px;
+}
+
+.daily-cooldown {
+  display: grid;
+  gap: var(--space-300);
+}
+
+.cooldown-block {
+  display: grid;
+  gap: 4px;
+}
+
+.cooldown-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+}
+
+.cooldown-value {
+  font-size: 32px;
+  color: var(--color-mirage-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-last {
+  padding: var(--space-300);
+  border-radius: 12px;
+  background: var(--color-wild-200);
+  border: 2px solid var(--color-mirage-800);
+  display: grid;
+  gap: 8px;
+}
+
+.daily-last__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+}
+
+.daily-last__text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
+}
+
+.daily-result-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.daily-result-badge.correct {
+  background: var(--color-deep-100);
+  color: var(--color-mirage-800);
+}
+
+.daily-result-badge.wrong {
+  background: #f7c4c4;
+  color: #7a1f1f;
+  border-color: #b13b3b;
+}
+
+.daily-ready {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  flex-wrap: wrap;
+}
+
+.daily-ready__text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
 }
 </style>

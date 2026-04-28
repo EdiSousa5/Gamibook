@@ -11,7 +11,20 @@ const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
-const info = computed(() => (route.query.registered ? 'Conta criada. Faz login para continuar.' : ''))
+
+const redirectPath = computed(() => {
+  const r = route.query.redirect as string | undefined
+  // Only allow internal paths to prevent open redirect
+  return r && r.startsWith('/') && !r.startsWith('//') ? r : '/app'
+})
+
+const isUnlockRedirect = computed(() => redirectPath.value.startsWith('/unlock/'))
+
+const info = computed(() => {
+  if (route.query.registered) return 'Conta criada. Faz login para continuar.'
+  if (isUnlockRedirect.value) return 'Faz login para desbloquear o teu livro.'
+  return ''
+})
 
 const submit = async () => {
   error.value = ''
@@ -27,7 +40,7 @@ const submit = async () => {
       return
     }
     window.dispatchEvent(new Event('gb-auth-changed'))
-    await router.push('/app')
+    await router.push(redirectPath.value)
   } catch {
     error.value = 'Nao foi possivel iniciar sessao.'
   }

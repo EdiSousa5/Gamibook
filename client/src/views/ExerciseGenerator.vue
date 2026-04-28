@@ -28,8 +28,19 @@ import BookGrid from '@/components/exercise-generator/BookGrid.vue'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
+import GeneratorConfigPanel from '@/components/exercise-generator/GeneratorConfigPanel.vue'
+import GeneratorLoadingOverlay from '@/components/exercise-generator/GeneratorLoadingOverlay.vue'
+import {
+    normalizeExerciseList,
+    normalizeModuleResults,
+    getQuestionText,
+    buildContent,
+    resolveExerciseType,
+    resolveModuleId,
+    resolveModuleTitle,
+    type ExerciseType
+} from '@/utils/exerciseParser'
 
-type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
 
 type GeneratedExercise = {
     localId: string
@@ -303,114 +314,6 @@ const syncBookApproval = async (bookId: number) => {
     }
 }
 
-const normalizeExerciseList = (payload: any) => {
-    if (Array.isArray(payload)) return payload
-    if (Array.isArray(payload?.exercicios)) return payload.exercicios
-    if (Array.isArray(payload?.quiz)) return payload.quiz
-    if (Array.isArray(payload?.data?.exercicios)) return payload.data.exercicios
-    if (Array.isArray(payload?.resultados)) {
-        return payload.resultados.flatMap((item: any) =>
-            Array.isArray(item?.exercicios) ? item.exercicios : [],
-        )
-    }
-    return []
-}
-
-const normalizeModuleResults = (payload: any) => {
-    if (Array.isArray(payload?.resultados)) return payload.resultados
-    if (Array.isArray(payload?.modulos)) return payload.modulos
-    if (Array.isArray(payload?.data?.resultados)) return payload.data.resultados
-    return []
-}
-
-const normalizeResultsByType = (payload: any, types: ExerciseType[]) => {
-    const results: Record<string, any[]> = {}
-
-    if (Array.isArray(payload?.resultados)) {
-        payload.resultados.forEach((item: any) => {
-            if (item?.tipo && Array.isArray(item?.exercicios)) {
-                results[String(item.tipo)] = item.exercicios
-            }
-        })
-    }
-
-    if (Object.keys(results).length) return results
-
-    const list = normalizeExerciseList(payload)
-    if (list.length && types.length && types[0]) {
-        results[types[0]] = list
-    }
-
-    return results
-}
-
-const getQuestionText = (item: Record<string, any>) =>
-    String(
-        item.question_text ||
-        item.pergunta ||
-        item.question ||
-        item.afirmacao ||
-        item.frase ||
-        item.instrucao ||
-        item.enunciado ||
-        'Sem pergunta',
-    )
-
-const toArray = (value: any) => {
-    if (Array.isArray(value)) return value
-    if (!value) return []
-    return String(value)
-        .split(/\n|;/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-}
-
-const toBoolean = (value: any) => {
-    if (typeof value === 'boolean') return value
-    const normalized = String(value || '')
-        .trim()
-        .toLowerCase()
-    if (!normalized) return false
-    if (['true', 'verdadeiro', 'v', 'sim', 'yes'].includes(normalized)) return true
-    if (['false', 'falso', 'f', 'nao', 'no'].includes(normalized)) return false
-    return false
-}
-
-const toNumberArray = (value: any) => {
-    if (Array.isArray(value)) {
-        return value.map((item) => Number(item)).filter((item) => !Number.isNaN(item))
-    }
-    if (!value) return []
-    const matches = String(value).match(/\d+/g) || []
-    return matches.map((item) => Number(item)).filter((item) => !Number.isNaN(item))
-}
-
-const buildContent = (item: Record<string, any>, exerciseType: ExerciseType, questionText: string) => {
-    const source = item?.content || item
-    if (exerciseType === 'multiple-choice') {
-        return {
-            pergunta: questionText,
-            opcoes: toArray(source.opcoes || source.options || source.alternativas),
-            resposta_correta: source.resposta_correta ?? source.correta ?? '',
-            justificacao: source.justificacao || source.justificativa || '',
-        }
-    }
-
-    if (exerciseType === 'true-false') {
-        return {
-            pergunta: questionText,
-            resposta_correta: toBoolean(source.resposta_correta ?? source.correta ?? source.resposta ?? source.verdadeiro),
-            justificacao: source.justificacao || source.justificativa || '',
-        }
-    }
-
-    return {
-        pergunta: questionText,
-        resposta_correta: '',
-        justificacao: source.justificacao || source.justificativa || '',
-    }
-}
-
 const toggleModuleSelection = (moduleId: number) => {
     const isSelected = selectedModuleIds.value.includes(moduleId)
     if (isSelected) {
@@ -430,61 +333,6 @@ const toggleModuleSelection = (moduleId: number) => {
         selectedModuleId.value = moduleId
         warning.value = ''
     }
-}
-
-const mapExercises = (list: any[], exerciseType: ExerciseType, limit: number) =>
-    list.slice(0, limit).map((item) => {
-        const questionText = getQuestionText(item)
-        return {
-            localId: `gen-${Date.now()}-${exerciseSeed++}`,
-            questionText,
-            content: buildContent(item, exerciseType, questionText),
-            exerciseType,
-        }
-    })
-
-const resolveExerciseType = (value: any, fallback?: ExerciseType) => {
-    const normalized = String(value || '')
-        .trim()
-        .toLowerCase()
-    if (normalized.includes('true')) return 'true-false'
-    if (normalized.includes('false')) return 'true-false'
-    if (normalized.includes('multiple')) return 'multiple-choice'
-    if (normalized.includes('choice')) return 'multiple-choice'
-    return fallback || 'multiple-choice'
-}
-
-const resolveModuleId = (
-    result: Record<string, any>,
-    item: Record<string, any>,
-    lookupByTitle: Map<string, number>,
-) => {
-    const rawId =
-        item?.modulo_id ??
-        item?.module_id ??
-        result?.modulo_id ??
-        result?.module_id ??
-        result?.id ??
-        result?.modules_id
-    const parsed = Number(rawId)
-    if (Number.isFinite(parsed) && parsed > 0) return parsed
-
-    const rawTitle =
-        item?.modulo_titulo ||
-        item?.module_title ||
-        result?.modulo_titulo ||
-        result?.module_title
-    if (rawTitle) {
-        const matched = lookupByTitle.get(String(rawTitle).trim().toLowerCase())
-        if (matched) return matched
-    }
-
-    return null
-}
-
-const resolveModuleTitle = (moduleId: number | null, lookupById: Map<number, string>) => {
-    if (!moduleId) return null
-    return lookupById.get(moduleId) || null
 }
 
 const generateForModules = async (count: number) => {
@@ -911,23 +759,22 @@ onMounted(async () => {
                 </Transition>
 
                 <section v-if="generationMode === 'module' && approvedSummaries.length" class="approved-section">
-                    <div class="section-title">
-                        <div class="title-with-icon">
-                            <h3>Estado das Aprovações</h3>
-                        </div>
-                        <p>Acompanha o progresso de cada módulo selecionado.</p>
+                    <div class="workspace-section-header">
+                        <h2>Estado das Aprovações</h2>
+                        <p class="meta">Acompanha o progresso de cada módulo selecionado.</p>
                     </div>
                     <div class="approved-grid">
-                        <div v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
-                            class="approved-module-block" :class="{ 'is-approved': summary.isApproved }">
-                            <div class="block-header" role="button" tabindex="0"
-                                @click="toggleModuleExpanded(summary.moduleItem.modules_id)">
-                                <div class="block-title">
+                        <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
+                            class="approved-module-card" :class="{ 'is-approved': summary.isApproved }">
+                            <div class="card-summary" :role="summary.approvedCount > 0 ? 'button' : undefined"
+                                :tabindex="summary.approvedCount > 0 ? '0' : undefined"
+                                @click="summary.approvedCount > 0 && toggleModuleExpanded(summary.moduleItem.modules_id)">
+                                <div class="module-info">
                                     <h4>{{ summary.moduleItem.module_title || 'Módulo' }}</h4>
                                     <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
                                         :variant="summary.isApproved ? 'filled' : 'outline'" />
                                 </div>
-                                <div class="progress-area">
+                                <div class="module-progress">
                                     <div class="progress-bar-bg">
                                         <div class="progress-bar-fill"
                                             :style="{ width: Math.min(100, (summary.approvedCount / summary.required) * 100) + '%' }">
@@ -936,9 +783,9 @@ onMounted(async () => {
                                     <p class="progress-text">
                                         <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
                                     </p>
-                                    <ChevronDownIcon class="accordion-icon"
-                                        :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }"
-                                        aria-hidden="true" />
+                                    <ChevronDownIcon v-if="summary.approvedCount > 0" class="accordion-icon"
+                                        :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }" aria-hidden="true" />
+                                    <div v-else class="accordion-icon-placeholder"></div>
                                 </div>
                             </div>
                             <div class="accordion-wrapper"
@@ -948,32 +795,31 @@ onMounted(async () => {
                                         <ApprovedExercisesList v-if="summary.approved.length"
                                             :exercises="summary.approved" :type-labels="typeLabels"
                                             @remove="handleRemoveApproved" />
-                                        <p v-else class="empty-approved">Sem exercícios aprovados neste módulo ainda.
-                                        </p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </UiCard>
                     </div>
                 </section>
 
                 <section v-if="generationMode === 'daily' && selectedBookId" class="approved-section">
-                    <div class="section-title">
-                        <div class="title-with-icon">
-                            <h3>Exercícios Diários Guardados</h3>
-                        </div>
-                        <p>Acompanha as perguntas diárias associadas ao livro selecionado.</p>
+                    <div class="workspace-section-header">
+                        <h2>Exercícios Diários Guardados</h2>
+                        <p class="meta">Acompanha as perguntas diárias associadas ao livro selecionado.</p>
                     </div>
                     <div class="approved-grid">
-                        <div class="approved-module-block is-approved">
-                            <div class="block-header" role="button" tabindex="0" @click="toggleModuleExpanded(-1)">
-                                <div class="block-title">
+                        <UiCard class="approved-module-card is-approved">
+                            <div class="card-summary" :role="approvedDailyExercises.length > 0 ? 'button' : undefined"
+                                :tabindex="approvedDailyExercises.length > 0 ? '0' : undefined"
+                                @click="approvedDailyExercises.length > 0 && toggleModuleExpanded(-1)">
+                                <div class="module-info">
                                     <h4>Perguntas Diárias</h4>
                                     <UiChip :label="approvedDailyExercises.length + ' Guardadas'" variant="filled" />
                                 </div>
-                                <div class="progress-area">
-                                    <ChevronDownIcon class="accordion-icon"
+                                <div class="module-progress">
+                                    <ChevronDownIcon v-if="approvedDailyExercises.length > 0" class="accordion-icon"
                                         :class="{ 'is-rotated': expandedModules[-1] }" aria-hidden="true" />
+                                    <div v-else class="accordion-icon-placeholder"></div>
                                 </div>
                             </div>
                             <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[-1] }">
@@ -982,20 +828,17 @@ onMounted(async () => {
                                         <ApprovedExercisesList v-if="approvedDailyExercises.length"
                                             :exercises="(approvedDailyExercises as any)" :type-labels="typeLabels"
                                             @remove="handleRemoveDaily" />
-                                        <p v-else class="empty-approved">Sem exercícios diários guardados ainda.</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </UiCard>
                     </div>
                 </section>
 
                 <div v-if="groupedSections.length" class="generated-section">
-                    <div class="section-title">
-                        <div class="title-with-icon">
-                            <h3>Exercícios Gerados pela IA</h3>
-                        </div>
-                        <p>Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
+                    <div class="workspace-section-header">
+                        <h2>Exercícios Gerados pela IA</h2>
+                        <p class="meta">Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
                     </div>
                     <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels"
                         :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
@@ -1013,74 +856,18 @@ onMounted(async () => {
             </div>
 
             <div class="sidebar-column">
-                <UiCard class="config-panel sticky">
-                    <div class="config-header">
-                        <div class="step-indicator">{{ generationMode === 'module' ? '4' : '3' }}</div>
-                        <h2>Configuração</h2>
-                    </div>
-
-                    <div class="config-body"
-                        :class="{ 'is-disabled': (generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) }">
-                        <div class="config-group">
-                            <div class="group-header">
-                                <label>{{ questionsLabel }}</label>
-                                <span class="badge" v-if="generationMode === 'module'">Máx {{ maxPerModule }}</span>
-                                <span class="badge" v-else>Máx 15</span>
-                            </div>
-                            <UiInput type="number" :min="1" :max="generationMode === 'module' ? maxPerModule : 15"
-                                :model-value="countPerModule"
-                                @update="countPerModule = Math.max(1, Number($event) || 1)" />
-                            <p class="config-math"
-                                :class="{ 'is-warning': generationMode === 'module' && isOverMaxTotal }"
-                                v-if="generationMode === 'module'">
-                                Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIds.length }}
-                                (limite {{ MAX_TOTAL_QUESTIONS }})
-                            </p>
-                        </div>
-
-                        <div class="config-group">
-                            <div class="group-header">
-                                <label>Tipos Suportados</label>
-                            </div>
-                            <div class="types-list">
-                                <div class="type-tag">Escolha Múltipla</div>
-                                <div class="type-tag">Verdadeiro / Falso</div>
-                            </div>
-                        </div>
-
-                        <div class="config-action">
-                            <UiButton variant="primary" size="md" class="generate-btn"
-                                :disabled="(generationMode === 'module' && !selectedModuleIds.length) || (generationMode === 'daily' && !selectedBookId) || isGenerating || (generationMode === 'module' && isOverMaxTotal)"
-                                @click="handleGenerate">
-                                <span v-if="!isGenerating">Gerar Exercícios</span>
-                                <span v-else>A Gerar...</span>
-                            </UiButton>
-                            <p class="action-hint" v-if="generationMode === 'module' && !selectedModuleIds.length">
-                                Seleciona módulos para começar.</p>
-                            <p class="action-hint" v-else-if="generationMode === 'daily' && !selectedBookId">Seleciona
-                                um livro para começar.</p>
-                            <p class="action-hint" v-else-if="generationMode === 'module' && isOverMaxTotal">Reduz o
-                                total para não ultrapassar o
-                                limite.</p>
-                        </div>
-                    </div>
-                </UiCard>
+                <GeneratorConfigPanel :generation-mode="generationMode" :questions-label="questionsLabel"
+                    :max-per-module="maxPerModule" :count-per-module="countPerModule" :total-questions="totalQuestions"
+                    :is-over-max-total="isOverMaxTotal" :selected-module-ids-length="selectedModuleIds.length"
+                    :has-selected-book="!!selectedBookId" :is-generating="isGenerating"
+                    :max-total-questions="MAX_TOTAL_QUESTIONS"
+                    @update:count-per-module="countPerModule = Math.max(1, Number($event) || 1)"
+                    @generate="handleGenerate" />
             </div>
         </div>
 
-        <Transition name="fade">
-            <div v-if="isGenerating" class="loading-overlay">
-                <div class="loading-modal">
-                    <div class="spinner-container">
-                        <div class="fancy-spinner"></div>
-                    </div>
-                    <h3>Processamento IA em curso...</h3>
-                    <p class="progress-label" v-if="progressLabel">{{ progressLabel }}</p>
-                    <div class="timer">{{ elapsedLabel }}</div>
-                    <p class="loading-hint">Isto pode demorar alguns minutos. Por favor aguarda.</p>
-                </div>
-            </div>
-        </Transition>
+        <GeneratorLoadingOverlay :is-generating="isGenerating" :progress-label="progressLabel"
+            :elapsed-label="elapsedLabel" />
     </div>
 </template>
 
@@ -1263,148 +1050,25 @@ onMounted(async () => {
     gap: var(--space-200);
 }
 
-/* Sidebar Column */
-.sidebar-column .sticky {
-    position: sticky;
-    top: calc(var(--space-400));
-}
-
-.config-panel {
-    background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-900);
-    border-radius: var(--radius-400);
-}
-
-.config-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-300);
-    padding-bottom: var(--space-400);
-    border-bottom: 2px dashed var(--color-mirage-200);
-    margin-bottom: var(--space-400);
-}
-
-.config-header h2 {
-    margin: 0;
-    font-size: 22px;
-}
-
-.config-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-400);
-    transition: opacity 0.3s ease;
-}
-
-.config-body.is-disabled {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.config-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-200);
-}
-
-.group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.group-header label {
-    font-weight: 700;
-    color: var(--color-mirage-800);
-}
-
-.badge {
-    background: var(--color-mirage-100);
-    color: var(--color-mirage-600);
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
-}
-
-.config-math {
-    margin: 0;
-    font-size: 12px;
-    color: var(--color-mirage-600);
-    font-weight: 600;
-}
-
-.config-math.is-warning {
-    color: #8a5a00;
-}
-
-.types-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-200);
-}
-
-.type-tag {
-    background: var(--color-teal-100);
-    color: var(--color-teal-800);
-    border: 1px solid var(--color-teal-300);
-    padding: var(--space-150) var(--space-200);
-    border-radius: var(--radius-100);
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.config-action {
-    margin-top: var(--space-200);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-200);
-}
-
-.generate-btn {
-    width: 100%;
-    height: 48px;
-    font-size: 15px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.action-hint {
-    margin: 0;
-    text-align: center;
-    font-size: 13px;
-    color: var(--color-mirage-500);
-}
-
 /* Sections */
-.section-title {
-    margin-bottom: var(--space-400);
+.workspace-section-header {
     display: flex;
     flex-direction: column;
     gap: var(--space-100);
+    margin-bottom: var(--space-400);
+    margin-top: var(--space-200);
 }
 
-.title-with-icon {
-    display: flex;
-    align-items: center;
-    gap: var(--space-200);
-}
-
-.title-with-icon .icon {
-    font-size: 24px;
-}
-
-.section-title h3 {
+.workspace-section-header h2 {
     margin: 0;
-    font-size: 24px;
-    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--color-mirage-900);
 }
 
-.section-title p {
+.workspace-section-header .meta {
     margin: 0;
     color: var(--color-mirage-600);
-    font-size: 15px;
+    font-size: 14px;
 }
 
 .approved-grid {
@@ -1412,59 +1076,62 @@ onMounted(async () => {
     gap: var(--space-500);
 }
 
-.approved-module-block {
-    background: var(--color-wild-50);
-    border: 2px solid var(--color-mirage-200);
-    border-radius: var(--radius-400);
+.approved-module-card {
+    padding: 0 !important;
     overflow: hidden;
-    transition: border-color 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.approved-module-block.is-approved {
+.approved-module-card.is-approved {
     border-color: var(--color-teal-500);
 }
 
-.block-header {
+.card-summary {
     padding: var(--space-400);
     display: flex;
-    flex-direction: column;
-    gap: var(--space-300);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-400);
     background: var(--color-wild-100);
-    border-bottom: 1px solid var(--color-mirage-100);
-    cursor: pointer;
     transition: background 0.2s ease;
 }
 
-.block-header:hover {
+.card-summary[role="button"] {
+    cursor: pointer;
+}
+
+.card-summary[role="button"]:hover {
     background: var(--color-wild-200);
 }
 
-.approved-module-block.is-approved .block-header {
+.approved-module-card.is-approved .card-summary {
     background: #f0faf4;
-    border-bottom-color: var(--color-teal-200);
 }
 
-.approved-module-block.is-approved .block-header:hover {
+.approved-module-card.is-approved .card-summary[role="button"]:hover {
     background: #e6f5eb;
 }
 
-.block-title {
+.module-info {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: var(--space-300);
 }
 
-.block-title h4 {
+.module-info h4 {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
     color: var(--color-mirage-900);
 }
 
-.progress-area {
+.module-progress {
     display: flex;
     align-items: center;
     gap: var(--space-300);
+    flex: 1;
+    max-width: 250px;
+    justify-content: flex-end;
 }
 
 .progress-bar-bg {
@@ -1481,7 +1148,7 @@ onMounted(async () => {
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.approved-module-block.is-approved .progress-bar-fill {
+.approved-module-card.is-approved .progress-bar-fill {
     background: var(--color-teal-500);
 }
 
@@ -1501,6 +1168,12 @@ onMounted(async () => {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.accordion-icon-placeholder {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
 .accordion-icon.is-rotated {
     transform: rotate(180deg);
 }
@@ -1509,6 +1182,7 @@ onMounted(async () => {
     display: grid;
     grid-template-rows: 0fr;
     transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--color-wild-100);
 }
 
 .accordion-wrapper.is-open {
@@ -1522,13 +1196,7 @@ onMounted(async () => {
 
 .approved-list-container {
     padding: var(--space-400);
-    background: var(--color-wild-50);
-}
-
-.empty-approved {
-    margin: 0;
-    color: var(--color-mirage-500);
-    font-size: 14px;
+    border-top: 1px solid var(--color-mirage-200);
 }
 
 /* Raw Panel */
@@ -1553,85 +1221,7 @@ onMounted(async () => {
     color: var(--color-teal-200);
 }
 
-/* Loading Overlay */
-.loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 29, 32, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-}
-
-.loading-modal {
-    background: var(--color-wild-100);
-    padding: var(--space-600);
-    border-radius: var(--radius-400);
-    border: 2px solid var(--color-mirage-900);
-    box-shadow: 8px 8px 0 var(--color-shadow);
-    text-align: center;
-    max-width: 400px;
-    width: 90%;
-}
-
-.spinner-container {
-    margin-bottom: var(--space-400);
-}
-
-.fancy-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid var(--color-wild-300);
-    border-top-color: var(--color-deep-600);
-    border-radius: 50%;
-    margin: 0 auto;
-    animation: spin 1s linear infinite;
-}
-
-.loading-modal h3 {
-    margin: 0 0 var(--space-200);
-    font-size: 20px;
-}
-
-.progress-label {
-    margin: 0 0 var(--space-300);
-    color: var(--color-mirage-600);
-    font-weight: 600;
-}
-
-.timer {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--color-deep-600);
-    margin-bottom: var(--space-300);
-}
-
-.loading-hint {
-    margin: 0;
-    font-size: 13px;
-    color: var(--color-mirage-500);
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Transitions */
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
 .fade-slide-enter-active,
 .fade-slide-leave-active {
     transition: all 0.3s ease;
@@ -1651,6 +1241,16 @@ onMounted(async () => {
 
     .sidebar-column .sticky {
         position: static;
+    }
+
+    .card-summary {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .module-progress {
+        width: 100%;
+        max-width: none;
     }
 }
 

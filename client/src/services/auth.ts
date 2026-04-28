@@ -1,9 +1,6 @@
-import { readItem, readItems, updateItem } from '@directus/sdk'
 import type { User } from '@/types'
 import {
   authFetch,
-  directus,
-  getAccessToken,
   normalizedDirectusUrl,
   setAccessToken,
   setStoredUserId,
@@ -20,6 +17,7 @@ const USER_FIELDS = [
   'role',
   'role.id',
   'role.name',
+  'exercises_daily_streak',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {
@@ -71,11 +69,6 @@ const fetchCurrentUser = async () => {
 }
 
 const fetchUserByIdWithAuth = async (id: number | string) => {
-  const token = getAccessToken()
-  if (!token) {
-    return directus.request(readItem('directus_users' as any, id)) as Promise<User>
-  }
-
   const params = new URLSearchParams({ fields: USER_FIELDS.join(',') })
   const response = await authFetch(`/users/${id}?${params.toString()}`)
 
@@ -89,23 +82,8 @@ const fetchUserByIdWithAuth = async (id: number | string) => {
 }
 
 const fetchUsersWithAuth = async (limit?: number) => {
-  const token = getAccessToken()
-  if (!token) {
-    return directus.request(
-      readItems('directus_users' as any, {
-        sort: ['-points'],
-        limit,
-      }),
-    ) as Promise<User[]>
-  }
-
-  const params = new URLSearchParams({
-    fields: USER_FIELDS.join(','),
-  })
-  if (limit) {
-    params.set('limit', String(limit))
-  }
-  params.set('sort', '-points')
+  const params = new URLSearchParams({ fields: USER_FIELDS.join(','), sort: '-points' })
+  if (limit) params.set('limit', String(limit))
 
   const response = await authFetch(`/users?${params.toString()}`)
   if (!response.ok) {
@@ -120,17 +98,6 @@ const fetchUsersWithAuth = async (limit?: number) => {
 export const fetchUsers = (limit?: number) => fetchUsersWithAuth(limit)
 
 export const fetchUserById = (id: number | string) => fetchUserByIdWithAuth(id)
-
-export const findUserByCredentials = (email: string, password: string) =>
-  directus.request(
-    readItems('directus_users' as any, {
-      filter: {
-        email: { _eq: email },
-        password: { _eq: password },
-      },
-      limit: 1,
-    }),
-  ) as Promise<User[]>
 
 export const loginUser = async (email: string, password: string) => {
   if (!normalizedDirectusUrl) {
@@ -162,11 +129,6 @@ export const loginUser = async (email: string, password: string) => {
 export const registerUser = (payload: Partial<User>) => registerDirectusUser(payload)
 
 export const updateUser = async (id: number | string, payload: Partial<User>) => {
-  const token = getAccessToken()
-  if (!token) {
-    return directus.request(updateItem('directus_users' as any, id, payload)) as Promise<User>
-  }
-
   const response = await authFetch(`/users/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -216,11 +178,12 @@ export const getUserDisplayName = (user?: User | null) => {
 
 export const getUserAvatarId = (user?: User | null) => user?.avatar ?? user?.avatar_img ?? null
 
+const ADMIN_ROLES = ['admin', 'admin absoluto', 'editora', 'autor']
+
 export const isAdminUser = (user?: User | null) => {
   const role = user?.role
   const roleName =
     typeof role === 'string' ? role : typeof role === 'object' && role ? role.name : null
   if (!roleName) return false
-  const normalized = roleName.trim().toLowerCase()
-  return normalized === 'admin' || normalized === 'admin absoluto'
+  return ADMIN_ROLES.includes(roleName.trim().toLowerCase())
 }

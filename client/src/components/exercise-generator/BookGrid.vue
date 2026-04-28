@@ -30,9 +30,7 @@ defineEmits<{ select: [number] }>()
                 <div class="info">
                     <h3>{{ book.title || `Livro ${book.book_id}` }}</h3>
                     <p class="meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
-                    <p>{{ book.description || 'Sem descricao' }}</p>
-                    <p class="status" :class="{ 'is-approved': book.is_approved }">Estado: {{ book.is_approved ?
-                        'Aprovado' : 'Por aprovar' }}</p>
+                    <p class="status" :class="{ 'is-approved': book.is_approved }">Estado: {{ book.is_approved ?'Aprovado' : 'Por aprovar' }}</p>
                 </div>
             </UiCard>
         </div>

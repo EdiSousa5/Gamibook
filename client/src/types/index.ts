@@ -14,6 +14,7 @@ export type Book = {
   editora_id?: number | Editora | null
   editora?: Editora | null
   is_approved?: boolean | null
+  qr_code?: string | null
   date_created?: string | null
   date_updated?: string | null
 }
@@ -31,6 +32,7 @@ export type User = {
   role?: { id?: string; name?: string } | string | null
   password?: string
   date_created?: string | null
+  exercises_daily_streak?: number
 }
 
 export type Module = {
@@ -64,9 +66,8 @@ export type DailyExercise = {
 export type UserDailyExercise = {
   id_user_daily_exercise?: number
   user_id?: string | User
-  is_answered?: boolean | null
-  is_correct?: boolean | null
   daily_exercise_id?: number | DailyExercise
+  is_correct?: boolean | null
   date_created?: string | null
 }
 

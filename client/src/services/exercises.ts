@@ -1,4 +1,4 @@
-import type { DailyExercise, Exercise, ExerciseExample, UserExercise } from '@/types'
+import type { DailyExercise, Exercise, ExerciseExample, UserDailyExercise, UserExercise } from '@/types'
 import { authFetch } from './client'
 
 export const fetchExercisesByModule = async (moduleId: number) => {
@@ -228,4 +228,79 @@ export const deleteExercise = async (exerciseId: number) => {
     const text = await response.text().catch(() => '')
     throw new Error(`Delete exercise failed: ${response.status} ${text}`.trim())
   }
+}
+
+export const fetchLatestUserDailyExercise = async (userId: string) => {
+  const params = new URLSearchParams({
+    fields: 'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,date_created',
+    sort: '-date_created',
+    limit: '1',
+  })
+  params.set('filter[user_id][_eq]', userId)
+
+  const response = await authFetch(`/items/user_daily_exercise?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user daily exercise failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  const items = (data?.data ?? []) as UserDailyExercise[]
+  return items[0] ?? null
+}
+
+export const createUserDailyExercise = async (payload: Partial<UserDailyExercise>) => {
+  const response = await authFetch('/items/user_daily_exercise', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Create user daily exercise failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as UserDailyExercise
+}
+
+export const fetchAnsweredDailyExerciseIds = async (userId: string): Promise<number[]> => {
+  const params = new URLSearchParams({
+    fields: 'daily_exercise_id',
+    limit: '-1',
+  })
+  params.set('filter[user_id][_eq]', userId)
+
+  const response = await authFetch(`/items/user_daily_exercise?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch answered daily exercises failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  const items = (data?.data ?? []) as Array<{ daily_exercise_id: number | null }>
+  return items.map((item) => item.daily_exercise_id).filter((id): id is number => id !== null)
+}
+
+export const fetchDailyExercisesForBooks = async (bookIds: number[]) => {
+  if (!bookIds.length) return [] as DailyExercise[]
+
+  const params = new URLSearchParams({
+    fields: 'daily_exercise_id,type,book_id,content,date_created',
+    limit: '-1',
+  })
+  params.set('filter[book_id][_in]', bookIds.join(','))
+
+  const response = await authFetch(`/items/daily_exercise?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch daily exercises for books failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as DailyExercise[]
 }
