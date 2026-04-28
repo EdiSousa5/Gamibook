@@ -14,6 +14,7 @@ import {
 } from '../services/exercises'
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
+import { getLevelProgressFromPoints } from '../utils/gamification'
 import type { Book, Exercise, Module, UserExercise } from '@/types'
 
 const route = useRoute()
@@ -26,7 +27,7 @@ const exercises = ref<Exercise[]>([])
 const error = ref('')
 const isLoading = ref(false)
 const currentIndex = ref(0)
-const QUESTION_TIME = 20
+const QUESTION_TIME = 30
 const timeLeft = ref(QUESTION_TIME)
 const attemptsUsed = ref(0)
 const selectedOption = ref<string | null>(null)
@@ -196,7 +197,7 @@ const shuffleArray = <T,>(values: T[]) => {
 }
 
 const buildOptions = (exercise: Exercise) => {
-    if (exercise.type === 'true-false') return ['Verdadeiro', 'Falso']
+    if (exercise.type === 'true-false') return ['Falso', 'Verdadeiro']
     const rawOptions = toOptionArray(exercise.content?.opcoes || exercise.content?.options)
     if (rawOptions.length <= 4) return rawOptions
     const correctValue = String(exercise.content?.resposta_correta || '').trim().toUpperCase()
@@ -285,11 +286,16 @@ const awardXp = (points: number) => {
 const updatePoints = async (points: number) => {
     if (!userId.value) return
     if (points <= 0) return
+    const oldLevel = getLevelProgressFromPoints(userPoints.value).level
     const nextPoints = userPoints.value + points
+    const newLevel = getLevelProgressFromPoints(nextPoints).level
     try {
         const updated = await updateUser(userId.value, { points: nextPoints })
         userPoints.value = updated.points ?? nextPoints
         window.dispatchEvent(new Event('gb-auth-changed'))
+        if (newLevel > oldLevel) {
+            window.dispatchEvent(new CustomEvent('gb-level-up', { detail: { oldLevel, newLevel, currentPoints: nextPoints } }))
+        }
     } catch (err) {
         console.error(err)
     }
@@ -448,7 +454,7 @@ watch(
                     .filter((item) => Number.isFinite(item.exercise_id))
                     .map((item) => [
                         Number(item.exercise_id),
-                        shuffleArray(buildOptions(item)),
+                        item.type === 'true-false' ? buildOptions(item) : shuffleArray(buildOptions(item)),
                     ] as const),
             )
             userPoints.value = userInfo?.points ?? 0

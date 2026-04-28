@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 </script>
 
@@ -7,10 +6,9 @@ import UiCard from '@/components/ui/UiCard.vue'
   <section class="admin-books">
     <div class="header">
       <div>
-        <h1>Criar livros</h1>
+        <h1>Livros</h1>
         <p class="meta">Area administrativa para gerir livros e catalogo.</p>
       </div>
-      <UiButton variant="primary">Novo livro</UiButton>
     </div>
 
     <UiCard>

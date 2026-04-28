@@ -5,6 +5,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import {
   ArrowRightOnRectangleIcon,
   BookOpenIcon,
+  ChartBarIcon,
   Cog6ToothIcon,
   HomeIcon,
   PencilSquareIcon,
@@ -19,13 +20,17 @@ type Props = {
   to?: string
   icon?: string
   isAction?: boolean
+  exact?: boolean
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{ click: [] }>()
 const route = useRoute()
 
-const isActive = computed(() => (props.to ? route.path.startsWith(props.to) : false))
+const isActive = computed(() => {
+  if (!props.to) return false
+  return props.exact ? route.path === props.to : route.path.startsWith(props.to)
+})
 
 const iconComponent = computed(() => {
   switch (props.icon) {
@@ -45,6 +50,8 @@ const iconComponent = computed(() => {
       return PencilSquareIcon
     case 'generate':
       return SparklesIcon
+    case 'stats':
+      return ChartBarIcon
     case 'ui':
       return Squares2X2Icon
     default:

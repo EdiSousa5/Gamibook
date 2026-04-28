@@ -17,36 +17,48 @@ const router = createRouter({
       path: '/app',
       name: 'app',
       component: () => import('../views/Dashboard.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, userOnly: true },
     },
     {
       path: '/leaderboard',
       name: 'leaderboard',
       component: () => import('../views/Rankings.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, userOnly: true },
     },
     {
       path: '/collection',
       name: 'collection',
       component: () => import('../views/Collection.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, userOnly: true },
     },
     {
       path: '/book/:id',
       name: 'book',
       component: () => import('../views/Book.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, userOnly: true },
     },
     {
       path: '/book/:bookId/module/:moduleId',
       name: 'module',
       component: () => import('../views/Module.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, userOnly: true },
+    },
+    {
+      path: '/daily-exercise',
+      name: 'daily-exercise',
+      component: () => import('../views/DailyExercise.vue'),
+      meta: { requiresAuth: true, userOnly: true },
     },
     {
       path: '/help',
       name: 'help',
       component: () => import('../views/Help.vue'),
+      meta: { requiresAuth: true, userOnly: true },
+    },
+    {
+      path: '/unlock/:code',
+      name: 'unlock',
+      component: () => import('../views/Unlock.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -89,9 +101,15 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
-      path: '/admin/books',
-      name: 'admin-books',
-      component: () => import('../views/AdminBooks.vue'),
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminHome.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/stats',
+      name: 'admin-stats',
+      component: () => import('../views/AdminStats.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
@@ -106,7 +124,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   const storedId = getStoredUserId()
-  if (!storedId) return { path: '/login' }
+  if (!storedId) return { path: '/login', query: { redirect: to.fullPath } }
 
   if (to.meta.requiresAdmin) {
     try {
@@ -121,7 +139,7 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth) {
     try {
       const user = await fetchUserById(storedId)
-      if (isAdminUser(user) && !to.meta.requiresAdmin) return { path: '/admin/books' }
+      if (isAdminUser(user) && to.meta.userOnly) return { path: '/admin' }
     } catch (error) {
       console.error('[Router] Failed to validate user role', error)
       return { path: '/login' }

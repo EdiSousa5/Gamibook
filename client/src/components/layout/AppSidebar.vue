@@ -9,6 +9,7 @@ type NavEntry = {
   to?: string
   icon?: string
   isAction?: boolean
+  exact?: boolean
 }
 
 type Props = {
@@ -36,7 +37,7 @@ const initials = computed(() => {
 
     <nav class="nav">
       <NavItem v-for="item in items" :key="item.label" :label="item.label" :to="item.to" :icon="item.icon"
-        :is-action="item.isAction" @click="item.isAction ? $emit('action', item.label) : null" />
+        :is-action="item.isAction" :exact="item.exact" @click="item.isAction ? $emit('action', item.label) : null" />
     </nav>
 
     <div class="spacer"></div>
