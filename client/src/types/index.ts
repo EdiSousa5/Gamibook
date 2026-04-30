@@ -89,7 +89,9 @@ export type UserExercise = {
 }
 
 export type UserBook = {
-  id?: number
+  user_book_id?: number
   user_id?: string | User
-  book_id?: Book
+  book_id?: number | Book
+  current_badge?: 'default' | 'bronze' | 'silver' | 'gold' | 'diamond' | 'galaxy' | null
+  final_quiz_unlocked?: boolean | null
 }

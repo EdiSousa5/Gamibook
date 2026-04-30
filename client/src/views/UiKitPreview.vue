@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import BookBadge from '@/components/ui/BookBadge.vue'
+import BookMockup from '@/components/ui/BookMockup.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -171,6 +173,58 @@ const dummyUsers = [
           <UiAvatar alt="M" :size="64" tone="accent" status="away" />
           <UiAvatar alt="B" :size="80" src="/favicon.ico" status="busy" />
           <UiAvatar alt="U" :size="56" :src="wintonUrl" status="offline" />
+        </div>
+      </UiCard>
+
+      <UiCard class="card-wide">
+        <h2>Badges de Livro</h2>
+        <div class="badge-section-row">
+          <div class="badge-book-item">
+            <BookMockup title="Sem badge" />
+            <span class="badge-label">Sem badge</span>
+          </div>
+          <div class="badge-book-item">
+            <BookMockup title="Bronze" badge="bronze" />
+            <span class="badge-label">Bronze — 25%</span>
+          </div>
+          <div class="badge-book-item">
+            <BookMockup title="Prata" badge="silver" />
+            <span class="badge-label">Prata — 50%</span>
+          </div>
+          <div class="badge-book-item">
+            <BookMockup title="Ouro" badge="gold" />
+            <span class="badge-label">Ouro — 75%</span>
+          </div>
+          <div class="badge-book-item">
+            <BookMockup title="Diamante" badge="diamond" />
+            <span class="badge-label">Diamante — 100%</span>
+          </div>
+          <div class="badge-book-item">
+            <BookMockup title="Galaxia" badge="galaxy" />
+            <span class="badge-label">Galaxia — Quiz</span>
+          </div>
+        </div>
+        <div class="badge-standalone-row">
+          <div class="badge-standalone-item">
+            <BookBadge tier="bronze" />
+            <span class="badge-label">Bronze</span>
+          </div>
+          <div class="badge-standalone-item">
+            <BookBadge tier="silver" />
+            <span class="badge-label">Prata</span>
+          </div>
+          <div class="badge-standalone-item">
+            <BookBadge tier="gold" />
+            <span class="badge-label">Ouro</span>
+          </div>
+          <div class="badge-standalone-item">
+            <BookBadge tier="diamond" />
+            <span class="badge-label">Diamante</span>
+          </div>
+          <div class="badge-standalone-item">
+            <BookBadge tier="galaxy" />
+            <span class="badge-label">Galaxia</span>
+          </div>
         </div>
       </UiCard>
 
@@ -993,6 +1047,66 @@ h2 {
 
 .exercise-option.is-selected .exercise-option-text {
   color: var(--color-wild-100);
+}
+
+/* Book badges section */
+.badge-section-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-500);
+  align-items: flex-end;
+  margin-bottom: var(--space-500);
+  padding-bottom: var(--space-500);
+  border-bottom: 2px solid var(--color-wild-400);
+}
+
+.badge-standalone-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-400);
+  align-items: center;
+}
+
+.badge-book-item {
+  display: grid;
+  gap: var(--space-200);
+  justify-items: center;
+}
+
+.badge-standalone-item {
+  display: grid;
+  gap: var(--space-150);
+  justify-items: center;
+}
+
+.badge-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+  text-align: center;
+}
+
+/* Avatar frames section */
+.frame-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-500);
+  align-items: center;
+}
+
+.frame-item {
+  display: grid;
+  gap: var(--space-150);
+  justify-items: center;
+}
+
+.frame-level {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mirage-400);
+  text-align: center;
 }
 
 @media (max-width: 720px) {

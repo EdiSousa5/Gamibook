@@ -4,6 +4,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import { RouterLink } from 'vue-router'
 import {
   fetchApprovedBooks,
@@ -50,6 +51,20 @@ const otherOwnedBooks = computed(() =>
     ? ownedBooks.value.filter((book) => book.book_id !== featuredBook.value?.book_id)
     : ownedBooks.value,
 )
+
+const badgeMap = computed(() => {
+  const map = new Map<number, BookBadgeTier>()
+  for (const entry of userBooks.value) {
+    const bid = typeof entry.book_id === 'object' ? (entry.book_id as Book)?.book_id : entry.book_id as number
+    const badge = entry.current_badge
+    if (bid && badge && badge !== 'default') {
+      map.set(bid, badge as BookBadgeTier)
+    }
+  }
+  return map
+})
+
+const badgeForBook = (bookId: number): BookBadgeTier | undefined => badgeMap.value.get(bookId)
 
 onMounted(async () => {
   const storedId = localStorage.getItem('gb_user_id')
@@ -109,7 +124,7 @@ onMounted(async () => {
         </div>
 
         <div class="destaque-visual">
-          <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg" />
+          <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg" :badge="badgeForBook(featuredBook.book_id)" />
         </div>
       </div>
 
@@ -127,7 +142,7 @@ onMounted(async () => {
           <div v-for="book in otherOwnedBooks" :key="book.book_id" class="livro-item"
             :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
             tabindex="0" role="button">
-            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
+            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" :badge="badgeForBook(book.book_id)" />
             <span class="nome-livro">{{ book.title || 'Sem título' }}</span>
           </div>
         </div>

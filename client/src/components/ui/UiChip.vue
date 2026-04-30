@@ -19,6 +19,7 @@ withDefaults(defineProps<Props>(), {
 .ui-chip {
   display: inline-flex;
   align-items: center;
+  width: fit-content;
   padding: var(--space-100) var(--space-300);
   border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
