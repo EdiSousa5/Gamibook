@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
+import { BoltIcon, FireIcon } from '@heroicons/vue/24/outline'
 import {
     fetchBook,
     fetchModule,
@@ -14,6 +15,7 @@ import {
 } from '../services/exercises'
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
+import { checkAndUpdateBadge } from '../services/badges'
 import { getLevelProgressFromPoints } from '../utils/gamification'
 import type { Book, Exercise, Module, UserExercise } from '@/types'
 
@@ -358,6 +360,9 @@ const goNext = async () => {
         await persistResults()
         isSaving.value = false
         isCompleted.value = true
+        if (userId.value) {
+            checkAndUpdateBadge(userId.value, bookId.value).catch(() => {})
+        }
         return
     }
     currentIndex.value += 1
@@ -510,27 +515,31 @@ onUnmounted(() => {
 <template>
     <section class="module-runner">
         <header class="runner-header">
-            <div class="header-left">
-                <div>
-                    <h1>{{ moduleData?.module_title || `Modulo ${moduleId}` }}</h1>
-                    <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
-                </div>
+            <div class="runner-titles">
+                <h1>{{ moduleData?.module_title || `Modulo ${moduleId}` }}</h1>
+                <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
             </div>
             <div class="runner-stats">
-                <div class="runner-xp" :class="{ pulse: xpPulse % 2 === 1 }">
-                    <span class="runner-xp__label">XP</span>
-                    <strong class="runner-xp__value">{{ currentXp }}</strong>
-                    <span v-if="xpDelta" class="runner-xp__delta">+{{ xpDelta }}</span>
+                <div class="runner-stat" :class="{ 'runner-stat--pulse': xpPulse % 2 === 1 }">
+                    <BoltIcon class="stat-icon" aria-hidden="true" />
+                    <div class="stat-body">
+                        <span class="stat-label">XP da sessão</span>
+                        <strong class="stat-value">{{ currentXp }}</strong>
+                    </div>
+                    <span v-if="xpDelta" class="stat-delta">+{{ xpDelta }}</span>
                 </div>
-                <div class="runner-streak" :class="{ active: isStreakActive }">
-                    <span class="runner-streak__label">Streak</span>
-                    <strong class="runner-streak__value">
-                        {{ isStreakActive ? `x${correctStreak}` : '0' }}
-                    </strong>
+                <div class="runner-stat" :class="{ 'runner-stat--streak': isStreakActive }">
+                    <FireIcon class="stat-icon" aria-hidden="true" />
+                    <div class="stat-body">
+                        <span class="stat-label">Streak</span>
+                        <strong class="stat-value">{{ isStreakActive ? `×${correctStreak}` : '—' }}</strong>
+                    </div>
                 </div>
-                <div class="runner-meta">
-                    <span>Pergunta</span>
-                    <strong>{{ Math.min(currentIndex + 1, exercises.length) }} / {{ exercises.length }}</strong>
+                <div class="runner-stat">
+                    <div class="stat-body">
+                        <span class="stat-label">Progresso</span>
+                        <strong class="stat-value">{{ Math.min(currentIndex + 1, exercises.length) }}<span class="stat-sep"> / {{ exercises.length }}</span></strong>
+                    </div>
                 </div>
             </div>
         </header>
@@ -596,14 +605,6 @@ onUnmounted(() => {
             <div class="question-card">
                 <div class="question-card__shadow"></div>
                 <div class="question-card__panel">
-                    <div v-if="feedback" class="question-feedback" :class="feedback.type">
-                        <span class="feedback-title">
-                            {{ feedback.type === 'correct' ? 'Certo!' : 'Errado' }}
-                        </span>
-                        <span class="feedback-points">
-                            {{ feedback.points > 0 ? `+${feedback.points} XP` : '0 XP' }}
-                        </span>
-                    </div>
                     <div class="question-timer">
                         <svg class="timer-ring" viewBox="0 0 72 72" aria-hidden="true">
                             <circle class="timer-ring__track" cx="36" cy="36" r="26" />
@@ -616,7 +617,11 @@ onUnmounted(() => {
                         <div class="question-title">
                             Pergunta <span>{{ String(currentIndex + 1).padStart(2, '0') }}</span>
                         </div>
-                        <div v-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
+                        <div v-if="feedback" class="result-pill" :class="feedback.type">
+                            <span class="result-pill__label">{{ feedback.type === 'correct' ? 'Certo!' : 'Errado' }}</span>
+                            <strong v-if="feedback.points > 0" class="result-pill__xp">+{{ feedback.points }} XP</strong>
+                        </div>
+                        <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
                     <div class="question-divider"></div>
                     <p class="question-text">{{ currentQuestionText }}</p>
@@ -651,135 +656,112 @@ onUnmounted(() => {
 <style scoped>
 .module-runner {
     display: grid;
-    gap: var(--space-400);
+    gap: var(--space-500);
 }
 
 .runner-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
     gap: var(--space-300);
-    flex-wrap: wrap;
+}
+
+.runner-titles {
+    display: grid;
+    gap: var(--space-100);
+}
+
+.runner-header h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--color-mirage-800);
+}
+
+.meta {
+    color: var(--color-mirage-500);
+    margin: 0;
+    font-size: 13px;
 }
 
 .runner-stats {
     width: min(960px, 100%);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--space-200);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-300);
 }
 
-.runner-xp {
+.runner-stat {
     position: relative;
-    padding: 10px 16px;
-    border-radius: 14px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-deep-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
-    display: inline-flex;
-    align-items: baseline;
-    gap: 8px;
-    font-weight: 700;
-    min-width: 160px;
-    justify-content: center;
-    overflow: visible;
-}
-
-.runner-streak {
-    padding: 10px 16px;
+    padding: 12px 16px;
     border-radius: 14px;
     border: 2px solid var(--color-mirage-800);
     background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
-    display: inline-flex;
-    align-items: baseline;
-    gap: 8px;
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-weight: 700;
-    min-width: 160px;
-    justify-content: center;
+    overflow: visible;
+    transition: background 0.2s ease;
 }
 
-.runner-streak.active {
+.runner-stat--streak {
     background: var(--color-teal-200);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.5);
 }
 
-.runner-streak__label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-mirage-600);
-}
-
-.runner-streak__value {
-    font-size: 18px;
-    color: var(--color-mirage-800);
-}
-
-.runner-xp__label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-mirage-600);
-}
-
-.runner-xp__value {
-    font-size: 18px;
-    color: var(--color-mirage-800);
-}
-
-.runner-xp__delta {
-    position: absolute;
-    right: 6px;
-    top: -12px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: var(--color-teal-200);
-    border: 2px solid var(--color-mirage-800);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--color-mirage-800);
-    animation: xp-pop 1.4s ease;
-}
-
-.runner-xp.pulse {
+.runner-stat--pulse {
     animation: xp-pulse 0.7s ease;
 }
 
-.header-left {
-    display: grid;
-    gap: var(--space-200);
-}
-
-.runner-header h1 {
-    margin: 6px 0 0;
-    font-size: 26px;
-}
-
-.meta {
-    color: var(--color-mirage-500);
-    margin: 6px 0 0;
-}
-
-.runner-meta {
-    padding: 10px 16px;
-    border-radius: 14px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
-    display: grid;
-    gap: 2px;
-    text-align: center;
-    font-weight: 700;
-    min-width: 160px;
-}
-
-.runner-meta span {
-    font-size: 11px;
+.stat-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
     color: var(--color-mirage-600);
+    stroke-width: 1.5;
+}
+
+.runner-stat--streak .stat-icon {
+    color: var(--color-pumpkin-500);
+}
+
+.stat-body {
+    display: grid;
+    gap: 1px;
+}
+
+.stat-label {
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1px;
+    color: var(--color-mirage-500);
+    font-weight: 700;
+}
+
+.stat-value {
+    font-size: 20px;
+    color: var(--color-mirage-800);
+    line-height: 1;
+}
+
+.stat-sep {
+    font-size: 14px;
+    color: var(--color-mirage-400);
+    font-weight: 600;
+}
+
+.stat-delta {
+    position: absolute;
+    right: 8px;
+    top: -10px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--color-teal-200);
+    border: 2px solid var(--color-mirage-800);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-mirage-800);
+    animation: xp-pop 1.4s ease;
 }
 
 .state {
@@ -793,8 +775,9 @@ onUnmounted(() => {
 
 .runner {
     display: grid;
-    gap: var(--space-400);
-    margin-top: var(--space-400);
+    gap: var(--space-500);
+    padding-top: var(--space-300);
+    border-top: 2px solid var(--color-wild-400);
 }
 
 .question-card {
@@ -821,47 +804,44 @@ onUnmounted(() => {
     box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
 }
 
-.question-feedback {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    padding: 10px 14px;
-    border-radius: 12px;
+.result-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
     border: 2px solid var(--color-mirage-800);
-    display: grid;
-    gap: 2px;
     font-weight: 700;
     background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
-    animation: feedback-pop 0.6s ease;
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    animation: feedback-pop 0.35s ease;
+    white-space: nowrap;
 }
 
-.question-feedback.correct {
+.result-pill.correct {
     background: var(--color-deep-100);
 }
 
-.question-feedback.wrong {
+.result-pill.wrong {
     background: #f7c4c4;
     border-color: #b13b3b;
 }
 
-.feedback-title {
-    font-size: 14px;
+.result-pill__label {
+    font-size: 13px;
     color: var(--color-mirage-800);
 }
 
-.question-feedback.wrong .feedback-title {
+.result-pill.wrong .result-pill__label {
     color: #7a1f1f;
 }
 
-.feedback-points {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-mirage-600);
+.result-pill__xp {
+    font-size: 12px;
+    color: var(--color-deep-700);
 }
 
-.question-feedback.wrong .feedback-points {
+.result-pill.wrong .result-pill__xp {
     color: #7a1f1f;
 }
 

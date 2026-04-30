@@ -3,7 +3,10 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import { BookOpenIcon, CheckIcon } from '@heroicons/vue/24/outline'
+import BookBadge from '@/components/ui/BookBadge.vue'
+import BookMockup from '@/components/ui/BookMockup.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
+import { CheckIcon, LockClosedIcon, SparklesIcon, TrophyIcon } from '@heroicons/vue/24/outline'
 import {
   fetchBook,
   fetchModulesByBook,
@@ -12,8 +15,9 @@ import {
   fetchApprovedExerciseCountsByModule,
   fetchUserExerciseCountsByModule,
 } from '../services/exercises'
+import { fetchUserBook } from '../services/badges'
 import { getAssetUrl, getStoredUserId } from '../services/client'
-import type { Book, Module } from '@/types'
+import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.id || 1))
@@ -22,8 +26,17 @@ const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
 const approvedModules = ref<Module[]>([])
 const moduleStats = ref<Record<number, { total: number; done: number; correct: number; remaining: number }>>({})
+const userBook = ref<UserBook | null>(null)
 const error = ref('')
 const isLoading = ref(false)
+
+const currentBadge = computed<BookBadgeTier | null>(() => {
+  const b = userBook.value?.current_badge
+  if (!b || b === 'default') return null
+  return b as BookBadgeTier
+})
+const quizUnlocked = computed(() => userBook.value?.final_quiz_unlocked ?? false)
+const quizCompleted = computed(() => userBook.value?.current_badge === 'galaxy')
 
 const moduleSummary = computed(() => {
   const values = Object.values(moduleStats.value)
@@ -70,8 +83,13 @@ watch(
     isLoading.value = true
     try {
       const userId = getStoredUserId()
-      const [bookData, moduleList] = await Promise.all([fetchBook(id), fetchModulesByBook(id)])
+      const [bookData, moduleList, userBookData] = await Promise.all([
+        fetchBook(id),
+        fetchModulesByBook(id),
+        userId ? fetchUserBook(userId, id) : Promise.resolve(null),
+      ])
       book.value = bookData
+      userBook.value = userBookData
       approvedModules.value = moduleList
         .filter(isMainChapter)
         .filter((m) => m.status !== 'unapproved')
@@ -96,6 +114,7 @@ watch(
       modules.value = []
       approvedModules.value = []
       moduleStats.value = {}
+      userBook.value = null
     } finally {
       isLoading.value = false
     }
@@ -116,11 +135,12 @@ watch(
         <p v-if="book?.description" class="book-desc">{{ book.description }}</p>
       </div>
       <div class="book-hero__cover">
-        <div class="book-cover">
-          <img v-if="book?.cover_img" :src="getAssetUrl(book.cover_img)" alt="Capa do livro" />
-          <BookOpenIcon v-else class="cover-icon" aria-hidden="true" />
-        </div>
-        <div class="book-cover-shadow" aria-hidden="true" />
+        <BookMockup
+          :cover-url="book?.cover_img ? getAssetUrl(book.cover_img) : null"
+          :title="book?.title ?? 'Livro'"
+          size="lg"
+          :badge="currentBadge ?? undefined"
+        />
       </div>
     </header>
 
@@ -213,6 +233,52 @@ watch(
       </div>
     </section>
 
+    <!-- FINAL QUIZ -->
+    <section v-if="userBook && !isLoading" class="quiz-section">
+      <div class="modules-header">
+        <h2>Quiz Final</h2>
+      </div>
+
+      <article
+        class="quiz-card"
+        :class="quizCompleted ? 'quiz-card--done' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'"
+      >
+        <div class="quiz-card__icon">
+          <TrophyIcon v-if="quizCompleted" class="quiz-icon" aria-hidden="true" />
+          <SparklesIcon v-else-if="quizUnlocked" class="quiz-icon" aria-hidden="true" />
+          <LockClosedIcon v-else class="quiz-icon" aria-hidden="true" />
+        </div>
+
+        <div class="quiz-card__body">
+          <div class="quiz-card__title-row">
+            <h3 class="quiz-card__title">
+              {{ quizCompleted ? 'Quiz Completo' : quizUnlocked ? 'Quiz Disponível' : 'Quiz Bloqueado' }}
+            </h3>
+            <BookBadge v-if="quizCompleted" tier="galaxy" size="sm" />
+            <UiChip v-else-if="quizUnlocked" label="Desbloqueado" variant="filled" />
+            <UiChip v-else label="Bloqueado" variant="outline" />
+          </div>
+          <p class="quiz-card__desc">
+            <template v-if="quizCompleted">
+              Conquistaste o badge Galaxy. O quiz foi concluído com sucesso.
+            </template>
+            <template v-else-if="quizUnlocked">
+              Completa 10 perguntas aleatórias de todos os módulos. Precisas de 75% de respostas certas para ganhar o badge Galaxy.
+            </template>
+            <template v-else>
+              Conclui 100% dos exercícios do livro para desbloquear o quiz final e ganhar o badge Galaxy.
+            </template>
+          </p>
+        </div>
+
+        <div v-if="quizUnlocked && !quizCompleted" class="quiz-card__action">
+          <RouterLink :to="`/book/${bookId}/final-quiz`">
+            <UiButton variant="primary" size="sm">Iniciar Quiz</UiButton>
+          </RouterLink>
+        </div>
+      </article>
+    </section>
+
   </section>
 </template>
 
@@ -267,43 +333,9 @@ watch(
 }
 
 .book-hero__cover {
-  position: relative;
   flex-shrink: 0;
-}
-
-.book-cover {
-  position: relative;
-  z-index: 1;
-  width: 148px;
-  height: 208px;
-  border-radius: 4px 16px 16px 4px;
-  border: 2px solid var(--color-mirage-800);
-  overflow: hidden;
-  background: var(--color-deep-200);
-  display: grid;
-  place-items: center;
-}
-
-.book-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cover-icon {
-  width: 52px;
-  height: 52px;
-  color: var(--color-deep-600);
-}
-
-.book-cover-shadow {
-  position: absolute;
-  inset: 0;
-  top: 8px;
-  left: 8px;
-  border-radius: 4px 16px 16px 4px;
-  background: var(--color-shadow);
-  z-index: 0;
+  display: flex;
+  align-items: flex-end;
 }
 
 /* ── STATS ROW ──────────────────────────────────── */
@@ -547,6 +579,89 @@ watch(
 
 .state-msg.error {
   color: #b13b3b;
+}
+
+/* ── QUIZ SECTION ───────────────────────────────── */
+.quiz-section {
+  display: grid;
+  gap: var(--space-400);
+}
+
+.quiz-card {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: var(--space-400);
+  align-items: center;
+  padding: var(--space-400);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 18px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  background: var(--color-wild-100);
+}
+
+.quiz-card--locked {
+  opacity: 0.65;
+}
+
+.quiz-card--done {
+  background: var(--color-deep-100);
+}
+
+.quiz-card--ready {
+  background: var(--color-amber-100, #fffbeb);
+}
+
+.quiz-card__icon {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  background: var(--color-mirage-800);
+}
+
+.quiz-card--done .quiz-card__icon { background: var(--color-deep-500); }
+.quiz-card--ready .quiz-card__icon { background: var(--color-amber-500); }
+
+.quiz-icon {
+  width: 36px;
+  height: 36px;
+  color: #fff;
+}
+
+.quiz-card__body {
+  display: grid;
+  gap: var(--space-200);
+  min-width: 0;
+}
+
+.quiz-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  flex-wrap: wrap;
+}
+
+.quiz-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+}
+
+.quiz-card__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  line-height: 1.5;
+}
+
+.quiz-card__action {
+  display: grid;
+  place-items: center;
 }
 
 /* ── RESPONSIVE ─────────────────────────────────── */

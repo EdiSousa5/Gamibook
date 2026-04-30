@@ -12,7 +12,7 @@ import {
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '../utils/gamification'
-import { FireIcon } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
 import type { DailyExercise, User } from '@/types'
 
 const router = useRouter()
@@ -345,15 +345,18 @@ onUnmounted(() => {
 
         <div v-else-if="mode === 'done'" class="info-card result-card"
             :class="result === 'correct' ? 'result-correct' : 'result-wrong'">
-            <div class="result-icon">{{ result === 'correct' ? '✓' : '✗' }}</div>
+            <div class="result-icon-wrap" :class="result === 'correct' ? 'result-icon--correct' : 'result-icon--wrong'">
+                <CheckCircleIcon v-if="result === 'correct'" class="result-icon-svg" aria-hidden="true" />
+                <XCircleIcon v-else class="result-icon-svg" aria-hidden="true" />
+            </div>
             <h2>{{ result === 'correct' ? 'Resposta Certa!' : 'Resposta Errada' }}</h2>
             <p v-if="result === 'correct'">
                 Ganhaste <strong>+{{ pointsEarned }} pontos</strong>!
                 <span v-if="newStreak >= 2" class="streak-bonus">
-                    (ganhas-te mais <strong>+10 pontos</strong> graças ao teu streak!)
+                    Mais <strong>+10 pontos</strong> de bónus pelo streak!
                 </span>
             </p>
-            <p v-else>Não ganhaste pontos. O teu streak foi reiniciado.</p>
+            <p v-else>Não ganhaste pontos desta vez. O teu streak foi reiniciado.</p>
             <div class="result-streak">
                 <FireIcon class="fire-icon" :class="{ active: newStreak >= 2 }" aria-hidden="true" />
                 <span>Streak atual: <strong>{{ newStreak }}</strong></span>
@@ -367,14 +370,6 @@ onUnmounted(() => {
             <div class="question-card">
                 <div class="question-card__shadow"></div>
                 <div class="question-card__panel">
-                    <div v-if="result" class="question-feedback" :class="result">
-                        <span class="feedback-title">
-                            {{ result === 'correct' ? 'Certo!' : 'Errado' }}
-                        </span>
-                        <span class="feedback-points">
-                            {{ pointsEarned > 0 ? `+${pointsEarned} XP` : '0 XP' }}
-                        </span>
-                    </div>
                     <div class="question-timer">
                         <svg class="timer-ring" viewBox="0 0 72 72" aria-hidden="true">
                             <circle class="timer-ring__track" cx="36" cy="36" r="26" />
@@ -385,7 +380,11 @@ onUnmounted(() => {
                     </div>
                     <div class="question-top">
                         <div class="question-title">Exercício Diário</div>
-                        <div v-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
+                        <div v-if="result" class="result-pill" :class="result">
+                            <span class="result-pill__label">{{ result === 'correct' ? 'Certo!' : 'Errado' }}</span>
+                            <strong v-if="pointsEarned > 0" class="result-pill__xp">+{{ pointsEarned }} XP</strong>
+                        </div>
+                        <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
                     <div class="question-divider"></div>
                     <p class="question-text">{{ questionText }}</p>
@@ -419,7 +418,7 @@ onUnmounted(() => {
 <style scoped>
 .daily-runner {
     display: grid;
-    gap: var(--space-400);
+    gap: var(--space-500);
 }
 
 .runner-header {
@@ -428,11 +427,15 @@ onUnmounted(() => {
     align-items: center;
     gap: var(--space-300);
     flex-wrap: wrap;
+    padding-bottom: var(--space-300);
+    border-bottom: 2px solid var(--color-wild-400);
 }
 
 .header-left h1 {
     margin: 0 0 4px;
     font-size: 26px;
+    font-weight: 800;
+    color: var(--color-mirage-800);
 }
 
 .meta {
@@ -581,17 +584,35 @@ onUnmounted(() => {
     background: #fdf0f0;
 }
 
-.result-icon {
+.result-icon-wrap {
     width: 64px;
     height: 64px;
     border-radius: 50%;
     border: 2px solid var(--color-mirage-800);
     display: grid;
     place-items: center;
-    font-size: 28px;
-    font-weight: 700;
     background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.result-icon--correct {
+    background: var(--color-deep-100);
+}
+
+.result-icon--wrong {
+    background: #fbe1e1;
+    border-color: #b13b3b;
+}
+
+.result-icon-svg {
+    width: 32px;
+    height: 32px;
+    color: var(--color-deep-700);
+    stroke-width: 1.5;
+}
+
+.result-icon--wrong .result-icon-svg {
+    color: #b13b3b;
 }
 
 .result-streak {
@@ -679,44 +700,45 @@ onUnmounted(() => {
     font-size: 16px;
 }
 
-.question-feedback {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    padding: 10px 14px;
-    border-radius: 12px;
+.result-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
     border: 2px solid var(--color-mirage-800);
-    display: grid;
-    gap: 2px;
     font-weight: 700;
     background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
-    animation: feedback-pop 0.6s ease;
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    animation: feedback-pop 0.35s ease;
+    white-space: nowrap;
 }
 
-.question-feedback.correct {
+.result-pill.correct {
     background: var(--color-deep-100);
 }
 
-.question-feedback.wrong {
+.result-pill.wrong {
     background: #f7c4c4;
     border-color: #b13b3b;
 }
 
-.feedback-title {
-    font-size: 14px;
+.result-pill__label {
+    font-size: 13px;
     color: var(--color-mirage-800);
 }
 
-.question-feedback.wrong .feedback-title {
+.result-pill.wrong .result-pill__label {
     color: #7a1f1f;
 }
 
-.feedback-points {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-mirage-600);
+.result-pill__xp {
+    font-size: 12px;
+    color: var(--color-deep-700);
+}
+
+.result-pill.wrong .result-pill__xp {
+    color: #7a1f1f;
 }
 
 .question-top {

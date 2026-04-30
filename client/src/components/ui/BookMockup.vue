@@ -1,15 +1,20 @@
 
 <script setup lang="ts">
+import BookBadge from '@/components/ui/BookBadge.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
+
 type Props = {
   coverUrl?: string | null
   title?: string
   size?: 'sm' | 'lg'
+  badge?: BookBadgeTier
 }
 
 withDefaults(defineProps<Props>(), {
   coverUrl: null,
   title: 'Livro',
-  size: 'sm'
+  size: 'sm',
+  badge: undefined,
 })
 </script>
 
@@ -20,6 +25,12 @@ withDefaults(defineProps<Props>(), {
         <img v-if="coverUrl" :src="coverUrl" :alt="title" />
         <div v-else class="empty-cover"><span>{{ title }}</span></div>
         <div class="book-lighting"></div>
+        <BookBadge
+          v-if="badge"
+          :tier="badge"
+          :size="size === 'lg' ? 'md' : 'sm'"
+          class="book-badge-overlay"
+        />
       </div>
       
       <div class="book-face book-spine"></div>
@@ -86,6 +97,14 @@ withDefaults(defineProps<Props>(), {
   border: 2px solid var(--color-mirage-800);
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.book-badge-overlay {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  z-index: 3;
 }
 
 .book-front img {
