@@ -6,7 +6,7 @@ import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
 import type { Book } from '@/types'
 
@@ -217,9 +217,6 @@ watch(() => route.fullPath, updateCanGoBack)
       <UiSearch :model-value="query" @update="query = $event" />
     </div>
     <div class="actions">
-      <UiIconButton variant="outline" size="lg" aria-label="Notificacoes">
-        <BellIcon class="icon" aria-hidden="true" />
-      </UiIconButton>
       <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
         <QrCodeIcon class="icon" aria-hidden="true" />
       </UiIconButton>

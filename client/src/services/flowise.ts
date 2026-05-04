@@ -1,6 +1,6 @@
-const FLOWISE_URL = 'http://localhost:3000'
-const CHATFLOW_ID = '18a5aadf-041b-4c26-ba74-a062281b843d'
-const DAILY_CHATFLOW_ID = '17ac9a00-1a6c-47c0-9544-2ef5a2d02bc2'
+const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL ?? 'http://localhost:3000'
+const CHATFLOW_ID = import.meta.env.VITE_FLOWISE_CHATFLOW_ID ?? '18a5aadf-041b-4c26-ba74-a062281b843d'
+const DAILY_CHATFLOW_ID = import.meta.env.VITE_FLOWISE_DAILY_CHATFLOW_ID ?? '17ac9a00-1a6c-47c0-9544-2ef5a2d02bc2'
 
 type FlowiseResponse = {
   raw: any

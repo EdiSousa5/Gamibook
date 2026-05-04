@@ -4,7 +4,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import heroUrl from '@/assets/images/person_and_books.png'
-import { BookOpenIcon, FireIcon, QuestionMarkCircleIcon, TrophyIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
+import { BookOpenIcon, FireIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
 import {
   fetchUserBooks,
 } from '../services/books'
@@ -71,8 +71,9 @@ const loadDailyExerciseStatus = async (userId: string, books: UserBook[]) => {
       if (elapsed < 24 * 60 * 60 * 1000) {
         const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
         if (lastEx?.content) {
-          dailyLastQuestion.value =
-            lastEx.content.pergunta || lastEx.content.question || lastEx.content.enunciado || ''
+          dailyLastQuestion.value = String(
+            lastEx.content.pergunta ?? lastEx.content.question ?? lastEx.content.enunciado ?? '',
+          )
         }
         startDailyCooldownTimer(latestRecord.date_created)
         dailyStatus.value = 'cooldown'
@@ -207,10 +208,7 @@ onUnmounted(() => {
             <h2>{{ displayUserName(user) }}</h2>
             <RouterLink to="/settings/conta" class="edit-link" aria-label="Editar">
               <UiIconButton variant="outline">
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 16.5V20h3.5L19 8.5l-3.5-3.5L4 16.5z" fill="none" stroke="currentColor"
-                    stroke-width="var(--icon-stroke)" />
-                </svg>
+                <PencilSquareIcon class="icon" aria-hidden="true" />
               </UiIconButton>
             </RouterLink>
           </div>

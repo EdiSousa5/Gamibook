@@ -7,6 +7,7 @@ import {
   fetchExercisesByModule,
 } from './exercises'
 import { authFetch } from './client'
+import { shuffleArray } from '@/utils/exerciseUtils'
 
 export type BadgeTierOrDefault = BookBadgeTier | 'default'
 
@@ -18,16 +19,6 @@ const isMainChapter = (m: { order_number?: number | null }) => {
   return Number.isFinite(n) && Number.isInteger(n)
 }
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const result = [...arr]
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const tmp = result[i] as T
-    result[i] = result[j] as T
-    result[j] = tmp
-  }
-  return result
-}
 
 export const fetchUserBook = async (userId: string, bookId: number): Promise<UserBook | null> => {
   const params = new URLSearchParams({
@@ -140,6 +131,7 @@ export const selectFinalQuizQuestions = (
   for (const exercises of exercisesByModule.values()) {
     if (!exercises.length) continue
     const ex = exercises[Math.floor(Math.random() * exercises.length)]
+    if (!ex) continue
     selected.push(ex)
     if (ex.exercise_id != null) usedIds.add(ex.exercise_id)
   }

@@ -4,24 +4,28 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
-import type { Exercise } from '@/types'
+import type { DailyExercise, Exercise } from '@/types'
 import { TrashIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
 type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+type AnyExercise = Exercise | DailyExercise
 
 type Props = {
-    exercises: Exercise[]
+    exercises: AnyExercise[]
     typeLabels: Record<ExerciseType, string>
 }
 
 defineProps<Props>()
 
-const emit = defineEmits<{ remove: [Exercise] }>()
+const emit = defineEmits<{ remove: [AnyExercise] }>()
 
 const confirmOpen = ref(false)
-const pendingExercise = ref<Exercise | null>(null)
+const pendingExercise = ref<AnyExercise | null>(null)
 
-const openConfirm = (exercise: Exercise) => {
+const exerciseKey = (ex: AnyExercise) =>
+    (ex as Exercise).exercise_id ?? (ex as DailyExercise).daily_exercise_id
+
+const openConfirm = (exercise: AnyExercise) => {
     pendingExercise.value = exercise
     confirmOpen.value = true
 }
@@ -58,13 +62,13 @@ const normalizeAnswers = (value: any) => {
     return [String(value)]
 }
 
-const getFillBlankAnswers = (exercise: Exercise) => {
+const getFillBlankAnswers = (exercise: AnyExercise) => {
     const content = exercise.content || {}
     const answers = normalizeAnswers((content as any).respostas_corretas)
     return answers.length ? answers.join(' / ') : 'Sem resposta'
 }
 
-const getQuestion = (exercise: Exercise) => {
+const getQuestion = (exercise: AnyExercise) => {
     const content = exercise.content || {}
     const question =
         (content as any).pergunta ||
@@ -75,7 +79,7 @@ const getQuestion = (exercise: Exercise) => {
     return question ? String(question) : 'Pergunta indisponivel'
 }
 
-const getAnswer = (exercise: Exercise) => {
+const getAnswer = (exercise: AnyExercise) => {
     const content = exercise.content || {}
     const rawAnswer =
         (content as any).resposta_correta ??
@@ -96,7 +100,7 @@ const getAnswer = (exercise: Exercise) => {
             <p>Remove exercicios se precisares de ajustar o modulo.</p>
         </div>
         <div v-if="exercises.length" class="grid">
-            <UiCard v-for="exercise in exercises" :key="exercise.exercise_id" class="card">
+            <UiCard v-for="exercise in exercises" :key="exerciseKey(exercise)" class="card">
                 <div class="top">
                     <UiBadge :label="typeLabels[exercise.type || 'multiple-choice']" />
                     <UiIconButton size="md" shape="square" variant="outline" class="remove-button"

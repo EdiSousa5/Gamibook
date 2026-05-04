@@ -5,8 +5,10 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { loginUser, registerUser, uploadUserAvatar } from '../services/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 const name = ref('')
 const email = ref('')
 const password = ref('')
@@ -54,7 +56,7 @@ const submit = async () => {
     if (avatarFile.value) {
       await uploadUserAvatar(String(loggedUser.id), avatarFile.value)
     }
-    window.dispatchEvent(new Event('gb-auth-changed'))
+    await auth.loadUser()
     await router.push('/app')
   } catch (err) {
     console.error('[register] failed', err)

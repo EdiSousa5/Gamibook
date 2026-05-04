@@ -10,10 +10,9 @@ const props = withDefaults(defineProps<{
   size: 'sm',
 })
 
-const sizeMap: Record<string, number> = { sm: 30, md: 50, lg: 70 }
+const sizeMap: Record<string, number> = { sm: 36, md: 56, lg: 80 }
 const badgeWidth = computed(() => sizeMap[props.size] + 'px')
 
-// Prefixo único de ID por instância para evitar colisões de gradientes
 const uid = Math.random().toString(36).slice(2, 7)
 const id = (name: string) => `${uid}-${name}`
 </script>
@@ -21,277 +20,337 @@ const id = (name: string) => `${uid}-${name}`
 <template>
   <svg
     class="book-badge"
-    viewBox="0 0 100 116"
+    :class="`book-badge--${tier}`"
+    viewBox="0 0 100 100"
     xmlns="http://www.w3.org/2000/svg"
     role="img"
-    :style="{ width: badgeWidth, overflow: 'visible', cursor: 'pointer' }"
+    :style="{ width: badgeWidth, height: badgeWidth, overflow: 'visible', cursor: 'pointer', display: 'block' }"
   >
     <defs>
-      <!-- ══════════════ BRONZE ══════════════ -->
+
+      <!-- ══════════════ BRONZE ══════════════
+           amber-300 → amber-700 → amber-1000
+           Warm copper — earned, grounded
+      ══════════════════════════════ -->
       <template v-if="tier === 'bronze'">
-        <linearGradient :id="id('rim')" x1="12%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%"   stop-color="#E0A034"/>
-          <stop offset="42%"  stop-color="#904818"/>
-          <stop offset="100%" stop-color="#1C0800"/>
-        </linearGradient>
-        <linearGradient :id="id('face')" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#C8781C"/>
-          <stop offset="55%"  stop-color="#8C3E0C"/>
-          <stop offset="100%" stop-color="#4A1800"/>
-        </linearGradient>
-        <radialGradient :id="id('hl')" cx="50%" cy="18%" r="50%">
-          <stop offset="0%"   stop-color="rgba(255,232,145,0.75)"/>
-          <stop offset="100%" stop-color="rgba(255,232,145,0)"/>
+        <radialGradient :id="id('rim')" cx="42%" cy="32%" r="68%">
+          <stop offset="0%"   stop-color="#ffc29f"/>
+          <stop offset="50%"  stop-color="#e8611e"/>
+          <stop offset="100%" stop-color="#5e2306"/>
         </radialGradient>
-        <radialGradient :id="id('ev')" cx="50%" cy="55%" r="50%">
-          <stop offset="55%"  stop-color="transparent"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.42)"/>
+        <radialGradient :id="id('face')" cx="40%" cy="30%" r="72%">
+          <stop offset="0%"   stop-color="#ff8a50"/>
+          <stop offset="55%"  stop-color="#ba4c15"/>
+          <stop offset="100%" stop-color="#3d1200"/>
+        </radialGradient>
+        <radialGradient :id="id('hl')" cx="34%" cy="24%" r="50%">
+          <stop offset="0%"   stop-color="rgba(255,232,210,0.68)"/>
+          <stop offset="100%" stop-color="rgba(255,232,210,0)"/>
+        </radialGradient>
+        <radialGradient :id="id('ev')" cx="50%" cy="65%" r="55%">
+          <stop offset="35%"  stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(30,8,0,0.52)"/>
         </radialGradient>
       </template>
 
-      <!-- ══════════════ SILVER ══════════════ -->
+      <!-- ══════════════ SILVER ══════════════
+           mirage-100 → mirage-400 → mirage-900
+           Cool steel — clean and precise
+      ══════════════════════════════ -->
       <template v-else-if="tier === 'silver'">
-        <linearGradient :id="id('rim')" x1="12%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%"   stop-color="#DCECf8"/>
-          <stop offset="42%"  stop-color="#7A8EA0"/>
-          <stop offset="100%" stop-color="#182838"/>
-        </linearGradient>
-        <linearGradient :id="id('face')" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#8AACC2"/>
-          <stop offset="55%"  stop-color="#56728A"/>
-          <stop offset="100%" stop-color="#243648"/>
-        </linearGradient>
-        <radialGradient :id="id('hl')" cx="50%" cy="18%" r="50%">
+        <radialGradient :id="id('rim')" cx="42%" cy="32%" r="68%">
+          <stop offset="0%"   stop-color="#e6ebed"/>
+          <stop offset="50%"  stop-color="#7d8f98"/>
+          <stop offset="100%" stop-color="#16232b"/>
+        </radialGradient>
+        <radialGradient :id="id('face')" cx="40%" cy="30%" r="72%">
+          <stop offset="0%"   stop-color="#c9d3d8"/>
+          <stop offset="55%"  stop-color="#52656f"/>
+          <stop offset="100%" stop-color="#1a262e"/>
+        </radialGradient>
+        <radialGradient :id="id('hl')" cx="34%" cy="24%" r="50%">
           <stop offset="0%"   stop-color="rgba(255,255,255,0.76)"/>
           <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
         </radialGradient>
-        <radialGradient :id="id('ev')" cx="50%" cy="55%" r="50%">
-          <stop offset="55%"  stop-color="transparent"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.40)"/>
+        <radialGradient :id="id('ev')" cx="50%" cy="65%" r="55%">
+          <stop offset="35%"  stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0.45)"/>
         </radialGradient>
       </template>
 
-      <!-- ══════════════ GOLD ══════════════ -->
+      <!-- ══════════════ GOLD ══════════════
+           pumpkin-300 → pumpkin-700 → pumpkin-1000
+           Rich warm gold — unmistakably premium
+      ══════════════════════════════ -->
       <template v-else-if="tier === 'gold'">
-        <linearGradient :id="id('rim')" x1="12%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%"   stop-color="#FFE238"/>
-          <stop offset="42%"  stop-color="#CA8010"/>
-          <stop offset="100%" stop-color="#3A1000"/>
-        </linearGradient>
-        <linearGradient :id="id('face')" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#FFC000"/>
-          <stop offset="55%"  stop-color="#CC7400"/>
-          <stop offset="100%" stop-color="#6C2C00"/>
-        </linearGradient>
-        <radialGradient :id="id('hl')" cx="50%" cy="18%" r="50%">
-          <stop offset="0%"   stop-color="rgba(255,255,200,0.78)"/>
-          <stop offset="100%" stop-color="rgba(255,255,200,0)"/>
+        <radialGradient :id="id('rim')" cx="42%" cy="32%" r="68%">
+          <stop offset="0%"   stop-color="#ffd28a"/>
+          <stop offset="50%"  stop-color="#e38c35"/>
+          <stop offset="100%" stop-color="#5a320c"/>
         </radialGradient>
-        <radialGradient :id="id('ev')" cx="50%" cy="55%" r="50%">
-          <stop offset="55%"  stop-color="transparent"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.42)"/>
+        <radialGradient :id="id('face')" cx="40%" cy="30%" r="72%">
+          <stop offset="0%"   stop-color="#ffbd63"/>
+          <stop offset="55%"  stop-color="#b66c24"/>
+          <stop offset="100%" stop-color="#3e1e00"/>
+        </radialGradient>
+        <radialGradient :id="id('hl')" cx="34%" cy="24%" r="50%">
+          <stop offset="0%"   stop-color="rgba(255,250,205,0.76)"/>
+          <stop offset="100%" stop-color="rgba(255,250,205,0)"/>
+        </radialGradient>
+        <radialGradient :id="id('ev')" cx="50%" cy="65%" r="55%">
+          <stop offset="35%"  stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(40,12,0,0.52)"/>
         </radialGradient>
       </template>
 
-      <!-- ══════════════ DIAMOND ══════════════ -->
+      <!-- ══════════════ DIAMOND ══════════════
+           deep-300 → deep-600 → deep-1000
+           GamiBook's signature teal — the pinnacle of the brand
+      ══════════════════════════════ -->
       <template v-else-if="tier === 'diamond'">
-        <linearGradient :id="id('rim')" x1="12%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%"   stop-color="#7AEAFF"/>
-          <stop offset="42%"  stop-color="#1080C8"/>
-          <stop offset="100%" stop-color="#001848"/>
-        </linearGradient>
-        <linearGradient :id="id('face')" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stop-color="#38CCFF"/>
-          <stop offset="55%"  stop-color="#0068C8"/>
-          <stop offset="100%" stop-color="#002880"/>
-        </linearGradient>
-        <radialGradient :id="id('hl')" cx="50%" cy="18%" r="50%">
-          <stop offset="0%"   stop-color="rgba(195,248,255,0.80)"/>
-          <stop offset="100%" stop-color="rgba(195,248,255,0)"/>
+        <radialGradient :id="id('rim')" cx="42%" cy="32%" r="68%">
+          <stop offset="0%"   stop-color="#a7d2cf"/>
+          <stop offset="50%"  stop-color="#2e7f7b"/>
+          <stop offset="100%" stop-color="#021d20"/>
         </radialGradient>
-        <radialGradient :id="id('ev')" cx="50%" cy="55%" r="50%">
-          <stop offset="55%"  stop-color="transparent"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.48)"/>
+        <radialGradient :id="id('face')" cx="40%" cy="30%" r="72%">
+          <stop offset="0%"   stop-color="#7fb8b4"/>
+          <stop offset="55%"  stop-color="#075056"/>
+          <stop offset="100%" stop-color="#021d20"/>
         </radialGradient>
+        <radialGradient :id="id('hl')" cx="34%" cy="24%" r="50%">
+          <stop offset="0%"   stop-color="rgba(203,231,229,0.82)"/>
+          <stop offset="100%" stop-color="rgba(203,231,229,0)"/>
+        </radialGradient>
+        <radialGradient :id="id('ev')" cx="50%" cy="65%" r="55%">
+          <stop offset="35%"  stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(2,29,32,0.60)"/>
+        </radialGradient>
+        <linearGradient :id="id('shim')" x1="18%" y1="18%" x2="82%" y2="82%">
+          <stop offset="0%"   stop-color="rgba(168,210,207,0)"/>
+          <stop offset="50%"  stop-color="rgba(168,210,207,0.28)"/>
+          <stop offset="100%" stop-color="rgba(168,210,207,0)"/>
+        </linearGradient>
       </template>
 
-      <!-- ══════════════ GALAXY ══════════════ -->
+      <!-- ══════════════ GALAXY ══════════════
+           Deep teal cosmos + amber nova — brand-native cosmic
+      ══════════════════════════════ -->
       <template v-else>
-        <linearGradient :id="id('rim')" x1="12%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%"   stop-color="#E05CFF"/>
-          <stop offset="42%"  stop-color="#8012CC"/>
-          <stop offset="100%" stop-color="#180028"/>
-        </linearGradient>
-        <radialGradient :id="id('vig')" cx="50%" cy="58%" r="52%">
-          <stop offset="20%"  stop-color="transparent"/>
-          <stop offset="100%" stop-color="rgba(0,0,0,0.72)"/>
+        <radialGradient :id="id('rim')" cx="42%" cy="32%" r="68%">
+          <stop offset="0%"   stop-color="#4e9d98"/>
+          <stop offset="50%"  stop-color="#053e43"/>
+          <stop offset="100%" stop-color="#021d20"/>
         </radialGradient>
         <radialGradient :id="id('core')" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stop-color="white" stop-opacity="0.95"/>
-          <stop offset="15%"  stop-color="rgba(230,180,255,0.8)"/>
-          <stop offset="100%" stop-color="rgba(100,0,200,0)"/>
+          <stop offset="0%"   stop-color="rgba(255,255,255,0.96)"/>
+          <stop offset="18%"  stop-color="rgba(255,210,140,0.82)"/>
+          <stop offset="100%" stop-color="rgba(7,80,86,0)"/>
         </radialGradient>
-        <linearGradient :id="id('glare')" x1="12%" y1="0%" x2="52%" y2="80%">
-          <stop offset="0%"   stop-color="rgba(255,200,255,0.48)"/>
-          <stop offset="100%" stop-color="rgba(255,200,255,0)"/>
+        <radialGradient :id="id('vig')" cx="50%" cy="50%" r="50%">
+          <stop offset="38%"  stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(2,29,32,0.78)"/>
+        </radialGradient>
+        <linearGradient :id="id('glare')" x1="14%" y1="8%" x2="52%" y2="70%">
+          <stop offset="0%"   stop-color="rgba(203,231,229,0.44)"/>
+          <stop offset="100%" stop-color="rgba(203,231,229,0)"/>
         </linearGradient>
-        <clipPath :id="id('cp')">
-          <polygon points="50,12 90,35 90,81 50,104 10,81 10,35"/>
+        <clipPath :id="id('clip')">
+          <circle cx="50" cy="50" r="38"/>
         </clipPath>
         <filter :id="id('nb')" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="7"/>
+          <feGaussianBlur stdDeviation="5.5"/>
         </filter>
-        <filter :id="id('cb')" x="-150%" y="-150%" width="400%" height="400%">
-          <feGaussianBlur stdDeviation="4"/>
+        <filter :id="id('cb')" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="3"/>
         </filter>
       </template>
+
     </defs>
 
-    <!-- ══════════════ BRONZE body ══════════════ -->
+    <!-- ═══════════════ BRONZE ═══════════════ -->
     <template v-if="tier === 'bronze'">
-      <polygon points="50,0 100,29 100,87 50,116 0,87 0,29" :fill="`url(#${id('rim')})`" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('face')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('hl')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('ev')})`"/>
-      <line x1="0"  y1="29" x2="50" y2="0"   stroke="rgba(255,205,85,0.60)" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="50" y1="0"  x2="100" y2="29"  stroke="rgba(220,165,45,0.30)" stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="10" y1="35" x2="50"  y2="12"  stroke="rgba(255,218,105,0.50)" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="10"  y2="35"  stroke="rgba(0,0,0,0.22)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="50"  y2="104" stroke="rgba(0,0,0,0.30)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="50" y1="104" x2="90" y2="81"  stroke="rgba(0,0,0,0.20)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="48" :fill="`url(#${id('rim')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('face')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('hl')})`"/>
+      <g opacity="0.90">
+        <path d="M50,34 L27,40 L27,64 L50,60 Z"   fill="rgba(255,232,200,0.88)"/>
+        <path d="M50,34 L73,40 L73,64 L50,60 Z"   fill="rgba(255,232,200,0.70)"/>
+        <line x1="50" y1="34" x2="50" y2="60" stroke="rgba(255,200,155,0.55)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="31" y1="48" x2="47" y2="45" stroke="rgba(255,210,170,0.50)" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="31" y1="54" x2="47" y2="51" stroke="rgba(255,210,170,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="45" x2="69" y2="48" stroke="rgba(255,210,170,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="51" x2="69" y2="54" stroke="rgba(255,210,170,0.25)" stroke-width="1"   stroke-linecap="round"/>
+      </g>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('ev')})`"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
     </template>
 
-    <!-- ══════════════ SILVER body ══════════════ -->
+    <!-- ═══════════════ SILVER ═══════════════ -->
     <template v-else-if="tier === 'silver'">
-      <polygon points="50,0 100,29 100,87 50,116 0,87 0,29" :fill="`url(#${id('rim')})`" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('face')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('hl')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('ev')})`"/>
-      <line x1="0"  y1="29" x2="50" y2="0"   stroke="rgba(255,255,255,0.65)" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="50" y1="0"  x2="100" y2="29"  stroke="rgba(220,238,255,0.30)" stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="10" y1="35" x2="50"  y2="12"  stroke="rgba(255,255,255,0.50)" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="10"  y2="35"  stroke="rgba(0,0,0,0.22)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="50"  y2="104" stroke="rgba(0,0,0,0.30)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="50" y1="104" x2="90" y2="81"  stroke="rgba(0,0,0,0.20)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="48" :fill="`url(#${id('rim')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('face')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('hl')})`"/>
+      <g opacity="0.90">
+        <path d="M50,34 L27,40 L27,64 L50,60 Z"   fill="rgba(255,255,255,0.86)"/>
+        <path d="M50,34 L73,40 L73,64 L50,60 Z"   fill="rgba(255,255,255,0.68)"/>
+        <line x1="50" y1="34" x2="50" y2="60" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="31" y1="48" x2="47" y2="45" stroke="rgba(255,255,255,0.48)" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="31" y1="54" x2="47" y2="51" stroke="rgba(255,255,255,0.32)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="45" x2="69" y2="48" stroke="rgba(255,255,255,0.32)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="51" x2="69" y2="54" stroke="rgba(255,255,255,0.22)" stroke-width="1"   stroke-linecap="round"/>
+      </g>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('ev')})`"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
     </template>
 
-    <!-- ══════════════ GOLD body ══════════════ -->
+    <!-- ═══════════════ GOLD ═══════════════ -->
     <template v-else-if="tier === 'gold'">
-      <polygon points="50,0 100,29 100,87 50,116 0,87 0,29" :fill="`url(#${id('rim')})`" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('face')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('hl')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('ev')})`"/>
-      <line x1="0"  y1="29" x2="50" y2="0"   stroke="rgba(255,250,100,0.65)" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="50" y1="0"  x2="100" y2="29"  stroke="rgba(255,222,40,0.30)"  stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="10" y1="35" x2="50"  y2="12"  stroke="rgba(255,242,145,0.50)" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="10"  y2="35"  stroke="rgba(0,0,0,0.22)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="50"  y2="104" stroke="rgba(0,0,0,0.30)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="50" y1="104" x2="90" y2="81"  stroke="rgba(0,0,0,0.20)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="48" :fill="`url(#${id('rim')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('face')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('hl')})`"/>
+      <polygon points="50,4.5 51.6,9.2 56.6,9.2 52.7,12.0 54.2,16.7 50,13.8 45.8,16.7 47.3,12.0 43.4,9.2 48.4,9.2"
+               fill="rgba(255,248,170,0.80)"/>
+      <g opacity="0.90">
+        <path d="M50,34 L27,40 L27,64 L50,60 Z"   fill="rgba(255,250,205,0.88)"/>
+        <path d="M50,34 L73,40 L73,64 L50,60 Z"   fill="rgba(255,250,205,0.70)"/>
+        <line x1="50" y1="34" x2="50" y2="60" stroke="rgba(255,238,165,0.58)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="31" y1="48" x2="47" y2="45" stroke="rgba(255,238,165,0.50)" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="31" y1="54" x2="47" y2="51" stroke="rgba(255,238,165,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="45" x2="69" y2="48" stroke="rgba(255,238,165,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="51" x2="69" y2="54" stroke="rgba(255,238,165,0.24)" stroke-width="1"   stroke-linecap="round"/>
+      </g>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('ev')})`"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(0,0,0,0.10)" stroke-width="1"/>
+      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
     </template>
 
-    <!-- ══════════════ DIAMOND body ══════════════ -->
+    <!-- ═══════════════ DIAMOND ═══════════════ -->
     <template v-else-if="tier === 'diamond'">
-      <polygon points="50,0 100,29 100,87 50,116 0,87 0,29" :fill="`url(#${id('rim')})`" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('face')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('hl')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('ev')})`"/>
-      <line x1="0"  y1="29" x2="50" y2="0"   stroke="rgba(155,242,255,0.65)" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="50" y1="0"  x2="100" y2="29"  stroke="rgba(75,202,255,0.30)"  stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="10" y1="35" x2="50"  y2="12"  stroke="rgba(178,248,255,0.52)" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="10"  y2="35"  stroke="rgba(0,0,0,0.22)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="10" y1="81" x2="50"  y2="104" stroke="rgba(0,0,0,0.30)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="50" y1="104" x2="90" y2="81"  stroke="rgba(0,0,0,0.20)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="48" :fill="`url(#${id('rim')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('face')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('shim')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('hl')})`"/>
+      <line x1="50" y1="12" x2="50" y2="88" stroke="rgba(168,210,207,0.16)" stroke-width="0.8"/>
+      <line x1="12" y1="50" x2="88" y2="50" stroke="rgba(168,210,207,0.16)" stroke-width="0.8"/>
+      <line x1="50" y1="2.5" x2="50" y2="12"  stroke="rgba(203,231,229,0.88)" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="44.5" y1="4.5" x2="47"  y2="11" stroke="rgba(203,231,229,0.52)" stroke-width="1.1" stroke-linecap="round"/>
+      <line x1="55.5" y1="4.5" x2="53"  y2="11" stroke="rgba(203,231,229,0.52)" stroke-width="1.1" stroke-linecap="round"/>
+      <g opacity="0.90">
+        <path d="M50,34 L27,40 L27,64 L50,60 Z"   fill="rgba(203,231,229,0.88)"/>
+        <path d="M50,34 L73,40 L73,64 L50,60 Z"   fill="rgba(203,231,229,0.70)"/>
+        <line x1="50" y1="34" x2="50" y2="60" stroke="rgba(168,210,207,0.58)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="31" y1="48" x2="47" y2="45" stroke="rgba(168,210,207,0.50)" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="31" y1="54" x2="47" y2="51" stroke="rgba(168,210,207,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="45" x2="69" y2="48" stroke="rgba(168,210,207,0.35)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="51" x2="69" y2="54" stroke="rgba(168,210,207,0.24)" stroke-width="1"   stroke-linecap="round"/>
+      </g>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('ev')})`"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(2,29,32,0.14)" stroke-width="1"/>
+      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(2,29,32,0.08)" stroke-width="1"/>
     </template>
 
-    <!-- ══════════════ GALAXY body ══════════════ -->
+    <!-- ═══════════════ GALAXY ═══════════════ -->
     <template v-else>
-      <polygon points="50,0 100,29 100,87 50,116 0,87 0,29" :fill="`url(#${id('rim')})`" stroke="rgba(0,0,0,0.22)" stroke-width="1.5"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" fill="#080014"/>
+      <circle cx="50" cy="50" r="48" :fill="`url(#${id('rim')})`"/>
+      <circle cx="50" cy="50" r="38" fill="#020e10"/>
 
-      <g :clip-path="`url(#${id('cp')})`">
-        <!-- Background stars -->
-        <circle cx="18" cy="42" r="0.6" fill="white" opacity="0.40"/>
-        <circle cx="30" cy="26" r="0.5" fill="white" opacity="0.35"/>
-        <circle cx="67" cy="24" r="0.7" fill="white" opacity="0.45"/>
-        <circle cx="82" cy="42" r="0.5" fill="white" opacity="0.30"/>
-        <circle cx="80" cy="70" r="0.6" fill="white" opacity="0.40"/>
-        <circle cx="63" cy="90" r="0.5" fill="white" opacity="0.30"/>
-        <circle cx="47" cy="17" r="0.5" fill="white" opacity="0.30"/>
-        <circle cx="89" cy="57" r="0.6" fill="white" opacity="0.35"/>
-        <circle cx="24" cy="70" r="0.4" fill="white" opacity="0.25"/>
-        <circle cx="72" cy="79" r="0.5" fill="white" opacity="0.30"/>
-        <circle cx="85" cy="74" r="0.5" fill="white" opacity="0.30"/>
-        <circle cx="40" cy="30" r="0.4" fill="rgba(220,200,255,1)" opacity="0.35"/>
-        <circle cx="15" cy="58" r="0.4" fill="white" opacity="0.25"/>
+      <g :clip-path="`url(#${id('clip')})`">
+        <circle cx="20" cy="35" r="0.5" fill="white" opacity="0.38"/>
+        <circle cx="35" cy="22" r="0.5" fill="white" opacity="0.32"/>
+        <circle cx="70" cy="20" r="0.6" fill="rgba(203,231,229,1)" opacity="0.45"/>
+        <circle cx="80" cy="38" r="0.4" fill="white" opacity="0.28"/>
+        <circle cx="78" cy="66" r="0.5" fill="white" opacity="0.35"/>
+        <circle cx="60" cy="80" r="0.5" fill="rgba(255,189,99,1)" opacity="0.42"/>
+        <circle cx="22" cy="72" r="0.4" fill="white" opacity="0.26"/>
+        <circle cx="42" cy="82" r="0.5" fill="rgba(127,184,180,1)" opacity="0.38"/>
+        <circle cx="84" cy="56" r="0.5" fill="rgba(203,231,229,1)" opacity="0.40"/>
+        <circle cx="28" cy="60" r="0.4" fill="rgba(255,210,140,1)" opacity="0.32"/>
+        <circle cx="64" cy="28" r="0.4" fill="white" opacity="0.30"/>
 
-        <!-- Twinkling stars -->
-        <circle cx="26" cy="38" r="1.2" fill="white">
+        <circle cx="26" cy="30" r="1.2" fill="white">
           <animate attributeName="opacity" values="0.9;0.1;0.9" dur="2.8s" begin="0s" repeatCount="indefinite"/>
-          <animate attributeName="r" values="1.2;0.5;1.2" dur="2.8s" begin="0s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="1.2;0.4;1.2" dur="2.8s" begin="0s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="76" cy="32" r="1.4" fill="rgba(210,230,255,1)">
+        <circle cx="75" cy="26" r="1.3" fill="rgba(203,231,229,1)">
           <animate attributeName="opacity" values="0.85;0.1;0.85" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
-          <animate attributeName="r" values="1.4;0.5;1.4" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="1.3;0.4;1.3" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="20" cy="85" r="1.0" fill="white">
-          <animate attributeName="opacity" values="0.8;0.2;0.8" dur="4.2s" begin="0.7s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="83" cy="82" r="1.2" fill="rgba(220,190,255,1)">
+        <circle cx="82" cy="72" r="1.1" fill="rgba(255,189,99,1)">
           <animate attributeName="opacity" values="0.9;0.1;0.9" dur="3.1s" begin="2s" repeatCount="indefinite"/>
-          <animate attributeName="r" values="1.2;0.4;1.2" dur="3.1s" begin="2s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="1.1;0.3;1.1" dur="3.1s" begin="2s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="52" cy="34" r="1.0" fill="white">
-          <animate attributeName="opacity" values="0.75;0.2;0.75" dur="5s" begin="0.3s" repeatCount="indefinite"/>
+        <circle cx="36" cy="78" r="1.0" fill="rgba(127,184,180,1)">
+          <animate attributeName="opacity" values="0.80;0.2;0.80" dur="4.2s" begin="0.7s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="37" cy="74" r="0.9" fill="rgba(255,210,255,1)">
-          <animate attributeName="opacity" values="0.8;0.1;0.8" dur="3.7s" begin="1.6s" repeatCount="indefinite"/>
+        <circle cx="62" cy="74" r="1.0" fill="rgba(255,210,140,1)">
+          <animate attributeName="opacity" values="0.70;0.1;0.70" dur="4.6s" begin="0.9s" repeatCount="indefinite"/>
+          <animate attributeName="r" values="1.0;0.3;1.0" dur="4.6s" begin="0.9s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="64" cy="50" r="1.1" fill="rgba(180,220,255,1)">
-          <animate attributeName="opacity" values="0.7;0.15;0.7" dur="4.6s" begin="0.9s" repeatCount="indefinite"/>
-          <animate attributeName="r" values="1.1;0.4;1.1" dur="4.6s" begin="0.9s" repeatCount="indefinite"/>
+        <circle cx="18" cy="52" r="0.9" fill="rgba(203,231,229,1)">
+          <animate attributeName="opacity" values="0.75;0.15;0.75" dur="5.2s" begin="1.8s" repeatCount="indefinite"/>
         </circle>
 
-        <!-- Rotating nebula (clockwise) -->
         <g :filter="`url(#${id('nb')})`">
           <g>
-            <animateTransform attributeName="transform" type="rotate" from="0 50 58" to="360 50 58" dur="12s" repeatCount="indefinite"/>
-            <ellipse cx="34" cy="42" rx="32" ry="22" fill="rgba(255,0,140,0.82)"/>
-            <ellipse cx="66" cy="73" rx="26" ry="20" fill="rgba(160,0,255,0.78)"/>
+            <animateTransform attributeName="transform" type="rotate"
+              from="0 50 50" to="360 50 50" dur="14s" repeatCount="indefinite"/>
+            <ellipse cx="36" cy="38" rx="28" ry="17" fill="rgba(46,127,123,0.90)"/>
+            <ellipse cx="64" cy="62" rx="22" ry="15" fill="rgba(7,80,86,0.82)"/>
           </g>
         </g>
-        <!-- Counter-rotating nebula -->
         <g :filter="`url(#${id('nb')})`">
           <g>
-            <animateTransform attributeName="transform" type="rotate" from="0 50 58" to="-360 50 58" dur="18s" repeatCount="indefinite"/>
-            <ellipse cx="66" cy="40" rx="28" ry="18" fill="rgba(80,0,255,0.72)"/>
-            <ellipse cx="28" cy="74" rx="24" ry="20" fill="rgba(255,40,180,0.62)"/>
+            <animateTransform attributeName="transform" type="rotate"
+              from="0 50 50" to="-360 50 50" dur="20s" repeatCount="indefinite"/>
+            <ellipse cx="64" cy="36" rx="24" ry="13" fill="rgba(227,140,53,0.72)"/>
+            <ellipse cx="30" cy="64" rx="20" ry="15" fill="rgba(255,170,81,0.60)"/>
           </g>
         </g>
 
-        <!-- Pulsing core without the white center star -->
-        <circle cx="50" cy="58" r="12" :fill="`url(#${id('core')})`" :filter="`url(#${id('cb')})`">
-          <animate attributeName="r" values="8;15;8" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/>
+        <circle cx="50" cy="50" r="10" :fill="`url(#${id('core')})`" :filter="`url(#${id('cb')})`">
+          <animate attributeName="r" values="7;14;7" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.70;1;0.70" dur="3s" repeatCount="indefinite"/>
         </circle>
+
+        <path d="M50,34 L27,40 L27,64 L50,60 Z"   fill="rgba(203,231,229,0.82)"/>
+        <path d="M50,34 L73,40 L73,64 L50,60 Z"   fill="rgba(203,231,229,0.65)"/>
+        <line x1="50" y1="34" x2="50" y2="60" stroke="rgba(168,210,207,0.55)" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="31" y1="48" x2="47" y2="45" stroke="rgba(203,231,229,0.42)" stroke-width="1.1" stroke-linecap="round"/>
+        <line x1="31" y1="54" x2="47" y2="51" stroke="rgba(203,231,229,0.28)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="45" x2="69" y2="48" stroke="rgba(203,231,229,0.28)" stroke-width="1"   stroke-linecap="round"/>
+        <line x1="53" y1="51" x2="69" y2="54" stroke="rgba(203,231,229,0.18)" stroke-width="1"   stroke-linecap="round"/>
       </g>
 
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('glare')})`"/>
-      <polygon points="50,12 90,35 90,81 50,104 10,81 10,35" :fill="`url(#${id('vig')})`"/>
-
-      <!-- Rim bevel lines -->
-      <line x1="0"   y1="29"  x2="50"  y2="0"   stroke="rgba(222,162,255,0.62)" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="50"  y1="0"   x2="100" y2="29"  stroke="rgba(162,82,255,0.30)"  stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="10"  y1="35"  x2="50"  y2="12"  stroke="rgba(220,162,255,0.45)" stroke-width="1"   stroke-linecap="round"/>
-      <line x1="10"  y1="81"  x2="10"  y2="35"  stroke="rgba(0,0,0,0.22)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="10"  y1="81"  x2="50"  y2="104" stroke="rgba(0,0,0,0.30)" stroke-width="1" stroke-linecap="round"/>
-      <line x1="50"  y1="104" x2="90"  y2="81"  stroke="rgba(0,0,0,0.20)" stroke-width="1" stroke-linecap="round"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('glare')})`"/>
+      <circle cx="50" cy="50" r="38" :fill="`url(#${id('vig')})`"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(2,29,32,0.18)" stroke-width="1"/>
+      <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(2,29,32,0.08)" stroke-width="1"/>
     </template>
+
   </svg>
 </template>
 
 <style scoped>
 .book-badge {
-  height: auto;
-  filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(2, 29, 32, 0.18));
+  transition: filter 0.22s ease, transform 0.22s ease;
+}
+
+.book-badge:hover {
+  transform: translateY(-3px) scale(1.07);
+}
+
+.book-badge--bronze:hover  { filter: drop-shadow(0 8px 18px rgba(232, 97, 30,  0.46)); }
+.book-badge--silver:hover  { filter: drop-shadow(0 8px 18px rgba(82, 101, 111, 0.40)); }
+.book-badge--gold:hover    { filter: drop-shadow(0 8px 20px rgba(227, 140, 53, 0.52)); }
+.book-badge--diamond:hover { filter: drop-shadow(0 8px 20px rgba(46, 127, 123, 0.56)); }
+.book-badge--galaxy:hover  {
+  filter:
+    drop-shadow(0 8px 22px rgba(46, 127, 123,  0.56))
+    drop-shadow(0 0  28px rgba(255, 170, 81,   0.30));
 }
 </style>

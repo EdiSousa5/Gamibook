@@ -11,7 +11,10 @@ import {
     uploadUserAvatar,
 } from '../../services/auth'
 import { getAssetUrl } from '../../services/client'
+import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+
+const auth = useAuthStore()
 
 const user = ref<User | null>(null)
 const name = ref('')
@@ -76,7 +79,7 @@ const saveProfile = async () => {
             avatarFile.value = null
             avatarPreview.value = ''
         }
-        window.dispatchEvent(new Event('gb-auth-changed'))
+        await auth.loadUser()
     } catch {
         error.value = 'Nao foi possivel guardar o perfil.'
     }
