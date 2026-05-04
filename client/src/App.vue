@@ -1,38 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTopbar from './components/layout/AppTopbar.vue'
 import UiButton from './components/ui/UiButton.vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
-import {
-  clearAccessToken,
-  getAssetUrl,
-  setStoredUserId,
-} from './services/client'
-import { fetchUserById, getUserDisplayName, isAdminUser } from './services/auth'
-import { getLevelProgressFromPoints } from './utils/gamification'
 import LevelUpModal from './components/ui/LevelUpModal.vue'
 import BookUnlockModal from './components/ui/BookUnlockModal.vue'
-import type { User, Book } from './types'
+import { useAuthStore } from './stores/auth'
+import { storeToRefs } from 'pinia'
+import type { Book } from './types'
 
 const router = useRouter()
 const route = useRoute()
-const user = ref<User | null>(null)
-const isAuthed = computed(() => !!user.value)
-const displayName = computed(() => getUserDisplayName(user.value))
-const isAdmin = computed(() => isAdminUser(user.value))
-const showLanding = computed(() => route.meta.layout === 'landing')
-const avatarUrl = computed(() =>
-  getAssetUrl(user.value?.avatar ?? user.value?.avatar_img ?? ''),
-)
-const progress = computed(() => getLevelProgressFromPoints(user.value?.points ?? 0))
-const canGoBack = ref(false)
+const auth = useAuthStore()
+const { isAuthed, displayName, isAdmin, avatarUrl, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
 
-const levelUpVisible = ref(false)
-const levelUpOld = ref(1)
-const levelUpNew = ref(2)
-const levelUpPoints = ref(0)
+const showLanding = computed(() => route.meta.layout === 'landing')
+const canGoBack = ref(false)
 
 const unlockVisible = ref(false)
 const unlockedBook = ref<Book | null>(null)
@@ -40,14 +25,6 @@ const unlockedBook = ref<Book | null>(null)
 const handleBookUnlocked = (book: Book) => {
   unlockedBook.value = book
   unlockVisible.value = true
-}
-
-const handleLevelUp = (e: Event) => {
-  const { oldLevel, newLevel, currentPoints } = (e as CustomEvent<{ oldLevel: number; newLevel: number; currentPoints: number }>).detail
-  levelUpOld.value = oldLevel
-  levelUpNew.value = newLevel
-  levelUpPoints.value = currentPoints
-  levelUpVisible.value = true
 }
 
 const navItems = computed(() => {
@@ -69,30 +46,9 @@ const navItems = computed(() => {
   ]
 })
 
-const loadUser = async () => {
-  const storedId = localStorage.getItem('gb_user_id')
-  if (!storedId) {
-    user.value = null
-    return
-  }
-
-  try {
-    user.value = await fetchUserById(storedId)
-  } catch {
-    user.value = null
-  }
-}
-
-const logout = async () => {
-  setStoredUserId(null)
-  clearAccessToken()
-  user.value = null
-  await router.push('/')
-}
-
 const onNavClick = async (label: string) => {
   if (label === 'Sair da conta') {
-    await logout()
+    await auth.logout(router)
   }
 }
 
@@ -107,21 +63,13 @@ const handleBack = () => {
 }
 
 onMounted(() => {
-  // Recuperar Fundo Pessoal do Utilizador ao abrir o site
   const savedBg = localStorage.getItem('gb_bg')
   if (savedBg) {
     document.documentElement.setAttribute('data-bg', savedBg)
   }
 
-  loadUser()
+  auth.loadUser()
   updateCanGoBack()
-  window.addEventListener('gb-auth-changed', loadUser)
-  window.addEventListener('gb-level-up', handleLevelUp)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('gb-auth-changed', loadUser)
-  window.removeEventListener('gb-level-up', handleLevelUp)
 })
 
 watch(

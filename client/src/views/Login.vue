@@ -5,8 +5,10 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { loginUser } from '../services/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 const route = useRoute()
 const email = ref('')
 const password = ref('')
@@ -39,7 +41,7 @@ const submit = async () => {
       error.value = 'Credenciais invalidas.'
       return
     }
-    window.dispatchEvent(new Event('gb-auth-changed'))
+    await auth.loadUser()
     await router.push(redirectPath.value)
   } catch {
     error.value = 'Nao foi possivel iniciar sessao.'

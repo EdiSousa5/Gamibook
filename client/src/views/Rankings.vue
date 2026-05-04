@@ -3,7 +3,6 @@ import { onMounted, ref, computed } from 'vue'
 import PodiumItem from '@/components/ui/PodiumItem.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import UiCard from '@/components/ui/UiCard.vue'
-import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import {
   fetchUsers,
@@ -23,14 +22,6 @@ const currentUserId = getStoredUserId()
 // Computadas para separar o pódio da lista restante
 const podiumUsers = computed(() => topGlobal.value.slice(0, 3))
 const remainingUsersList = computed(() => topGlobal.value.slice(3))
-
-const filterPeriod = ref('all')
-const filterOptions = [
-  { label: 'Sempre', value: 'all' },
-  { label: 'Este Ano', value: 'year' },
-  { label: 'Este Mês', value: 'month' },
-  { label: 'Esta Semana', value: 'week' },
-]
 
 const isUserInList = computed(() => topGlobal.value.some(u => String(u.id) === String(currentUserId)))
 
@@ -52,14 +43,8 @@ onMounted(async () => {
   error.value = ''
   isLoading.value = true
   try {
-    // DICA: O ideal sera atualizar a funcao fetchUsers no ficheiro services/auth.ts
-    // para passar o filtro nativamente: { filter: { role: { name: { _eq: "Utilizador" } } } }
-    // Para já, buscamos mais utilizadores e filtramos no lado do cliente:
-    const users = await fetchUsers(50)
-
+    const users = await fetchUsers(10, 'Utilizador')
     topGlobal.value = users
-      .filter((u: any) => u.role?.name === 'Utilizador' || u.role === 'Utilizador')
-      .slice(0, 10)
   } catch {
     error.value = 'Não foi possível carregar os rankings.'
   } finally {
@@ -70,9 +55,8 @@ onMounted(async () => {
 
 <template>
   <section class="rankings">
-    <div class="filters-row" v-if="topGlobal.length || isLoading">
-      <UiSegmented :model-value="filterPeriod" :options="filterOptions" @update="filterPeriod = $event" />
-      <UiButton v-if="isUserInList" size="sm" variant="outline" @click="scrollToMe">O Meu Lugar</UiButton>
+    <div class="filters-row" v-if="isUserInList">
+      <UiButton size="sm" variant="outline" @click="scrollToMe">O Meu Lugar</UiButton>
     </div>
 
     <p v-if="isLoading" class="state podium-state">A carregar rankings...</p>
@@ -89,8 +73,7 @@ onMounted(async () => {
         <!-- 1º Lugar -->
         <div class="podium-col place-1-col">
           <PodiumItem v-if="podiumUsers[0]" :user="podiumUsers[0]" :position="1"
-            :avatarUrl="getAssetUrl(podiumUsers[0]?.avatar) || getAvatarUrl(podiumUsers[0])"
-            :displayName="displayUserName(podiumUsers[0])" />
+            :avatarUrl="getAvatarUrl(podiumUsers[0])" :displayName="displayUserName(podiumUsers[0])" />
         </div>
 
         <!-- 3º Lugar -->

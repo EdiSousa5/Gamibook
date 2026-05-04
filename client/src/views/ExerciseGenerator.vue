@@ -23,7 +23,7 @@ import {
     fetchDailyExercisesByBook,
     fetchExerciseExamplesByModule,
 } from '@/services/exercises'
-import type { Book, DailyExercise, Exercise, ExerciseExample, Module } from '@/types'
+import type { Book, DailyExercise, Exercise, Module } from '@/types'
 import BookGrid from '@/components/exercise-generator/BookGrid.vue'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
@@ -45,7 +45,7 @@ import {
 type GeneratedExercise = {
     localId: string
     questionText: string
-    content: Record<string, any>
+    content: Record<string, unknown>
     exerciseType: ExerciseType
     moduleId?: number | null
     moduleTitle?: string | null
@@ -361,8 +361,8 @@ const generateForModules = async (count: number) => {
 
     const response = await gerarExercicios(requestPayload)
 
-    const rawResponse = (response as any)?.raw ?? response
-    const parsedResponse = (response as any)?.parsed ?? response
+    const rawResponse = response.raw
+    const parsedResponse = response.parsed
 
     const lookupByTitle = new Map(
         modulePayload.map((item) => [item.titulo.trim().toLowerCase(), Number(item.id)]),
@@ -423,9 +423,9 @@ const generateForDaily = async (count: number) => {
         .join('\n')
 
     // 2. Obtem APENAS os exercicios diarios (user_daily_exercise via approvedDailyExercises)
-    const perguntasJaCriadas = approvedDailyExercises.value.map((item: any) => {
-        return getQuestionText(item.content || item)
-    }).join('\n')
+    const perguntasJaCriadas = approvedDailyExercises.value.map((item) =>
+        getQuestionText((item.content ?? item) as Record<string, unknown>),
+    ).join('\n')
 
     const requestPayload = {
         titulo_livro: selectedBook.value?.title || 'Livro',
@@ -438,8 +438,8 @@ const generateForDaily = async (count: number) => {
     rawFlowiseRequest.value = JSON.stringify(requestPayload, null, 2)
 
     const response = await gerarPerguntasDiarias(requestPayload)
-    const rawResponse = (response as any)?.raw ?? response
-    const parsedResponse = (response as any)?.parsed ?? response
+    const rawResponse = response.raw
+    const parsedResponse = response.parsed
 
     const results = normalizeModuleResults(parsedResponse)
     const fallbackList = normalizeExerciseList(parsedResponse)
@@ -510,14 +510,12 @@ const handleGenerate = async () => {
     rawFlowiseRequest.value = ''
 
     try {
-        let result: any
-        if (generationMode.value === 'module') {
-            progressLabel.value = `A gerar exercícios para ${selectedModules.value.length} módulos`
-            result = await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
-        } else {
-            progressLabel.value = `A gerar perguntas diárias`
-            result = await generateForDaily(Math.min(countPerModule.value, 15))
-        }
+        progressLabel.value = generationMode.value === 'module'
+            ? `A gerar exercícios para ${selectedModules.value.length} módulos`
+            : `A gerar perguntas diárias`
+        const result = generationMode.value === 'module'
+            ? await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
+            : await generateForDaily(Math.min(countPerModule.value, 15))
         rawFlowiseResponse.value = JSON.stringify(result.rawResponse ?? null, null, 2)
         if (!result.items.length) {
             error.value = 'A IA não devolveu exercícios. Tenta novamente.'
@@ -600,15 +598,16 @@ const handleReject = async (exercise: GeneratedExercise) => {
     }
 }
 
-const handleRemoveApproved = async (exercise: Exercise) => {
-    if (!exercise.exercise_id) return
+const handleRemoveApproved = async (exercise: Exercise | DailyExercise) => {
+    const ex = exercise as Exercise
+    if (!ex.exercise_id) return
     error.value = ''
     info.value = ''
     try {
-        await deleteExercise(exercise.exercise_id)
-        if (exercise.id_module) {
-            const list = await refreshApprovedExercisesForModule(exercise.id_module)
-            await syncModuleApproval(exercise.id_module, list.length)
+        await deleteExercise(ex.exercise_id)
+        if (ex.id_module) {
+            const list = await refreshApprovedExercisesForModule(ex.id_module)
+            await syncModuleApproval(ex.id_module, list.length)
         } else {
             await refreshApprovedExercises()
         }
@@ -619,8 +618,8 @@ const handleRemoveApproved = async (exercise: Exercise) => {
     }
 }
 
-const handleRemoveDaily = async (exercise: any) => {
-    const id = exercise.daily_exercise_id || exercise.exercise_id
+const handleRemoveDaily = async (exercise: Exercise | DailyExercise) => {
+    const id = (exercise as DailyExercise).daily_exercise_id
     if (!id) return
     error.value = ''
     info.value = ''
@@ -826,7 +825,7 @@ onMounted(async () => {
                                 <div class="accordion-content">
                                     <div class="approved-list-container">
                                         <ApprovedExercisesList v-if="approvedDailyExercises.length"
-                                            :exercises="(approvedDailyExercises as any)" :type-labels="typeLabels"
+                                            :exercises="approvedDailyExercises" :type-labels="typeLabels"
                                             @remove="handleRemoveDaily" />
                                     </div>
                                 </div>

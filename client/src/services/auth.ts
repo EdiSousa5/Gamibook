@@ -81,9 +81,10 @@ const fetchUserByIdWithAuth = async (id: number | string) => {
   return (data?.data ?? data) as User
 }
 
-const fetchUsersWithAuth = async (limit?: number) => {
+const fetchUsersWithAuth = async (limit?: number, roleName?: string) => {
   const params = new URLSearchParams({ fields: USER_FIELDS.join(','), sort: '-points' })
   if (limit) params.set('limit', String(limit))
+  if (roleName) params.set('filter[role][name][_eq]', roleName)
 
   const response = await authFetch(`/users?${params.toString()}`)
   if (!response.ok) {
@@ -95,7 +96,7 @@ const fetchUsersWithAuth = async (limit?: number) => {
   return (data?.data ?? data) as User[]
 }
 
-export const fetchUsers = (limit?: number) => fetchUsersWithAuth(limit)
+export const fetchUsers = (limit?: number, roleName?: string) => fetchUsersWithAuth(limit, roleName)
 
 export const fetchUserById = (id: number | string) => fetchUserByIdWithAuth(id)
 

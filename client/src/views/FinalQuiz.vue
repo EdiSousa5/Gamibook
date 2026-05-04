@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
+import ExerciseOption from '@/components/ui/ExerciseOption.vue'
+import { buildOptions, isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
 import { LockClosedIcon, TrophyIcon } from '@heroicons/vue/24/outline'
 import { fetchBook } from '../services/books'
 import {
@@ -12,6 +14,7 @@ import {
   selectFinalQuizQuestions,
 } from '../services/badges'
 import { getStoredUserId } from '../services/client'
+import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import type { Book, Exercise, UserBook } from '@/types'
 
 const route = useRoute()
@@ -28,11 +31,6 @@ const answers = ref<boolean[]>([])
 const error = ref('')
 
 const QUESTION_TIME = 45
-const timeLeft = ref(QUESTION_TIME)
-const timerId = ref<number | null>(null)
-const selectedOption = ref<string | null>(null)
-const attemptedOptions = ref<string[]>([])
-const isLocked = ref(false)
 const isSaving = ref(false)
 const feedback = ref<null | { type: 'correct' | 'wrong' }>(null)
 const feedbackTimer = ref<number | null>(null)
@@ -41,15 +39,11 @@ const userId = ref<string | null>(null)
 
 const currentExercise = computed(() => questions.value[currentIndex.value] ?? null)
 
-const isTrueFalse = computed(() => currentExercise.value?.type === 'true-false')
-
-const maxAttempts = computed(() => (isTrueFalse.value ? 1 : 2))
-
-const timerCircumference = 2 * Math.PI * 26
-const timerDash = computed(() => {
-  const ratio = Math.max(0, Math.min(1, timeLeft.value / QUESTION_TIME))
-  return `${timerCircumference * ratio} ${timerCircumference}`
-})
+const {
+  timeLeft, selectedOption, attemptedOptions, isLocked,
+  isTrueFalse, maxAttempts, timerDash,
+  stopTimer, resetQuestionState,
+} = useExerciseRunner(QUESTION_TIME, () => handleTimeout(), currentExercise)
 
 const score = computed(() => {
   const correct = answers.value.filter(Boolean).length
@@ -66,107 +60,12 @@ const options = computed(() => {
   return shuffledOptionsByIndex.value[currentIndex.value] ?? []
 })
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const result = [...arr]
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const tmp = result[i] as T
-    result[i] = result[j] as T
-    result[j] = tmp
-  }
-  return result
-}
-
-const toOptionArray = (value: unknown): string[] => {
-  if (Array.isArray(value)) return value.map((item) => String(item))
-  if (!value) return []
-  return String(value).split(/\n|;/).map((item) => item.trim()).filter(Boolean)
-}
-
-const toBoolean = (value: unknown): boolean => {
-  const normalized = String(value ?? '').trim().toLowerCase()
-  if (['true', 'verdadeiro', 'v', 'sim', 'yes'].includes(normalized)) return true
-  return false
-}
-
-const getOptionLetter = (value: string) => {
-  const match = value.trim().match(/^([A-F])\)/i)
-  return match?.[1] ? match[1].toUpperCase() : ''
-}
-
-const getOptionText = (value: string) => value.trim().replace(/^[A-F]\)\s*/i, '')
-
-const buildOptions = (exercise: Exercise): string[] => {
-  if (exercise.type === 'true-false') return ['Falso', 'Verdadeiro']
-  const rawOptions = toOptionArray(exercise.content?.opcoes || exercise.content?.options)
-  if (rawOptions.length <= 4) return rawOptions
-  const correctValue = String(exercise.content?.resposta_correta || '').trim().toUpperCase()
-  const correctByLetter = rawOptions.find((o) => getOptionLetter(o) === correctValue)
-  const correctByText = rawOptions.find((o) => o.trim().toUpperCase() === correctValue)
-  const correctOption = correctByLetter || correctByText
-  if (!correctOption) return shuffleArray(rawOptions).slice(0, 4)
-  const wrongs = rawOptions.filter((o) => o !== correctOption)
-  if (wrongs.length < 3) return shuffleArray(rawOptions).slice(0, 4)
-  return shuffleArray([correctOption, ...shuffleArray(wrongs).slice(0, 3)])
-}
-
-const isOptionCorrect = (option: string): boolean => {
-  if (!currentExercise.value) return false
-  if (isTrueFalse.value) {
-    const normalized = option.trim().toLowerCase()
-    const expected = toBoolean(currentExercise.value.content?.resposta_correta)
-    return expected ? normalized.startsWith('verd') : normalized.startsWith('fals')
-  }
-  const correct = String(currentExercise.value.content?.resposta_correta ?? '').trim()
-  const letter = getOptionLetter(option)
-  const correctLetter = correct.toUpperCase()
-  if (letter && correctLetter) return letter === correctLetter
-  return option.trim() === correct
-}
-
-const getQuestionText = (exercise: Exercise): string => {
-  const c = exercise.content ?? {}
-  return (
-    (exercise as Record<string, unknown>).question_text as string ||
-    c.pergunta as string ||
-    c.question as string ||
-    c.enunciado as string ||
-    c.frase as string ||
-    c.afirmacao as string ||
-    'Pergunta indisponível'
-  )
-}
+const isOptionCorrect = (option: string): boolean =>
+  currentExercise.value ? checkOptionCorrect(currentExercise.value, option) : false
 
 const currentQuestionText = computed(() =>
   currentExercise.value ? getQuestionText(currentExercise.value) : '',
 )
-
-const stopTimer = () => {
-  if (timerId.value) {
-    window.clearInterval(timerId.value)
-    timerId.value = null
-  }
-}
-
-const resetTimer = () => {
-  stopTimer()
-  timeLeft.value = QUESTION_TIME
-  timerId.value = window.setInterval(() => {
-    if (timeLeft.value <= 0) {
-      stopTimer()
-      handleTimeout()
-      return
-    }
-    timeLeft.value -= 1
-  }, 1000)
-}
-
-const resetQuestionState = () => {
-  selectedOption.value = null
-  attemptedOptions.value = []
-  isLocked.value = false
-  resetTimer()
-}
 
 const showFeedback = (type: 'correct' | 'wrong') => {
   feedback.value = { type }
@@ -309,9 +208,7 @@ watch(
   },
 )
 
-onUnmounted(() => {
-  stopTimer()
-})
+
 </script>
 
 <template>
@@ -422,31 +319,18 @@ onUnmounted(() => {
         </div>
 
         <div class="options options-grid-2">
-          <button
+          <ExerciseOption
             v-for="(option, index) in options"
             :key="option"
-            class="option"
-            :class="{
-              selected: selectedOption === option,
-              attempted: attemptedOptions.includes(option),
-              correct: selectedOption === option && isOptionCorrect(option),
-              wrong: (selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option),
-              locked: isLocked,
-            }"
-            type="button"
-            @click="handleSelect(option)"
-          >
-            <span class="option-shadow"></span>
-            <span class="option-panel"></span>
-            <span class="option-content">
-              <span class="option-letter">
-                <span class="letter-shadow"></span>
-                <span class="letter-face"></span>
-                <span class="letter-text">{{ String.fromCharCode(65 + index) }}</span>
-              </span>
-              <span class="option-text">{{ getOptionText(option) }}</span>
-            </span>
-          </button>
+            :value="option"
+            :index="index"
+            :selected="selectedOption === option"
+            :attempted="attemptedOptions.includes(option)"
+            :correct="selectedOption === option && isOptionCorrect(option)"
+            :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
+            :locked="isLocked"
+            @select="handleSelect"
+          />
         </div>
       </div>
     </template>
@@ -791,128 +675,6 @@ onUnmounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.option {
-  position: relative;
-  border: none;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  --option-press-x: clamp(3px, 0.6vw, 4px);
-  --option-press-y: clamp(4px, 0.9vw, 6px);
-  --option-shadow-x: clamp(12px, 2.6vw, 20px);
-  --option-shadow-y: clamp(10px, 2.2vw, 16px);
-}
-
-.option-shadow {
-  position: absolute;
-  inset: var(--option-shadow-y) 0 0 var(--option-shadow-x);
-  background: var(--color-shadow);
-  border-radius: 12px;
-  z-index: 0;
-  transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option-panel {
-  position: absolute;
-  inset: 0;
-  background: var(--color-wild-100);
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
-  z-index: 1;
-  transition: transform 0.15s ease, background 0.2s ease;
-}
-
-.option-content {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 16px;
-  padding: 24px 22px;
-  transition: transform 0.15s ease;
-}
-
-.option-letter {
-  position: relative;
-  width: 56px;
-  height: 56px;
-}
-
-.letter-shadow {
-  position: absolute;
-  inset: 0;
-  background: var(--color-shadow);
-  border-radius: 999px;
-  transform: translate(var(--option-press-x), var(--option-press-y));
-  transition: opacity 0.2s ease;
-}
-
-.letter-face {
-  position: absolute;
-  inset: 0;
-  background: var(--color-wild-100);
-  border-radius: 999px;
-  border: 2px solid #373737;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-.letter-text {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--color-mirage-800);
-  transition: color 0.2s ease, transform 0.2s ease;
-}
-
-.option-text {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--color-mirage-800);
-}
-
-.option:hover .option-panel { background: var(--color-teal-300); }
-.option:hover .option-shadow { background: var(--color-deep-600); }
-.option:hover .letter-shadow { background: var(--color-deep-600); }
-.option:hover .letter-face { background: var(--color-teal-100); }
-
-.option:active .option-panel,
-.option.selected .option-panel {
-  transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option:active .option-content,
-.option.selected .option-content,
-.option.attempted .option-content {
-  transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option:active .letter-shadow,
-.option.selected .letter-shadow,
-.option.attempted .letter-shadow { opacity: 0; }
-
-.option.selected .option-panel { background: var(--color-teal-500); }
-.option.selected .option-shadow { background: var(--color-deep-1000); }
-.option.selected .letter-face {
-  background: var(--color-deep-200);
-  transform: translate(var(--option-press-x), var(--option-press-y));
-}
-.option.selected .letter-text { transform: translate(var(--option-press-x), var(--option-press-y)); }
-.option.selected .option-text { color: var(--color-wild-100); }
-
-.option.correct .option-panel { background: var(--color-deep-600); }
-
-.option.wrong .option-panel { background: #f7c4c4; border-color: #b13b3b; }
-.option.wrong .letter-face { background: #fbe1e1; border-color: #b13b3b; }
-.option.wrong .letter-shadow { background: #b13b3b; }
-.option.wrong .letter-text { color: #7a1f1f; }
-.option.wrong .option-text { color: #7a1f1f; }
-
-.option.locked { cursor: not-allowed; }
 
 @media (max-width: 720px) {
   .info-card {

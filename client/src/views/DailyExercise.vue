@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
+import ExerciseOption from '@/components/ui/ExerciseOption.vue'
+import { shuffleArray, buildOptions, isOptionCorrect as checkOptionCorrect } from '@/utils/exerciseUtils'
 import { fetchUserBooks } from '../services/books'
 import {
     fetchDailyExercisesForBooks,
@@ -12,10 +14,13 @@ import {
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '../utils/gamification'
+import { useAuthStore } from '@/stores/auth'
+import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
 import type { DailyExercise, User } from '@/types'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'no-exercises' | 'error'
 
@@ -23,28 +28,26 @@ const mode = ref<ViewMode>('loading')
 const exercise = ref<DailyExercise | null>(null)
 const user = ref<User | null>(null)
 const userId = ref<string | null>(null)
-const selectedOption = ref<string | null>(null)
-const attemptedOptions = ref<string[]>([])
-const isLocked = ref(false)
 const result = ref<'correct' | 'wrong' | null>(null)
 const pointsEarned = ref(0)
 const newStreak = ref(0)
 const shuffledOptions = ref<string[]>([])
-const attemptsUsed = ref(0)
 const cooldownSeconds = ref(0)
 const lastExerciseQuestion = ref('')
 const errorMsg = ref('')
 const QUESTION_TIME = 30
-const timeLeft = ref(QUESTION_TIME)
 let cooldownTimer: number | null = null
-let timerId: number | null = null
+
+const {
+    timeLeft, selectedOption, attemptedOptions, isLocked, attemptsUsed,
+    isTrueFalse, maxAttempts, attemptsLabel, timerDash,
+    stopTimer, resetTimer,
+} = useExerciseRunner(QUESTION_TIME, () => handleTimeout(), exercise)
 
 const questionText = computed(() => {
-    const content = exercise.value?.content || {}
-    return content.pergunta || content.question || content.enunciado || content.frase || 'Pergunta indisponível'
+    const content = exercise.value?.content ?? {}
+    return String(content.pergunta ?? content.question ?? content.enunciado ?? content.frase ?? 'Pergunta indisponível')
 })
-
-const isTrueFalse = computed(() => exercise.value?.type === 'true-false')
 
 const formatCooldown = computed(() => {
     const h = Math.floor(cooldownSeconds.value / 3600)
@@ -54,93 +57,9 @@ const formatCooldown = computed(() => {
 })
 
 const currentStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
-const maxAttempts = computed(() => (isTrueFalse.value ? 1 : 2))
-const attemptsLabel = computed(() =>
-    isTrueFalse.value
-        ? '1 tentativa'
-        : `${Math.max(0, maxAttempts.value - attemptsUsed.value)} tentativa${maxAttempts.value - attemptsUsed.value === 1 ? '' : 's'}`,
-)
-const timerCircumference = 2 * Math.PI * 26
-const timerDash = computed(() => {
-    const ratio = Math.max(0, Math.min(1, timeLeft.value / QUESTION_TIME))
-    return `${timerCircumference * ratio} ${timerCircumference}`
-})
 
-const toOptionArray = (value: any): string[] => {
-    if (Array.isArray(value)) return value.map((item) => String(item))
-    if (!value) return []
-    return String(value).split(/\n|;/).map((item) => item.trim()).filter(Boolean)
-}
-
-const toBoolean = (value: any): boolean => {
-    if (typeof value === 'boolean') return value
-    const normalized = String(value || '').trim().toLowerCase()
-    return ['true', 'verdadeiro', 'v', 'sim', 'yes'].includes(normalized)
-}
-
-const shuffleArray = <T,>(arr: T[]): T[] => {
-    const result = [...arr]
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        const temp = result[i] as T
-        result[i] = result[j] as T
-        result[j] = temp
-    }
-    return result
-}
-
-const getOptionLetter = (value: string) =>
-    String(value || '').trim().match(/^([A-F])\)/i)?.[1]?.toUpperCase() || ''
-
-const getOptionText = (value: string) =>
-    String(value || '').trim().replace(/^[A-F]\)\s*/i, '')
-
-const buildOptions = (ex: DailyExercise): string[] => {
-    if (ex.type === 'true-false') return ['Falso', 'Verdadeiro']
-    const rawOptions = toOptionArray(ex.content?.opcoes || ex.content?.options)
-    if (rawOptions.length <= 4) return rawOptions
-    const correctValue = String(ex.content?.resposta_correta || '').trim().toUpperCase()
-    const correctOption =
-        rawOptions.find((o) => getOptionLetter(o) === correctValue) ||
-        rawOptions.find((o) => String(o || '').trim().toUpperCase() === correctValue)
-    if (!correctOption) return shuffleArray(rawOptions).slice(0, 4)
-    const wrongOptions = rawOptions.filter((o) => o !== correctOption)
-    if (wrongOptions.length < 3) return shuffleArray(rawOptions).slice(0, 4)
-    return shuffleArray([correctOption, ...shuffleArray(wrongOptions).slice(0, 3)])
-}
-
-const isOptionCorrect = (option: string): boolean => {
-    if (!exercise.value) return false
-    if (isTrueFalse.value) {
-        const normalized = String(option || '').trim().toLowerCase()
-        const expected = toBoolean(exercise.value.content?.resposta_correta)
-        return expected ? normalized.startsWith('verd') : normalized.startsWith('fals')
-    }
-    const correct = String(exercise.value.content?.resposta_correta || '').trim()
-    const optionLetter = getOptionLetter(option)
-    if (optionLetter && correct.toUpperCase()) return optionLetter === correct.toUpperCase()
-    return String(option || '').trim() === correct
-}
-
-const stopTimer = () => {
-    if (timerId !== null) {
-        window.clearInterval(timerId)
-        timerId = null
-    }
-}
-
-const resetTimer = () => {
-    stopTimer()
-    timeLeft.value = QUESTION_TIME
-    timerId = window.setInterval(() => {
-        if (timeLeft.value <= 0) {
-            stopTimer()
-            handleTimeout()
-            return
-        }
-        timeLeft.value -= 1
-    }, 1000)
-}
+const isOptionCorrect = (option: string): boolean =>
+    exercise.value ? checkOptionCorrect(exercise.value, option) : false
 
 const handleTimeout = async () => {
     if (isLocked.value) return
@@ -210,9 +129,9 @@ const saveResult = async (isCorrect: boolean) => {
         user.value.exercises_daily_streak = newStreak.value
     }
 
-    window.dispatchEvent(new Event('gb-auth-changed'))
+    await auth.loadUser()
     if (newLevel > oldLevel) {
-        window.dispatchEvent(new CustomEvent('gb-level-up', { detail: { oldLevel, newLevel, currentPoints: newPoints } }))
+        auth.triggerLevelUp(oldLevel, newLevel, newPoints)
     }
 }
 
@@ -250,8 +169,9 @@ onMounted(async () => {
             if (elapsed < 24 * 60 * 60 * 1000) {
                 const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
                 if (lastEx?.content) {
-                    lastExerciseQuestion.value =
-                        lastEx.content.pergunta || lastEx.content.question || lastEx.content.enunciado || ''
+                    lastExerciseQuestion.value = String(
+                        lastEx.content.pergunta ?? lastEx.content.question ?? lastEx.content.enunciado ?? '',
+                    )
                 }
                 startCooldownTimer(latestRecord.date_created)
                 mode.value = 'cooldown'
@@ -300,7 +220,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
     if (cooldownTimer !== null) clearInterval(cooldownTimer)
-    stopTimer()
 })
 </script>
 
@@ -392,24 +311,18 @@ onUnmounted(() => {
             </div>
 
             <div class="options options-grid-2">
-                <button v-for="(option, index) in shuffledOptions" :key="option" class="option" :class="{
-                    selected: selectedOption === option,
-                    attempted: attemptedOptions.includes(option),
-                    correct: selectedOption === option && isOptionCorrect(option),
-                    wrong: (selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option),
-                    locked: isLocked,
-                }" type="button" @click="handleSelect(option)">
-                    <span class="option-shadow"></span>
-                    <span class="option-panel"></span>
-                    <span class="option-content">
-                        <span class="option-letter">
-                            <span class="letter-shadow"></span>
-                            <span class="letter-face"></span>
-                            <span class="letter-text">{{ String.fromCharCode(65 + index) }}</span>
-                        </span>
-                        <span class="option-text">{{ getOptionText(option) }}</span>
-                    </span>
-                </button>
+                <ExerciseOption
+                    v-for="(option, index) in shuffledOptions"
+                    :key="option"
+                    :value="option"
+                    :index="index"
+                    :selected="selectedOption === option"
+                    :attempted="attemptedOptions.includes(option)"
+                    :correct="selectedOption === option && isOptionCorrect(option)"
+                    :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
+                    :locked="isLocked"
+                    @select="handleSelect"
+                />
             </div>
         </template>
     </section>
@@ -777,7 +690,6 @@ onUnmounted(() => {
     color: var(--color-mirage-800);
 }
 
-/* Options (same as Module.vue) */
 .options {
     display: grid;
     gap: 18px;
@@ -788,141 +700,6 @@ onUnmounted(() => {
 .options-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
-.option {
-    position: relative;
-    border: none;
-    background: transparent;
-    padding: 0;
-    text-align: left;
-    cursor: pointer;
-    --option-press-x: clamp(3px, 0.6vw, 4px);
-    --option-press-y: clamp(4px, 0.9vw, 6px);
-    --option-shadow-x: clamp(12px, 2.6vw, 20px);
-    --option-shadow-y: clamp(10px, 2.2vw, 16px);
-}
-
-.option-shadow {
-    position: absolute;
-    inset: var(--option-shadow-y) 0 0 var(--option-shadow-x);
-    background: var(--color-shadow);
-    border-radius: 12px;
-    z-index: 0;
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option-panel {
-    position: absolute;
-    inset: 0;
-    background: var(--color-wild-100);
-    border-radius: 12px;
-    border: 2px solid var(--color-mirage-800);
-    z-index: 1;
-    transition: transform 0.15s ease, background 0.2s ease;
-}
-
-.option-content {
-    position: relative;
-    z-index: 2;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 16px;
-    padding: 24px 22px;
-    transition: transform 0.15s ease;
-}
-
-.option-letter {
-    position: relative;
-    width: 56px;
-    height: 56px;
-}
-
-.letter-shadow {
-    position: absolute;
-    inset: 0;
-    background: var(--color-shadow);
-    border-radius: 999px;
-    transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.letter-face {
-    position: absolute;
-    inset: 0;
-    background: var(--color-wild-100);
-    border-radius: 999px;
-    border: 2px solid #373737;
-    transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.letter-text {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--color-mirage-800);
-    transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.option-text {
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--color-mirage-800);
-}
-
-.option:hover .option-panel { background: var(--color-teal-300); }
-.option:hover .option-shadow { background: var(--color-deep-600); }
-.option:hover .letter-shadow { background: var(--color-deep-600); }
-.option:hover .letter-face { background: var(--color-teal-100); }
-
-.option:active .option-panel,
-.option.selected .option-panel {
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option:active .option-content,
-.option.selected .option-content,
-.option.attempted .option-content {
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option:active .letter-shadow,
-.option.selected .letter-shadow,
-.option.attempted .letter-shadow {
-    opacity: 0;
-}
-
-.option:active .letter-face,
-.option.selected .letter-face,
-.option.attempted .letter-face {
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option:active .letter-text,
-.option.selected .letter-text,
-.option.attempted .letter-text {
-    transform: translate(var(--option-press-x), var(--option-press-y));
-}
-
-.option.selected .option-panel { background: var(--color-teal-500); }
-.option.selected .option-shadow { background: var(--color-deep-1000); }
-.option.selected .letter-face { background: var(--color-deep-200); }
-.option.selected .option-text { color: var(--color-wild-100); }
-
-.option.correct .option-panel { background: var(--color-deep-600); }
-
-.option.wrong .option-panel { background: #f7c4c4; border-color: #b13b3b; }
-.option.wrong .letter-face { background: #fbe1e1; border-color: #b13b3b; }
-.option.wrong .letter-shadow { background: #b13b3b; }
-.option.wrong .letter-text { color: #7a1f1f; }
-.option.wrong .option-text { color: #7a1f1f; }
-
-.option.locked { cursor: not-allowed; }
-
-.option.attempted .option-panel { transform: translate(var(--option-press-x), var(--option-press-y)); }
 
 @keyframes feedback-pop {
     0% { transform: translateY(-6px) scale(0.95); opacity: 0; }
@@ -936,16 +713,6 @@ onUnmounted(() => {
     }
 
     .question-text {
-        font-size: 18px;
-    }
-
-    .option-content {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-    }
-
-    .option-text {
         font-size: 18px;
     }
 }

@@ -47,8 +47,9 @@ const attachEditorasToBooks = async (books: Book[]) => {
   return books
 }
 
-export const fetchBooks = async () => {
+export const fetchBooks = async (onlyApproved = false) => {
   const params = new URLSearchParams({ fields: BOOK_FIELDS.join(','), sort: '-date_created' })
+  if (onlyApproved) params.set('filter[is_approved][_eq]', 'true')
   const response = await authFetch(`/items/books?${params.toString()}`)
   if (!response.ok) {
     const text = await response.text().catch(() => '')
@@ -59,18 +60,7 @@ export const fetchBooks = async () => {
   return attachEditorasToBooks(books)
 }
 
-export const fetchApprovedBooks = async () => {
-  const params = new URLSearchParams({ fields: BOOK_FIELDS.join(','), sort: '-date_created' })
-  params.set('filter[is_approved][_eq]', 'true')
-  const response = await authFetch(`/items/books?${params.toString()}`)
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Fetch approved books failed: ${response.status} ${text}`.trim())
-  }
-  const data = await response.json().catch(() => null)
-  const books = (data?.data ?? []) as Book[]
-  return attachEditorasToBooks(books)
-}
+export const fetchApprovedBooks = () => fetchBooks(true)
 
 export const fetchBook = async (id: number | string) => {
   const params = new URLSearchParams({ fields: BOOK_FIELDS.join(',') })
