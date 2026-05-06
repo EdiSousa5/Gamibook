@@ -30,7 +30,6 @@ const isActive = (path: string) => route.path === path
         <h1>Definicoes</h1>
         <p class="meta">Preferencias do utilizador e configuracoes pessoais.</p>
       </div>
-      <UiButton variant="outline">Guardar</UiButton>
     </div>
 
     <div class="settings-body">

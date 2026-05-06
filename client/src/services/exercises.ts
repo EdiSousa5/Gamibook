@@ -1,5 +1,53 @@
-import type { DailyExercise, Exercise, ExerciseExample, UserDailyExercise, UserExercise } from '@/types'
+import type {
+  DailyExercise,
+  Exercise,
+  ExerciseExample,
+  UserDailyExercise,
+  UserExercise,
+} from '@/types'
 import { authFetch } from './client'
+
+export const fetchUserExercisePoints = async (startDate?: string) => {
+  const params = new URLSearchParams({
+    fields: 'user_id,points_earned,date',
+    limit: '-1',
+  })
+  if (startDate) {
+    params.set('filter[date][_gte]', startDate)
+  }
+
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user exercise points failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as UserExercise[]
+}
+
+export const fetchUserPointsTotal = async (userId: string, startDate?: string) => {
+  const params = new URLSearchParams({
+    fields: 'points_earned',
+    limit: '-1',
+  })
+  params.set('filter[user_id][_eq]', String(userId))
+  if (startDate) {
+    params.set('filter[date][_gte]', startDate)
+  }
+
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user points total failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  const items = (data?.data ?? []) as Array<{ points_earned?: number | null }>
+  return items.reduce((sum, item) => sum + Number(item.points_earned ?? 0), 0)
+}
 
 export const fetchExercisesByModule = async (moduleId: number) => {
   const params = new URLSearchParams({
@@ -232,7 +280,8 @@ export const deleteExercise = async (exerciseId: number) => {
 
 export const fetchLatestUserDailyExercise = async (userId: string) => {
   const params = new URLSearchParams({
-    fields: 'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,date_created',
+    fields:
+      'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,date_created',
     sort: '-date_created',
     limit: '1',
   })
@@ -303,4 +352,24 @@ export const fetchDailyExercisesForBooks = async (bookIds: number[]) => {
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as DailyExercise[]
+}
+
+export const fetchLatestUserExercise = async (userId: string) => {
+  const params = new URLSearchParams({
+    fields: 'module_id,date',
+    sort: '-date',
+    limit: '1',
+  })
+  params.set('filter[user_id][_eq]', userId)
+
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch latest user exercise failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  const items = (data?.data ?? []) as any[]
+  return items[0] ?? null
 }

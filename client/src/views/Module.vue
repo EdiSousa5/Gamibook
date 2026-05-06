@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
+import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import { BoltIcon, FireIcon } from '@heroicons/vue/24/outline'
 import {
     shuffleArray,
@@ -18,11 +20,11 @@ import {
     createUserExercise,
     fetchExercisesByModule,
     fetchUserExercisesByModule,
+    fetchUserPointsTotal,
     updateUserExercise,
 } from '../services/exercises'
-import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
-import { checkAndUpdateBadge } from '../services/badges'
+import { checkAndUpdateBadge, fetchUserBook, TIER_ORDER } from '../services/badges'
 import { getLevelProgressFromPoints } from '../utils/gamification'
 import { useAuthStore } from '@/stores/auth'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
@@ -34,9 +36,12 @@ const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
 const moduleId = computed(() => Number(route.params.moduleId || 1))
 
+type SessionMode = 'normal' | 'retry' | 'review'
+
 const book = ref<Book | null>(null)
 const moduleData = ref<Module | null>(null)
 const exercises = ref<Exercise[]>([])
+const allExercises = ref<Exercise[]>([])
 const error = ref('')
 const isLoading = ref(false)
 const currentIndex = ref(0)
@@ -53,6 +58,9 @@ const feedback = ref<null | { type: 'correct' | 'wrong'; points: number }>(null)
 const feedbackTimer = ref<number | null>(null)
 const existingRecords = ref<Record<number, UserExercise>>({})
 const shuffledOptionsByExercise = ref<Record<number, string[]>>({})
+const viewState = ref<'setup' | 'runner' | 'summary'>('setup')
+const selectedMode = ref<SessionMode>('normal')
+const sessionMode = ref<SessionMode>('normal')
 const pendingResults = ref<
     Array<{
         exerciseId: number
@@ -60,9 +68,15 @@ const pendingResults = ref<
         attempts: number
         timeSpent: number
         pointsEarned: number
-        alreadyAnswered: boolean
+        previousStatus: 'correct' | 'wrong' | 'new'
     }>
 >([])
+
+const initialBadge = ref<string>('default')
+const badgeQueue = ref<BookBadgeTier[]>([])
+const showBadgeModal = computed(() => badgeQueue.value.length > 0)
+const earnedBadgeTier = computed<BookBadgeTier | null>(() => badgeQueue.value[0] ?? null)
+const isLevelUpQueued = ref(false)
 
 const currentExercise = computed(() => exercises.value[currentIndex.value] || null)
 
@@ -81,11 +95,73 @@ const options = computed(() => {
     return shuffledOptionsByExercise.value[currentExercise.value.exercise_id] || []
 })
 
+const isReviewMode = computed(() => sessionMode.value === 'review')
+
+const getPreviousStatus = (exerciseId: number): 'correct' | 'wrong' | 'new' => {
+    const record = existingRecords.value[exerciseId]
+    if (record?.is_correct === true) return 'correct'
+    if (record?.is_correct === false) return 'wrong'
+    return 'new'
+}
+
+const exerciseCounts = computed(() => {
+    let correct = 0
+    let wrong = 0
+    let fresh = 0
+    for (const ex of allExercises.value) {
+        const id = Number(ex.exercise_id)
+        const status = Number.isFinite(id) ? getPreviousStatus(id) : 'new'
+        if (status === 'correct') correct += 1
+        else if (status === 'wrong') wrong += 1
+        else fresh += 1
+    }
+    const total = allExercises.value.length
+    const remaining = Math.max(0, total - (correct + wrong))
+    return { total, correct, wrong, fresh, remaining }
+})
+
+const modeCounts = computed(() => ({
+    normal: exerciseCounts.value.fresh + exerciseCounts.value.wrong,
+    retry: exerciseCounts.value.wrong,
+    review: exerciseCounts.value.total,
+}))
+
+const canStartMode = (mode: SessionMode) => {
+    if (mode === 'normal') return modeCounts.value.normal > 0
+    if (mode === 'retry') return modeCounts.value.retry > 0
+    return exerciseCounts.value.correct === exerciseCounts.value.total && modeCounts.value.review > 0
+}
+
+const recommendedMode = computed<SessionMode>(() => {
+    if (!exerciseCounts.value.total) return 'normal'
+    if (exerciseCounts.value.correct === exerciseCounts.value.total) return 'review'
+    if (exerciseCounts.value.wrong > 0) return 'retry'
+    return 'normal'
+})
+
+const currentExerciseStatus = computed(() => {
+    const id = currentExercise.value?.exercise_id
+    if (!id) return 'new'
+    return getPreviousStatus(Number(id))
+})
+
+const modeLabel = computed(() => {
+    if (sessionMode.value === 'retry') return 'Repetir errados'
+    if (sessionMode.value === 'review') return 'Rever exercicios'
+    return 'Modo normal'
+})
+
+const modeFromQuery = computed<SessionMode | null>(() => {
+    const raw = String(route.query.mode || '')
+    if (raw === 'normal' || raw === 'retry' || raw === 'review') return raw
+    return null
+})
 
 const summary = computed(() => {
     const answered = pendingResults.value.length
     const correct = pendingResults.value.filter((item) => item.isCorrect).length
-    const alreadyAnswered = pendingResults.value.filter((item) => item.alreadyAnswered).length
+    const previouslyCorrect = pendingResults.value.filter((item) => item.previousStatus === 'correct').length
+    const previouslyWrong = pendingResults.value.filter((item) => item.previousStatus === 'wrong').length
     const points = pendingResults.value.reduce((sum, item) => sum + item.pointsEarned, 0)
     const timeSpent = pendingResults.value.reduce((sum, item) => sum + item.timeSpent, 0)
     return {
@@ -95,7 +171,8 @@ const summary = computed(() => {
         wrong: Math.max(0, answered - correct),
         points,
         timeSpent,
-        alreadyAnswered,
+        previouslyCorrect,
+        previouslyWrong,
     }
 })
 
@@ -124,6 +201,7 @@ const exerciseResults = computed(() =>
             text: getQuestionText(exercise),
             status,
             points,
+            previousStatus: result?.previousStatus ?? 'new',
         }
     }),
 )
@@ -153,18 +231,21 @@ const awardXp = (points: number) => {
     }, 2200)
 }
 
+const isPointsEligible = (exerciseId: number) =>
+    !isReviewMode.value && getPreviousStatus(exerciseId) !== 'correct'
+
 const updatePoints = async (points: number) => {
     if (!userId.value) return
     if (points <= 0) return
     const oldLevel = getLevelProgressFromPoints(userPoints.value).level
-    const nextPoints = userPoints.value + points
-    const newLevel = getLevelProgressFromPoints(nextPoints).level
     try {
-        const updated = await updateUser(userId.value, { points: nextPoints })
-        userPoints.value = updated.points ?? nextPoints
-        await auth.loadUser()
+        const totalPoints = await fetchUserPointsTotal(userId.value)
+        userPoints.value = totalPoints
+        auth.setPoints(totalPoints)
+        const newLevel = getLevelProgressFromPoints(totalPoints).level
         if (newLevel > oldLevel) {
-            auth.triggerLevelUp(oldLevel, newLevel, nextPoints)
+            isLevelUpQueued.value = true
+            auth.triggerLevelUp(oldLevel, newLevel, totalPoints)
         }
     } catch (err) {
         console.error(err)
@@ -175,15 +256,15 @@ const recordResult = (isCorrect: boolean, attempts: number, points: number) => {
     if (!currentExercise.value?.exercise_id) return
     const exerciseId = currentExercise.value.exercise_id
     const timeSpent = QUESTION_TIME - timeLeft.value
-    const alreadyAnswered = Boolean(existingRecords.value[exerciseId])
-    const pointsEarned = alreadyAnswered ? 0 : points
+    const previousStatus = getPreviousStatus(exerciseId)
+    const pointsEarned = isPointsEligible(exerciseId) ? points : 0
     const entry = {
         exerciseId,
         isCorrect,
         attempts,
         timeSpent,
         pointsEarned,
-        alreadyAnswered,
+        previousStatus,
     }
     const existingIndex = pendingResults.value.findIndex((item) => item.exerciseId === exerciseId)
     if (existingIndex >= 0) {
@@ -193,8 +274,68 @@ const recordResult = (isCorrect: boolean, attempts: number, points: number) => {
     }
 }
 
+const resetSessionState = () => {
+    isCompleted.value = false
+    currentIndex.value = 0
+    correctStreak.value = 0
+    pendingResults.value = []
+    sessionPoints.value = 0
+    xpDelta.value = 0
+    xpPulse.value = 0
+    feedback.value = null
+    isSaving.value = false
+    stopTimer()
+}
+
+const buildSessionExercises = (mode: SessionMode) => {
+    if (mode === 'normal') {
+        return allExercises.value.filter((exercise) => {
+            const id = Number(exercise.exercise_id)
+            return !Number.isFinite(id) || getPreviousStatus(id) !== 'correct'
+        })
+    }
+    if (mode === 'retry') {
+        return allExercises.value.filter((exercise) => {
+            const id = Number(exercise.exercise_id)
+            return Number.isFinite(id) && getPreviousStatus(id) === 'wrong'
+        })
+    }
+    return [...allExercises.value]
+}
+
+const setSessionExercises = (list: Exercise[]) => {
+    if (!list.length) {
+        exercises.value = []
+        shuffledOptionsByExercise.value = {}
+        return
+    }
+    const shuffled = shuffleArray(list)
+    exercises.value = shuffled
+    shuffledOptionsByExercise.value = Object.fromEntries(
+        shuffled
+            .filter((item) => Number.isFinite(item.exercise_id))
+            .map((item) => [
+                Number(item.exercise_id),
+                item.type === 'true-false' ? buildOptions(item) : shuffleArray(buildOptions(item)),
+            ] as const),
+    )
+}
+
+const startSession = (mode: SessionMode = selectedMode.value) => {
+    if (!canStartMode(mode)) return
+    sessionMode.value = mode
+    viewState.value = 'runner'
+    resetSessionState()
+    const list = buildSessionExercises(mode)
+    setSessionExercises(list)
+    if (!list.length) {
+        viewState.value = 'setup'
+    }
+}
+
+
 const persistResults = async () => {
-    if (!userId.value) return
+    if (!userId.value || isReviewMode.value) return
     const currentUserId = userId.value
     const updates = pendingResults.value.map(async (result) => {
         const existing = existingRecords.value[result.exerciseId]
@@ -211,13 +352,18 @@ const persistResults = async () => {
             date: timestamp,
         }
         if (existing?.id_user_exercises) {
-            await updateUserExercise(existing.id_user_exercises, payload)
-        } else {
-            await createUserExercise(payload)
+            return await updateUserExercise(existing.id_user_exercises, payload)
         }
+        return await createUserExercise(payload)
     })
 
-    await Promise.all(updates)
+    const saved = (await Promise.all(updates)).filter(Boolean) as UserExercise[]
+    for (const record of saved) {
+        const exerciseId = Number(record.exercise_id)
+        if (Number.isFinite(exerciseId)) {
+            existingRecords.value[exerciseId] = record
+        }
+    }
     await updatePoints(summary.value.points)
 }
 
@@ -228,8 +374,44 @@ const goNext = async () => {
         await persistResults()
         isSaving.value = false
         isCompleted.value = true
+        viewState.value = 'summary'
         if (userId.value) {
-            checkAndUpdateBadge(userId.value, bookId.value).catch(() => {})
+            await checkAndUpdateBadge(userId.value, bookId.value).catch(() => { })
+            const ubAfter = await fetchUserBook(userId.value, bookId.value).catch(() => null)
+            const newBadge = ubAfter?.current_badge || 'default'
+
+            if (newBadge !== 'default' && newBadge !== initialBadge.value) {
+                const startRank = TIER_ORDER.indexOf(initialBadge.value as any)
+                const endRank = TIER_ORDER.indexOf(newBadge as any)
+                const earned: BookBadgeTier[] = []
+                for (let r = startRank + 1; r <= endRank; r++) {
+                    const t = TIER_ORDER[r]
+                    if (t && t !== 'default' && t !== 'galaxy') earned.push(t as BookBadgeTier)
+                }
+                initialBadge.value = newBadge
+
+                const enqueueBadges = () => {
+                    badgeQueue.value = [...badgeQueue.value, ...earned]
+                }
+
+                if (earned.length) {
+                    if (isLevelUpQueued.value) {
+                        const unwatch = watch(
+                            () => (auth as any).showLevelUpModal ?? (auth as any).isLevelUpModalOpen ?? (auth as any).showLevelUp,
+                            (isOpen) => {
+                                if (!isOpen) { setTimeout(enqueueBadges, 500); unwatch() }
+                            },
+                        )
+                        if ((auth as any).showLevelUpModal === undefined &&
+                            (auth as any).isLevelUpModalOpen === undefined &&
+                            (auth as any).showLevelUp === undefined) {
+                            setTimeout(enqueueBadges, 6000)
+                        }
+                    } else {
+                        enqueueBadges()
+                    }
+                }
+            }
         }
         return
     }
@@ -239,12 +421,13 @@ const goNext = async () => {
 const handleCorrect = async () => {
     stopTimer()
     isLocked.value = true
-    const alreadyAnswered = currentExercise.value?.exercise_id
-        ? Boolean(existingRecords.value[currentExercise.value.exercise_id])
-        : false
+    const exerciseId = currentExercise.value?.exercise_id
+    const eligibleForPoints = exerciseId ? isPointsEligible(exerciseId) : false
     let basePoints = 0
     let bonusPoints = 0
-    if (attemptsUsed.value === 0) {
+    if (!eligibleForPoints) {
+        correctStreak.value = 0
+    } else if (attemptsUsed.value === 0) {
         correctStreak.value += 1
         basePoints = 10
         bonusPoints = correctStreak.value >= 2 ? 5 : 0
@@ -252,7 +435,7 @@ const handleCorrect = async () => {
         correctStreak.value = 0
         basePoints = 5
     }
-    const points = alreadyAnswered ? 0 : basePoints + bonusPoints
+    const points = eligibleForPoints ? basePoints + bonusPoints : 0
     recordResult(true, attemptsUsed.value + 1, points)
     awardXp(points)
     showFeedback('correct', points)
@@ -299,38 +482,34 @@ watch(
     async ([currentBookId, currentModuleId]) => {
         error.value = ''
         isLoading.value = true
-        isCompleted.value = false
-        currentIndex.value = 0
-        correctStreak.value = 0
-        pendingResults.value = []
-        sessionPoints.value = 0
-        xpDelta.value = 0
-        xpPulse.value = 0
-        feedback.value = null
+        viewState.value = 'setup'
+        resetSessionState()
+        exercises.value = []
+        shuffledOptionsByExercise.value = {}
+        allExercises.value = []
         try {
             const storedId = getStoredUserId()
             userId.value = storedId
-            const [bookInfo, moduleInfo, exerciseList, userInfo] = await Promise.all([
+            const [bookInfo, moduleInfo, exerciseList, userBookInfo] = await Promise.all([
                 fetchBook(currentBookId),
                 fetchModule(currentModuleId),
                 fetchExercisesByModule(currentModuleId),
-                storedId ? fetchUserById(storedId) : Promise.resolve(null),
+                storedId ? fetchUserBook(storedId, currentBookId) : Promise.resolve(null),
             ])
             book.value = bookInfo
             moduleData.value = moduleInfo
+            initialBadge.value = userBookInfo?.current_badge || 'default'
             const filtered = exerciseList.filter(
                 (item) => item.type !== 'fill-blanks' && item.type !== 'ordering',
             )
-            exercises.value = shuffleArray(filtered)
-            shuffledOptionsByExercise.value = Object.fromEntries(
-                exercises.value
-                    .filter((item) => Number.isFinite(item.exercise_id))
-                    .map((item) => [
-                        Number(item.exercise_id),
-                        item.type === 'true-false' ? buildOptions(item) : shuffleArray(buildOptions(item)),
-                    ] as const),
-            )
-            userPoints.value = userInfo?.points ?? 0
+            allExercises.value = filtered
+            if (storedId) {
+                userPoints.value = await fetchUserPointsTotal(storedId).catch(() => 0)
+                auth.setPoints(userPoints.value)
+            } else {
+                userPoints.value = 0
+                auth.setPoints(0)
+            }
             if (storedId) {
                 const existing = await fetchUserExercisesByModule(storedId, currentModuleId)
                 existingRecords.value = Object.fromEntries(
@@ -344,7 +523,7 @@ watch(
             } else {
                 existingRecords.value = {}
             }
-            if (!exercises.value.length) {
+            if (!allExercises.value.length) {
                 stopTimer()
             }
         } catch {
@@ -352,11 +531,30 @@ watch(
             book.value = null
             moduleData.value = null
             exercises.value = []
+            allExercises.value = []
             shuffledOptionsByExercise.value = {}
             existingRecords.value = {}
             stopTimer()
         } finally {
             isLoading.value = false
+        }
+    },
+    { immediate: true },
+)
+
+watch(
+    [isLoading, viewState],
+    ([loading, state]) => {
+        if (!loading && state === 'setup' && allExercises.value.length > 0) {
+            const queryMode = modeFromQuery.value
+            const modeToStart = (queryMode && canStartMode(queryMode))
+                ? queryMode
+                : recommendedMode.value
+
+            selectedMode.value = modeToStart
+            if (canStartMode(modeToStart)) {
+                startSession(modeToStart)
+            }
         }
     },
     { immediate: true },
@@ -371,7 +569,7 @@ watch(
 )
 
 onBeforeRouteLeave(() => {
-    if (isCompleted.value || !pendingResults.value.length) return true
+    if (viewState.value !== 'runner' || !pendingResults.value.length) return true
     return window.confirm('Se saires agora, as respostas desta sessao nao serao guardadas. Queres sair?')
 })
 
@@ -384,8 +582,9 @@ onBeforeRouteLeave(() => {
             <div class="runner-titles">
                 <h1>{{ moduleData?.module_title || `Modulo ${moduleId}` }}</h1>
                 <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
+                <span v-if="viewState !== 'setup'" class="mode-pill">{{ modeLabel }}</span>
             </div>
-            <div class="runner-stats">
+            <div v-if="viewState !== 'setup'" class="runner-stats">
                 <div class="runner-stat" :class="{ 'runner-stat--pulse': xpPulse % 2 === 1 }">
                     <BoltIcon class="stat-icon" aria-hidden="true" />
                     <div class="stat-body">
@@ -404,7 +603,8 @@ onBeforeRouteLeave(() => {
                 <div class="runner-stat">
                     <div class="stat-body">
                         <span class="stat-label">Progresso</span>
-                        <strong class="stat-value">{{ Math.min(currentIndex + 1, exercises.length) }}<span class="stat-sep"> / {{ exercises.length }}</span></strong>
+                        <strong class="stat-value">{{ Math.min(currentIndex + 1, exercises.length) }}<span
+                                class="stat-sep"> / {{ exercises.length }}</span></strong>
                     </div>
                 </div>
             </div>
@@ -412,13 +612,17 @@ onBeforeRouteLeave(() => {
 
         <p v-if="isLoading" class="state">A carregar exercicios...</p>
         <p v-else-if="error" class="state error">{{ error }}</p>
-        <p v-else-if="!exercises.length" class="state">Sem exercicios aprovados para este modulo.</p>
+        <p v-else-if="!allExercises.length" class="state">Sem exercicios aprovados para este modulo.</p>
 
-        <div v-else-if="isCompleted" class="complete-card">
+        <div v-else-if="viewState === 'setup'" class="setup-shell">
+            <p>Seleciona um modo para começar.</p>
+        </div>
+
+        <div v-else-if="viewState === 'summary'" class="complete-card">
             <div class="complete-header">
                 <div>
                     <h2>Resumo do modulo</h2>
-                    <p>Terminaste todas as perguntas. Aqui esta o teu resultado.</p>
+                    <p>Terminaste o {{ modeLabel.toLowerCase() }}. Aqui esta o teu resultado.</p>
                 </div>
                 <div class="summary-score">
                     <span>Score final</span>
@@ -455,16 +659,34 @@ onBeforeRouteLeave(() => {
                             {{ item.status === 'correct' ? 'Certa' : item.status === 'wrong' ? 'Errada' : 'Sem resposta'
                             }}
                         </span>
+                        <span v-if="item.previousStatus === 'correct'" class="summary-item__tag">Ja respondida</span>
+                        <span v-else-if="item.previousStatus === 'wrong'" class="summary-item__tag warn">Falhada
+                            antes</span>
                         <strong class="summary-item__points">+{{ item.points }}</strong>
                     </div>
                 </li>
             </ul>
-            <p class="summary-note" v-if="summary.alreadyAnswered">
-                {{ summary.alreadyAnswered }} perguntas ja tinham resposta anterior e nao contaram pontos.
+            <p class="summary-note" v-if="summary.previouslyCorrect">
+                {{ summary.previouslyCorrect }} perguntas ja estavam corretas e nao contaram pontos.
             </p>
-            <RouterLink :to="`/book/${bookId}`">
-                <UiButton variant="outline">Voltar aos modulos</UiButton>
-            </RouterLink>
+            <p class="summary-note" v-if="summary.previouslyWrong">
+                {{ summary.previouslyWrong }} perguntas eram de tentativas anteriores com erro.
+            </p>
+            <div class="summary-actions">
+                <UiButton v-if="exerciseCounts.wrong > 0" variant="primary" @click="startSession('retry')">
+                    Repetir errados
+                </UiButton>
+                <UiButton v-else-if="exerciseCounts.remaining > 0" variant="primary" @click="startSession('normal')">
+                    Continuar
+                </UiButton>
+                <UiButton v-if="exerciseCounts.correct === exerciseCounts.total && exerciseCounts.total > 0"
+                    variant="outline" @click="startSession('review')">
+                    Rever tudo
+                </UiButton>
+                <RouterLink :to="`/book/${bookId}`">
+                    <UiButton variant="outline">Voltar aos modulos</UiButton>
+                </RouterLink>
+            </div>
         </div>
 
         <div v-else class="runner">
@@ -483,11 +705,20 @@ onBeforeRouteLeave(() => {
                         <div class="question-title">
                             Pergunta <span>{{ String(currentIndex + 1).padStart(2, '0') }}</span>
                         </div>
-                        <div v-if="feedback" class="result-pill" :class="feedback.type">
-                            <span class="result-pill__label">{{ feedback.type === 'correct' ? 'Certo!' : 'Errado' }}</span>
-                            <strong v-if="feedback.points > 0" class="result-pill__xp">+{{ feedback.points }} XP</strong>
+                        <div class="question-tags">
+                            <span v-if="!isReviewMode && currentExerciseStatus === 'correct'"
+                                class="status-pill done">Ja respondido</span>
+                            <span v-else-if="!isReviewMode && currentExerciseStatus === 'wrong'"
+                                class="status-pill warn">Falhou antes</span>
+                            <span v-if="isReviewMode" class="status-pill review">Revisao</span>
+                            <div v-if="feedback" class="result-pill" :class="feedback.type">
+                                <span class="result-pill__label">{{ feedback.type === 'correct' ? 'Certo!' : 'Errado'
+                                }}</span>
+                                <strong v-if="feedback.points > 0" class="result-pill__xp">+{{ feedback.points }}
+                                    XP</strong>
+                            </div>
+                            <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                         </div>
-                        <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
                     <div class="question-divider"></div>
                     <p class="question-text">{{ currentQuestionText }}</p>
@@ -495,21 +726,18 @@ onBeforeRouteLeave(() => {
             </div>
 
             <div class="options options-grid-2">
-                <ExerciseOption
-                    v-for="(option, index) in options"
-                    :key="option"
-                    :value="option"
-                    :index="index"
-                    :selected="selectedOption === option"
-                    :attempted="attemptedOptions.includes(option)"
+                <ExerciseOption v-for="(option, index) in options" :key="option" :value="option" :index="index"
+                    :selected="selectedOption === option" :attempted="attemptedOptions.includes(option)"
                     :correct="selectedOption === option && isOptionCorrect(option)"
                     :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
-                    :locked="isLocked"
-                    @select="handleSelect"
-                />
+                    :locked="isLocked" @select="handleSelect" />
             </div>
 
         </div>
+
+        <BadgeUnlockModal :visible="showBadgeModal" :tier="earnedBadgeTier" :book-title="book?.title || 'Livro'"
+            @close="badgeQueue.shift()" />
+
     </section>
 </template>
 
@@ -527,6 +755,19 @@ onBeforeRouteLeave(() => {
 .runner-titles {
     display: grid;
     gap: var(--space-100);
+}
+
+.mode-pill {
+    width: fit-content;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-teal-100);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-mirage-700);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .runner-header h1 {
@@ -632,6 +873,16 @@ onBeforeRouteLeave(() => {
 .state.error {
     color: #b13b3b;
 }
+
+.setup-shell {
+    padding: 24px;
+    border-radius: 16px;
+    border: 2px dashed var(--color-mirage-400);
+    background: var(--color-wild-200);
+    color: var(--color-mirage-600);
+    font-weight: 600;
+}
+
 
 .runner {
     display: grid;
@@ -755,9 +1006,42 @@ onBeforeRouteLeave(() => {
 
 .question-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-300);
+}
+
+.question-tags {
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+    text-align: right;
+}
+
+.status-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 2px solid var(--color-mirage-800);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--color-wild-200);
+    color: var(--color-mirage-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-pill.warn {
+    background: #f7c4c4;
+    border-color: #b13b3b;
+    color: #7a1f1f;
+}
+
+.status-pill.done {
+    background: var(--color-deep-100);
+}
+
+.status-pill.review {
+    background: var(--color-teal-100);
 }
 
 .question-timer {
@@ -979,6 +1263,17 @@ onBeforeRouteLeave(() => {
     color: var(--color-mirage-800);
 }
 
+.summary-item__tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-mirage-500);
+}
+
+.summary-item__tag.warn {
+    color: #7a1f1f;
+}
+
 .summary-grid span {
     font-size: 12px;
     text-transform: uppercase;
@@ -997,12 +1292,23 @@ onBeforeRouteLeave(() => {
     color: var(--color-mirage-600);
 }
 
+.summary-actions {
+    display: flex;
+    gap: var(--space-200);
+    flex-wrap: wrap;
+}
+
 @media (max-width: 720px) {
     .question-top {
         flex-direction: column;
         align-items: center;
         text-align: center;
         gap: var(--space-200);
+    }
+
+    .question-tags {
+        justify-items: center;
+        text-align: center;
     }
 
     .question-title {
@@ -1031,5 +1337,6 @@ onBeforeRouteLeave(() => {
     .options-grid-2 {
         grid-template-columns: 1fr;
     }
+
 }
 </style>

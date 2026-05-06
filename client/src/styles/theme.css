@@ -115,19 +115,86 @@
   --bg-animation: none;
 
   /* Definições de Gradientes */
+
+  /* ── bg-1: Original (inalterado) */
   --grad-1: radial-gradient(circle at 15% 10%, var(--color-deep-300), transparent 55%), radial-gradient(circle at 90% 20%, var(--color-deep-500), transparent 45%), linear-gradient(160deg, var(--color-deep-100), var(--color-wild-400));
-  --grad-2: linear-gradient(135deg, var(--color-amber-300) 0%, var(--color-pumpkin-500) 50%, var(--color-amber-700) 100%);
-  --grad-3: radial-gradient(circle at 0% 0%, var(--color-teal-400), transparent 60%), radial-gradient(circle at 100% 100%, var(--color-deep-600), transparent 60%), var(--color-mirage-100);
-  --grad-4: conic-gradient(from 180deg at 50% 50%, var(--color-amber-200) 0deg, var(--color-teal-200) 120deg, var(--color-pumpkin-200) 240deg, var(--color-amber-200) 360deg);
-  --grad-5: linear-gradient(180deg, var(--color-wild-100) 0%, var(--color-mirage-200) 100%);
-  --grad-6: linear-gradient(135deg, var(--color-teal-500) 50%, var(--color-amber-500) 50%);
-  --grad-7: radial-gradient(ellipse at center, var(--color-wild-100) 0%, var(--color-deep-200) 100%);
-  
-  --grad-8: linear-gradient(270deg, var(--color-amber-400), var(--color-pumpkin-500), var(--color-amber-600), var(--color-pumpkin-400));
-  --grad-9: linear-gradient(270deg, var(--color-deep-500), var(--color-teal-600), var(--color-deep-700), var(--color-teal-500));
-  --grad-10: radial-gradient(circle, var(--color-mirage-200), var(--color-wild-100), var(--color-mirage-300));
-  --grad-11: radial-gradient(circle at 20% 30%, var(--color-pumpkin-400) 0%, transparent 60%), radial-gradient(circle at 80% 70%, var(--color-teal-400) 0%, transparent 60%), var(--color-wild-200);
-  --grad-12: linear-gradient(-45deg, var(--color-deep-600), var(--color-amber-500), var(--color-teal-500), var(--color-pumpkin-600));
+
+  /* ── ESTÁTICOS ──────────────────────────────────── */
+
+  /* bg-2: Amanhecer — creme âmbar aquecido */
+  --grad-2:
+    radial-gradient(ellipse at 88% 88%, #ffa874 0%, transparent 50%),
+    radial-gradient(ellipse at 12% 12%, #fff0e7 0%, transparent 45%),
+    linear-gradient(150deg, #fff4e0 0%, #ffe4b8 55%, #ffdcc7 100%);
+
+  /* bg-3: Oceano — teal profundo das duas diagonais */
+  --grad-3:
+    radial-gradient(ellipse at 85% 15%, #4e9d98 0%, transparent 50%),
+    radial-gradient(ellipse at 15% 85%, #2e7f7b 0%, transparent 50%),
+    linear-gradient(145deg, #e8f5f4 0%, #a7d2cf 45%, #7fb8b4 100%);
+
+  /* bg-4: Gelo — azul-aço suave, bruma fria */
+  --grad-4:
+    radial-gradient(ellipse at 20% 80%, #c9d3d8 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, #a8b5bc 0%, transparent 50%),
+    linear-gradient(160deg, #f9fbfb 0%, #e6ebed 60%, #c9d3d8 100%);
+
+  /* bg-5: Pôr do Sol — laranja intenso do sol a cair */
+  --grad-5:
+    radial-gradient(ellipse at 50% 0%, #ffdcc7 0%, transparent 60%),
+    linear-gradient(175deg, #fff0e7 0%, #ffc29f 30%, #ff8a50 65%, #e8611e 100%);
+
+  /* bg-6: Floresta — teal denso e profundo */
+  --grad-6:
+    radial-gradient(ellipse at 10% 90%, #032e32 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 10%, #075056 0%, transparent 50%),
+    linear-gradient(155deg, #cbe7e5 0%, #7fb8b4 35%, #4e9d98 65%, #2e7f7b 100%);
+
+  /* bg-7: Horizonte — teal encontra âmbar na diagonal */
+  --grad-7:
+    linear-gradient(125deg,
+      #e8f5f4 0%, #a7d2cf 22%, #7fb8b4 42%,
+      #ffdcc7 60%, #ffa874 80%, #ff8a50 100%
+    );
+
+  /* bg-8: Névoa — cinzento-azulado suave e etéreo */
+  --grad-8:
+    radial-gradient(ellipse at 50% 5%, #e6ebed 0%, transparent 65%),
+    radial-gradient(ellipse at 80% 95%, #c9d3d8 0%, transparent 50%),
+    linear-gradient(170deg, #f9fbfb 0%, #e6ebed 50%, #a8b5bc 100%);
+
+  /* bg-9: Mel — dourado quente e suave */
+  --grad-9:
+    radial-gradient(ellipse at 22% 78%, #ffbd63 0%, transparent 52%),
+    radial-gradient(ellipse at 78% 22%, #fff0e7 0%, transparent 50%),
+    linear-gradient(145deg, #fff4e0 0%, #ffe4b8 40%, #ffc29f 72%, #ffaa51 100%);
+
+  /* ── ANIMADOS ───────────────────────────────────── */
+
+  /* bg-10: Maré — corrente oceânica horizontal suave */
+  --grad-10: linear-gradient(90deg,
+    #e8f5f4, #cbe7e5, #a7d2cf, #7fb8b4, #4e9d98,
+    #2e7f7b, #4e9d98, #7fb8b4, #a7d2cf, #cbe7e5, #e8f5f4
+  );
+
+  /* bg-11: Entardecer — deriva diagonal âmbar suave */
+  --grad-11: linear-gradient(135deg,
+    #fff4e0, #ffe4b8, #ffc29f, #ffa874,
+    #ff8a50, #ffa874, #ffdcc7, #fff4e0
+  );
+
+  /* bg-12: Aurora Boreal — banda de cor vertical a deslizar */
+  --grad-12: linear-gradient(180deg,
+    #e8f5f4 0%, #cbe7e5 12%, #7fb8b4 25%,
+    #ffdcc7 38%, #ffa874 50%, #ffc29f 62%,
+    #a7d2cf 75%, #cbe7e5 88%, #e8f5f4 100%
+  );
+
+  /* bg-13: Dança — esferas âmbar e teal a orbitar lentamente */
+  --grad-13:
+    radial-gradient(circle at 30% 30%, #ffc29f 0%, transparent 50%),
+    radial-gradient(circle at 70% 70%, #7fb8b4 0%, transparent 50%),
+    linear-gradient(145deg, #f3f7f8, #e8f5f4);
 
   /* Fundo da Aplicação */
   --bg-app: var(--grad-1);
@@ -136,19 +203,20 @@
 /* =========================================
    MAPEAMENTO DO BODY
    ========================================= */
-:root[data-bg='bg-1'] { --bg-app: var(--grad-1); }
-:root[data-bg='bg-2'] { --bg-app: var(--grad-2); }
-:root[data-bg='bg-3'] { --bg-app: var(--grad-3); }
-:root[data-bg='bg-4'] { --bg-app: var(--grad-4); }
-:root[data-bg='bg-5'] { --bg-app: var(--grad-5); }
-:root[data-bg='bg-6'] { --bg-app: var(--grad-6); }
-:root[data-bg='bg-7'] { --bg-app: var(--grad-7); }
+:root[data-bg='bg-1']  { --bg-app: var(--grad-1); }
+:root[data-bg='bg-2']  { --bg-app: var(--grad-2); }
+:root[data-bg='bg-3']  { --bg-app: var(--grad-3); }
+:root[data-bg='bg-4']  { --bg-app: var(--grad-4); }
+:root[data-bg='bg-5']  { --bg-app: var(--grad-5); }
+:root[data-bg='bg-6']  { --bg-app: var(--grad-6); }
+:root[data-bg='bg-7']  { --bg-app: var(--grad-7); }
+:root[data-bg='bg-8']  { --bg-app: var(--grad-8); }
+:root[data-bg='bg-9']  { --bg-app: var(--grad-9); }
 
-:root[data-bg='bg-8'] { --bg-app: var(--grad-8); --bg-size: 400% 400%; --bg-animation: animPanX 15s ease-in-out infinite; }
-:root[data-bg='bg-9'] { --bg-app: var(--grad-9); --bg-size: 400% 400%; --bg-animation: animPanX 18s ease-in-out infinite; }
-:root[data-bg='bg-10'] { --bg-app: var(--grad-10); --bg-size: 200% 200%; --bg-animation: animPulse 12s ease-in-out infinite; }
-:root[data-bg='bg-11'] { --bg-app: var(--grad-11); --bg-size: 200% 200%; --bg-animation: animOrbs 15s ease-in-out infinite alternate; }
-:root[data-bg='bg-12'] { --bg-app: var(--grad-12); --bg-size: 400% 400%; --bg-animation: animPanDiag 10s ease-in-out infinite; }
+:root[data-bg='bg-10'] { --bg-app: var(--grad-10); --bg-size: 400% 400%; --bg-animation: animPanX 38s ease-in-out infinite; }
+:root[data-bg='bg-11'] { --bg-app: var(--grad-11); --bg-size: 400% 400%; --bg-animation: animPanDiag 45s ease-in-out infinite; }
+:root[data-bg='bg-12'] { --bg-app: var(--grad-12); --bg-size: 100% 400%; --bg-animation: animPanY 32s ease-in-out infinite; }
+:root[data-bg='bg-13'] { --bg-app: var(--grad-13); --bg-size: 220% 220%; --bg-animation: animOrbs 60s ease-in-out infinite; }
 
 /* =========================================
    GLOBAL RESET E BASE HTML
@@ -201,6 +269,11 @@ textarea {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+@keyframes animPanY {
+  0% { background-position: 50% 0%; }
+  50% { background-position: 50% 100%; }
+  100% { background-position: 50% 0%; }
 }
 @keyframes animPanDiag {
   0% { background-position: 0% 0%; }

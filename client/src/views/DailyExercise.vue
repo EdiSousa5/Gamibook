@@ -10,6 +10,8 @@ import {
     fetchLatestUserDailyExercise,
     fetchAnsweredDailyExerciseIds,
     createUserDailyExercise,
+    createUserExercise,
+    fetchUserPointsTotal,
 } from '../services/exercises'
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
@@ -118,18 +120,31 @@ const saveResult = async (isCorrect: boolean) => {
         is_correct: isCorrect,
     })
 
-    const oldPoints = user.value?.points ?? 0
-    const newPoints = oldPoints + pointsEarned.value
+    const oldPoints = await fetchUserPointsTotal(userId.value).catch(() => auth.points)
     const oldLevel = getLevelProgressFromPoints(oldPoints).level
+
+    const timestamp = new Date().toISOString()
+    const recorded = await createUserExercise({
+        user_id: userId.value,
+        is_correct: isCorrect,
+        attempts: attemptsUsed.value,
+        points_earned: pointsEarned.value,
+        time_spent: QUESTION_TIME - timeLeft.value,
+        date: timestamp,
+    }).then(() => true).catch((err) => {
+        console.error(err)
+        return false
+    })
+
+    const newPoints = recorded ? oldPoints + pointsEarned.value : oldPoints
     const newLevel = getLevelProgressFromPoints(newPoints).level
 
-    await updateUser(userId.value, { points: newPoints, exercises_daily_streak: newStreak.value })
+    await updateUser(userId.value, { exercises_daily_streak: newStreak.value })
     if (user.value) {
-        user.value.points = newPoints
         user.value.exercises_daily_streak = newStreak.value
     }
 
-    await auth.loadUser()
+    auth.setPoints(newPoints)
     if (newLevel > oldLevel) {
         auth.triggerLevelUp(oldLevel, newLevel, newPoints)
     }
@@ -311,18 +326,11 @@ onUnmounted(() => {
             </div>
 
             <div class="options options-grid-2">
-                <ExerciseOption
-                    v-for="(option, index) in shuffledOptions"
-                    :key="option"
-                    :value="option"
-                    :index="index"
-                    :selected="selectedOption === option"
-                    :attempted="attemptedOptions.includes(option)"
+                <ExerciseOption v-for="(option, index) in shuffledOptions" :key="option" :value="option" :index="index"
+                    :selected="selectedOption === option" :attempted="attemptedOptions.includes(option)"
                     :correct="selectedOption === option && isOptionCorrect(option)"
                     :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
-                    :locked="isLocked"
-                    @select="handleSelect"
-                />
+                    :locked="isLocked" @select="handleSelect" />
             </div>
         </template>
     </section>
@@ -702,9 +710,20 @@ onUnmounted(() => {
 }
 
 @keyframes feedback-pop {
-    0% { transform: translateY(-6px) scale(0.95); opacity: 0; }
-    60% { transform: translateY(0) scale(1.02); opacity: 1; }
-    100% { transform: translateY(0) scale(1); opacity: 1; }
+    0% {
+        transform: translateY(-6px) scale(0.95);
+        opacity: 0;
+    }
+
+    60% {
+        transform: translateY(0) scale(1.02);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 @media (max-width: 720px) {

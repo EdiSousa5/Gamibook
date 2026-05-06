@@ -11,14 +11,20 @@ import { shuffleArray } from '@/utils/exerciseUtils'
 
 export type BadgeTierOrDefault = BookBadgeTier | 'default'
 
-const TIER_ORDER: (BadgeTierOrDefault)[] = ['default', 'bronze', 'silver', 'gold', 'diamond', 'galaxy']
+export const TIER_ORDER: BadgeTierOrDefault[] = [
+  'default',
+  'bronze',
+  'silver',
+  'gold',
+  'diamond',
+  'galaxy',
+]
 
 const isMainChapter = (m: { order_number?: number | null }) => {
   if (m.order_number == null) return true
   const n = Number(m.order_number)
   return Number.isFinite(n) && Number.isInteger(n)
 }
-
 
 export const fetchUserBook = async (userId: string, bookId: number): Promise<UserBook | null> => {
   const params = new URLSearchParams({
@@ -81,7 +87,7 @@ export const checkAndUpdateBadge = async (userId: string, bookId: number): Promi
     const stats = await Promise.all(
       approvedModules.map(async (m) => ({
         total: await fetchApprovedExerciseCountsByModule(m.modules_id),
-        done: await fetchUserExerciseCountsByModule(userId, m.modules_id),
+        done: await fetchUserExerciseCountsByModule(userId, m.modules_id, true),
       })),
     )
 

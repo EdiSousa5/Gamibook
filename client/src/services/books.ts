@@ -1,4 +1,4 @@
-import type { Book, Editora, Module, UserBook } from '@/types'
+import type { Book, Module, UserBook } from '@/types'
 import { authFetch } from './client'
 
 const BOOK_FIELDS = [
@@ -9,43 +9,11 @@ const BOOK_FIELDS = [
   'ISBN',
   'publish_date',
   'publisher',
-  'editora_id.*',
+  'editora.*',
   'is_approved',
   'date_created',
   'date_updated',
 ]
-
-const attachEditorasToBooks = async (books: Book[]) => {
-  if (!books || books.length === 0) return books
-
-  books.forEach((book) => {
-    if (typeof book.editora_id === 'object' && book.editora_id !== null) {
-      book.editora = book.editora_id as Editora
-    }
-  })
-
-  const needsFetching = books.some((book) => typeof book.editora_id === 'number')
-  if (!needsFetching) return books
-
-  try {
-    const response = await authFetch('/items/editoras')
-    const data = await response.json().catch(() => null)
-    const editoras: Editora[] = data?.data ?? []
-
-    books.forEach((book) => {
-      if (typeof book.editora_id === 'number') {
-        const ed = editoras.find(
-          (item) => item.id === book.editora_id || (item as any).editora_id === book.editora_id,
-        )
-        if (ed) book.editora = ed
-      }
-    })
-  } catch (err) {
-    console.error('Erro ao carregar editoras:', err)
-  }
-
-  return books
-}
 
 export const fetchBooks = async (onlyApproved = false) => {
   const params = new URLSearchParams({ fields: BOOK_FIELDS.join(','), sort: '-date_created' })
@@ -56,8 +24,7 @@ export const fetchBooks = async (onlyApproved = false) => {
     throw new Error(`Fetch books failed: ${response.status} ${text}`.trim())
   }
   const data = await response.json().catch(() => null)
-  const books = (data?.data ?? []) as Book[]
-  return attachEditorasToBooks(books)
+  return (data?.data ?? []) as Book[]
 }
 
 export const fetchApprovedBooks = () => fetchBooks(true)
@@ -70,9 +37,7 @@ export const fetchBook = async (id: number | string) => {
     throw new Error(`Fetch book failed: ${response.status} ${text}`.trim())
   }
   const data = await response.json().catch(() => null)
-  const book = (data?.data ?? data) as Book
-  await attachEditorasToBooks([book])
-  return book
+  return (data?.data ?? data) as Book
 }
 
 export const fetchModulesByBook = async (bookId: number) => {
@@ -123,7 +88,8 @@ export const fetchModule = async (moduleId: number | string) => {
 
 export const fetchUserBooks = async (userId: string) => {
   const params = new URLSearchParams({
-    fields: 'user_book_id,current_badge,final_quiz_unlocked,book_id.*,book_id.editora_id.*',
+    fields:
+      'user_book_id,current_badge,final_quiz_unlocked,book_id.book_id,book_id.title,book_id.cover_img,book_id.description,book_id.ISBN,book_id.publish_date,book_id.publisher,book_id.is_approved,book_id.editora.*',
     sort: '-user_book_id',
   })
   params.set('filter[user_id][_eq]', userId)
@@ -136,12 +102,24 @@ export const fetchUserBooks = async (userId: string) => {
   }
 
   const data = await response.json().catch(() => null)
-  const userBooks = (data?.data ?? []) as UserBook[]
+  return (data?.data ?? []) as UserBook[]
+}
 
-  const booksToAttach = userBooks.map((entry) => entry.book_id).filter((book) => !!book) as Book[]
-  await attachEditorasToBooks(booksToAttach)
+export const fetchUserBookBadges = async () => {
+  const params = new URLSearchParams({
+    fields: 'user_id,current_badge',
+    limit: '-1',
+  })
 
-  return userBooks
+  const response = await authFetch(`/items/user_books?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user book badges failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as UserBook[]
 }
 
 export const updateModuleApproval = async (moduleId: number, isApproved: boolean) => {

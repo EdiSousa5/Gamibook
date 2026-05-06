@@ -28,22 +28,26 @@ const onAvatarChange = (event: Event) => {
   reader.readAsDataURL(file)
 }
 
+const sanitizeName = (raw: string) => raw.trim().replace(/[<>"'&]/g, '').slice(0, 100)
+const sanitizeEmail = (raw: string) => raw.trim().toLowerCase().slice(0, 254)
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)
+
 const submit = async () => {
   error.value = ''
-  if (!name.value || !email.value || !password.value) {
-    error.value = 'Preenche todos os campos.'
-    return
-  }
+  const cleanName = sanitizeName(name.value)
+  const cleanEmail = sanitizeEmail(email.value)
+  const cleanPassword = password.value.trim()
+
+  if (!cleanName || cleanName.length < 2) { error.value = 'Nome inválido (mínimo 2 caracteres).'; return }
+  if (!cleanEmail) { error.value = 'Email inválido.'; return }
+  if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
+  if (!cleanPassword || cleanPassword.length < 8) { error.value = 'Password demasiado curta (mínimo 8 caracteres).'; return }
 
   try {
-    await registerUser({
-      name: name.value,
-      email: email.value,
-      password: password.value,
-    })
+    await registerUser({ name: cleanName, email: cleanEmail, password: cleanPassword })
     let loggedUser = null
     try {
-      loggedUser = await loginUser(email.value, password.value)
+      loggedUser = await loginUser(cleanEmail, cleanPassword)
     } catch (loginError) {
       console.warn('[register] login after registration failed', loginError)
     }
@@ -60,7 +64,7 @@ const submit = async () => {
     await router.push('/app')
   } catch (err) {
     console.error('[register] failed', err)
-    error.value = 'Nao foi possivel criar conta.'
+    error.value = 'Não foi possível criar conta.'
   }
 }
 </script>
@@ -75,7 +79,7 @@ const submit = async () => {
         <UiInput label="Nome" placeholder="O teu nome" :model-value="name" @update="name = String($event)" />
         <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
           @update="email = String($event)" />
-        <UiInput label="Password" type="password" placeholder="********" :model-value="password"
+        <UiInput label="Password" type="password" placeholder="Mínimo 8 caracteres" :model-value="password"
           @update="password = String($event)" />
         <label class="file">
           Avatar
@@ -119,8 +123,8 @@ form {
 .file input {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #d7d7d7;
-  background: #fff;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
 }
 
 .avatar {

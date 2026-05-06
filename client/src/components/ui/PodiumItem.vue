@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import type { User } from '@/types'
 
 const props = defineProps<{
-    user: User
     position: number
+    points: number
+    level: number
     avatarUrl?: string | null
     displayName: string
 }>()
@@ -16,11 +16,15 @@ const isFirst = computed(() => props.position === 1)
 <template>
     <div class="podium-item" :class="`place-${position}`">
         <div class="podium-header">
-            <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
-                :size="isFirst ? 160 : (position === 2 ? 135 : 120)" />
+            <div class="avatar-wrap">
+                <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
+                    :size="isFirst ? 160 : (position === 2 ? 135 : 120)" />
+                <div class="place-badge">#{{ position }}</div>
+                <div class="level-pill">Nivel {{ level }}</div>
+            </div>
             <p class="name">{{ displayName }}</p>
             <div class="points-pill">
-                <span class="points-text">{{ user.points ?? 0 }} pts</span>
+                <span class="points-text">{{ points }} pts</span>
             </div>
         </div>
 
@@ -52,6 +56,51 @@ const isFirst = computed(() => props.position === 1)
     text-align: center;
     margin-bottom: 24px;
     z-index: 4;
+}
+
+.avatar-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 999px;
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.place-badge {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 14px;
+    border: 2px solid var(--color-mirage-800);
+    color: var(--color-mirage-900);
+    background: var(--color-wild-200);
+    transform: rotate(-6deg);
+    box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.level-pill {
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--color-mirage-800);
+    box-shadow: 2px 2px 0 var(--color-shadow);
 }
 
 .name {
@@ -117,6 +166,24 @@ const isFirst = computed(() => props.position === 1)
 
 .place-1 .block-top {
     background: var(--color-deep-400);
+}
+
+.place-1 .avatar-wrap {
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.place-2 .avatar-wrap {
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.place-3 .avatar-wrap {
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.place-1 .place-badge,
+.place-2 .place-badge,
+.place-3 .place-badge {
+    background: var(--color-wild-100);
 }
 
 .block-front {

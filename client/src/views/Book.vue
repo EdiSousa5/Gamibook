@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiIconButton from '@/components/ui/UiIconButton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
-import { CheckIcon, LockClosedIcon, SparklesIcon, TrophyIcon } from '@heroicons/vue/24/outline'
+import {
+  BookOpenIcon,
+  CheckIcon,
+  InformationCircleIcon,
+  LockClosedIcon,
+  SparklesIcon,
+  TrophyIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline'
 import {
   fetchBook,
   fetchModulesByBook,
@@ -15,35 +24,50 @@ import {
   fetchApprovedExerciseCountsByModule,
   fetchUserExerciseCountsByModule,
 } from '../services/exercises'
-import { fetchUserBook } from '../services/badges'
+import { fetchUserBook, tierForPct } from '../services/badges'
+import type { BadgeTierOrDefault } from '../services/badges'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
+const router = useRouter()
 const bookId = computed(() => Number(route.params.id || 1))
+
+type SessionMode = 'normal' | 'retry' | 'review'
 
 const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
 const approvedModules = ref<Module[]>([])
-const moduleStats = ref<Record<number, { total: number; done: number; correct: number; remaining: number }>>({})
+const moduleStats = ref<
+  Record<number, { total: number; answered: number; correct: number; wrong: number; remaining: number }>
+>({})
 const userBook = ref<UserBook | null>(null)
 const error = ref('')
 const isLoading = ref(false)
+const badgeInfoOpen = ref(false)
+const modeModalOpen = ref(false)
+const selectedModuleId = ref<number | null>(null)
+const selectedMode = ref<SessionMode>('normal')
 
 const currentBadge = computed<BookBadgeTier | null>(() => {
   const b = userBook.value?.current_badge
   if (!b || b === 'default') return null
   return b as BookBadgeTier
 })
-const quizUnlocked = computed(() => userBook.value?.final_quiz_unlocked ?? false)
+const currentTier = computed<BadgeTierOrDefault>(() => {
+  const b = userBook.value?.current_badge
+  if (b) return b as BadgeTierOrDefault
+  return tierForPct(overallPercent.value)
+})
 const quizCompleted = computed(() => userBook.value?.current_badge === 'galaxy')
 
 const moduleSummary = computed(() => {
   const values = Object.values(moduleStats.value)
   const total = values.reduce((sum, v) => sum + v.total, 0)
-  const done = values.reduce((sum, v) => sum + v.done, 0)
+  const answered = values.reduce((sum, v) => sum + v.answered, 0)
   const correct = values.reduce((sum, v) => sum + v.correct, 0)
-  return { total, done, correct, remaining: Math.max(0, total - done) }
+  const wrong = values.reduce((sum, v) => sum + v.wrong, 0)
+  return { total, answered, correct, wrong, remaining: Math.max(0, total - answered) }
 })
 
 const isMainChapter = (m: Module) => {
@@ -55,14 +79,59 @@ const isMainChapter = (m: Module) => {
 const completionPercent = (id: number) => {
   const s = moduleStats.value[id]
   if (!s || s.total === 0) return 0
-  return Math.round((s.done / s.total) * 100)
+  return Math.round((s.correct / s.total) * 100)
 }
+
+const overallPercent = computed(() => {
+  const { total, correct } = moduleSummary.value
+  if (total === 0) return 0
+  return Math.round((correct / total) * 100)
+})
+
+const quizUnlocked = computed(() => quizCompleted.value || overallPercent.value >= 100)
+
+const badgeSteps = [
+  { id: 'default', label: 'Sem badge', threshold: 0, tier: 'default' },
+  { id: 'bronze', label: 'Bronze', threshold: 25, tier: 'bronze' },
+  { id: 'silver', label: 'Prata', threshold: 50, tier: 'silver' },
+  { id: 'gold', label: 'Ouro', threshold: 75, tier: 'gold' },
+  { id: 'diamond', label: 'Diamante', threshold: 100, tier: 'diamond' },
+  { id: 'galaxy', label: 'Galaxy', threshold: 100, tier: 'galaxy', extra: true },
+] as const
+
+const badgeOrder: BadgeTierOrDefault[] = ['default', 'bronze', 'silver', 'gold', 'diamond', 'galaxy']
+
+const currentTierRank = computed(() => badgeOrder.indexOf(currentTier.value))
+
+const isBadgeAchieved = (tier: BadgeTierOrDefault) =>
+  badgeOrder.indexOf(tier) <= currentTierRank.value
+
+const badgeSizeForStep = (tier: BadgeTierOrDefault) =>
+  (isBadgeAchieved(tier) ? 'sm' : 'xs')
+
+const nextBadge = computed(() => {
+  const pct = overallPercent.value
+  if (moduleSummary.value.total === 0) return null
+  if (pct < 25) return { tier: 'bronze', label: 'Bronze', threshold: 25 }
+  if (pct < 50) return { tier: 'silver', label: 'Prata', threshold: 50 }
+  if (pct < 75) return { tier: 'gold', label: 'Ouro', threshold: 75 }
+  if (pct < 100) return { tier: 'diamond', label: 'Diamante', threshold: 100 }
+  return { tier: 'galaxy', label: 'Galaxy', threshold: 100 }
+})
+
+const nextBadgeRemaining = computed(() => {
+  const next = nextBadge.value
+  if (!next || next.tier === 'galaxy') return 0
+  const total = moduleSummary.value.total
+  const required = Math.ceil((next.threshold / 100) * total)
+  return Math.max(0, required - moduleSummary.value.correct)
+})
 
 const moduleStatus = (id: number): 'done' | 'progress' | 'fresh' => {
   const s = moduleStats.value[id]
   if (!s || s.total === 0) return 'fresh'
-  if (s.done >= s.total && s.total > 0) return 'done'
-  if (s.done > 0) return 'progress'
+  if (s.correct >= s.total && s.total > 0) return 'done'
+  if (s.answered > 0) return 'progress'
   return 'fresh'
 }
 
@@ -75,6 +144,54 @@ const ctaLabel = (id: number) => {
 
 const formatOrder = (n: number | null | undefined) =>
   n == null ? '—' : String(n).padStart(2, '0')
+
+const selectedModuleStats = computed(() =>
+  selectedModuleId.value ? moduleStats.value[selectedModuleId.value] ?? null : null,
+)
+
+const modeCounts = computed(() => {
+  const stats = selectedModuleStats.value
+  if (!stats) return { normal: 0, retry: 0, review: 0 }
+  return {
+    normal: stats.remaining + stats.wrong,
+    retry: stats.wrong,
+    review: stats.total,
+  }
+})
+
+const canStartMode = (mode: SessionMode) => {
+  const stats = selectedModuleStats.value
+  if (!stats) return false
+  if (mode === 'normal') return modeCounts.value.normal > 0
+  if (mode === 'retry') return modeCounts.value.retry > 0
+  return stats.total > 0 && stats.correct >= stats.total
+}
+
+const recommendedMode = computed<SessionMode>(() => {
+  const stats = selectedModuleStats.value
+  if (!stats || stats.total === 0) return 'normal'
+  if (stats.correct >= stats.total) return 'review'
+  if (stats.wrong > 0) return 'retry'
+  return 'normal'
+})
+
+const openModeModal = (moduleId: number) => {
+  selectedModuleId.value = moduleId
+  selectedMode.value = recommendedMode.value
+  modeModalOpen.value = true
+}
+
+const closeModeModal = () => {
+  modeModalOpen.value = false
+}
+
+const startSelectedModule = () => {
+  if (!selectedModuleId.value) return
+  if (!canStartMode(selectedMode.value)) return
+  const target = `/book/${bookId.value}/module/${selectedModuleId.value}?mode=${selectedMode.value}`
+  modeModalOpen.value = false
+  router.push(target)
+}
 
 watch(
   bookId,
@@ -99,9 +216,13 @@ watch(
         const entries = await Promise.all(
           approvedModules.value.map(async (m) => {
             const total = await fetchApprovedExerciseCountsByModule(m.modules_id)
-            const done = await fetchUserExerciseCountsByModule(userId, m.modules_id)
+            const answered = await fetchUserExerciseCountsByModule(userId, m.modules_id)
             const correct = await fetchUserExerciseCountsByModule(userId, m.modules_id, true)
-            return [m.modules_id, { total, done, correct, remaining: Math.max(0, total - done) }] as const
+            const wrong = Math.max(0, answered - correct)
+            return [
+              m.modules_id,
+              { total, answered, correct, wrong, remaining: Math.max(0, total - answered) },
+            ] as const
           }),
         )
         moduleStats.value = Object.fromEntries(entries)
@@ -131,38 +252,70 @@ watch(
       <div class="book-hero__info">
         <UiChip label="Biblioteca" variant="outline" />
         <h1 class="book-title">{{ book?.title || 'A carregar...' }}</h1>
-        <p class="book-publisher">{{ (book as any)?.editora?.nome_editora || 'Sem editora' }}</p>
+        <p class="book-publisher">{{ book?.editora?.nome_editora || 'Sem editora' }}</p>
         <p v-if="book?.description" class="book-desc">{{ book.description }}</p>
       </div>
       <div class="book-hero__cover">
-        <BookMockup
-          :cover-url="book?.cover_img ? getAssetUrl(book.cover_img) : null"
-          :title="book?.title ?? 'Livro'"
-          size="lg"
-          :badge="currentBadge ?? undefined"
-        />
+        <BookMockup :cover-url="book?.cover_img ? getAssetUrl(book.cover_img) : null" :title="book?.title ?? 'Livro'"
+          size="lg" :badge="currentBadge ?? undefined" />
       </div>
     </header>
 
-    <!-- GLOBAL STATS -->
-    <div v-if="approvedModules.length && !isLoading" class="stats-row">
-      <div class="stat-card">
-        <span class="stat-label">Total de exercícios</span>
-        <strong class="stat-value">{{ moduleSummary.total }}</strong>
+    <!-- BADGES -->
+    <section v-if="approvedModules.length && !isLoading" class="badge-roadmap">
+      <div class="roadmap-header">
+        <div class="roadmap-header__text">
+          <h2>Badges</h2>
+          <p class="roadmap-sub">
+            <template v-if="nextBadge && nextBadge.tier !== 'galaxy'">
+              Faltam {{ nextBadgeRemaining }} exercicio{{ nextBadgeRemaining === 1 ? '' : 's' }} para o badge {{
+                nextBadge.label }}.
+            </template>
+            <template v-else-if="nextBadge && nextBadge.tier === 'galaxy'">
+              <span v-if="quizCompleted">Quiz final concluido. Badge Galaxy conquistado.</span>
+              <span v-else-if="quizUnlocked">Quiz final desbloqueado. Faz o quiz para ganhar o badge Galaxy.</span>
+              <span v-else>Conclui 100% dos exercicios para desbloquear o quiz final.</span>
+            </template>
+            <template v-else>
+              Sem exercicios para calcular progresso.
+            </template>
+          </p>
+        </div>
+        <div class="roadmap-meta">
+          <div class="roadmap-meta__numbers">
+            <span class="roadmap-pct">{{ overallPercent }}%</span>
+            <span class="roadmap-count">{{ moduleSummary.correct }}/{{ moduleSummary.total }} certas</span>
+          </div>
+          <button type="button" class="roadmap-info" aria-label="Informacoes sobre os badges"
+            @click="badgeInfoOpen = true">
+            <InformationCircleIcon class="info-icon" aria-hidden="true" />
+          </button>
+        </div>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">Feitos</span>
-        <strong class="stat-value">{{ moduleSummary.done }}</strong>
+
+      <div class="roadmap-steps">
+        <div v-for="step in badgeSteps" :key="step.id" class="roadmap-step" :class="{
+          achieved: isBadgeAchieved(step.tier),
+          unlocked: step.tier === 'galaxy' && quizUnlocked && !quizCompleted,
+          galaxy: step.tier === 'galaxy',
+        }">
+          <div class="roadmap-step__badge">
+            <div v-if="step.tier === 'default'" class="badge-default" aria-hidden="true">—</div>
+            <BookBadge v-else :tier="step.tier as BookBadgeTier" :size="badgeSizeForStep(step.tier)" />
+          </div>
+          <span class="roadmap-step__label">{{ step.label }}</span>
+          <span class="roadmap-step__threshold">
+            <template v-if="step.tier === 'galaxy'">Quiz final</template>
+            <template v-else>{{ step.threshold }}%</template>
+          </span>
+        </div>
       </div>
-      <div class="stat-card">
-        <span class="stat-label">Certos</span>
-        <strong class="stat-value">{{ moduleSummary.correct }}</strong>
+
+      <div class="roadmap-track">
+        <div class="roadmap-track__fill" :style="{ width: `${Math.min(overallPercent, 100)}%` }" />
+        <div class="roadmap-track__marker" :style="{ left: `${Math.min(overallPercent, 100)}%` }" />
       </div>
-      <div class="stat-card stat-card--accent">
-        <span class="stat-label">Faltam</span>
-        <strong class="stat-value">{{ moduleSummary.remaining }}</strong>
-      </div>
-    </div>
+    </section>
 
     <!-- MODULES -->
     <section class="modules-section">
@@ -177,12 +330,8 @@ watch(
       <p v-else-if="error" class="state-msg error">{{ error }}</p>
 
       <div v-else-if="approvedModules.length" class="module-list">
-        <article
-          v-for="moduleItem in approvedModules"
-          :key="moduleItem.modules_id"
-          class="module-card"
-          :class="`module-card--${moduleStatus(moduleItem.modules_id)}`"
-        >
+        <article v-for="moduleItem in approvedModules" :key="moduleItem.modules_id" class="module-card"
+          :class="`module-card--${moduleStatus(moduleItem.modules_id)}`">
           <!-- Order badge -->
           <div class="order-badge" :class="`order-badge--${moduleStatus(moduleItem.modules_id)}`" aria-hidden="true">
             <CheckIcon v-if="moduleStatus(moduleItem.modules_id) === 'done'" class="badge-check" />
@@ -194,7 +343,8 @@ watch(
             <div class="module-body__title-row">
               <h3 class="module-title">{{ moduleItem.module_title || 'Sem título' }}</h3>
               <UiChip v-if="moduleStatus(moduleItem.modules_id) === 'done'" label="Completo" variant="filled" />
-              <UiChip v-else-if="moduleStatus(moduleItem.modules_id) === 'progress'" label="Em progresso" variant="soft" />
+              <UiChip v-else-if="moduleStatus(moduleItem.modules_id) === 'progress'" label="Em progresso"
+                variant="soft" />
             </div>
             <p v-if="moduleItem.additional_description" class="module-desc">
               {{ moduleItem.additional_description }}
@@ -204,22 +354,38 @@ watch(
                 <div class="prog-fill" :style="{ width: `${completionPercent(moduleItem.modules_id)}%` }" />
               </div>
               <span class="prog-label">
-                {{ moduleStats[moduleItem.modules_id]?.done ?? 0 }}&thinsp;/&thinsp;{{ moduleStats[moduleItem.modules_id]?.total ?? 0 }} exercícios
+                {{ moduleStats[moduleItem.modules_id]?.correct ?? 0 }}&thinsp;/&thinsp;{{
+                  moduleStats[moduleItem.modules_id]?.total ?? 0 }} exercícios
                 <span class="prog-pct">&nbsp;·&nbsp;{{ completionPercent(moduleItem.modules_id) }}%</span>
               </span>
+            </div>
+
+            <div class="module-stats">
+              <div class="module-stat">
+                <span>Total</span>
+                <strong>{{ moduleStats[moduleItem.modules_id]?.total ?? 0 }}</strong>
+              </div>
+              <div class="module-stat">
+                <span>Certas</span>
+                <strong>{{ moduleStats[moduleItem.modules_id]?.correct ?? 0 }}</strong>
+              </div>
+              <div class="module-stat">
+                <span>Erradas</span>
+                <strong>{{ moduleStats[moduleItem.modules_id]?.wrong ?? 0 }}</strong>
+              </div>
+              <div class="module-stat">
+                <span>Por fazer</span>
+                <strong>{{ moduleStats[moduleItem.modules_id]?.remaining ?? 0 }}</strong>
+              </div>
             </div>
           </div>
 
           <!-- Action -->
           <div class="module-action">
-            <RouterLink :to="`/book/${bookId}/module/${moduleItem.modules_id}`">
-              <UiButton
-                :variant="moduleStatus(moduleItem.modules_id) === 'done' ? 'outline' : 'primary'"
-                size="sm"
-              >
-                {{ ctaLabel(moduleItem.modules_id) }}
-              </UiButton>
-            </RouterLink>
+            <UiButton :variant="moduleStatus(moduleItem.modules_id) === 'done' ? 'outline' : 'primary'" size="sm"
+              @click="openModeModal(moduleItem.modules_id)">
+              {{ ctaLabel(moduleItem.modules_id) }}
+            </UiButton>
           </div>
         </article>
       </div>
@@ -233,16 +399,154 @@ watch(
       </div>
     </section>
 
+    <Teleport to="body">
+      <Transition name="overlay-fade">
+        <div v-if="modeModalOpen" class="mode-overlay" @click.self="closeModeModal">
+          <div class="mode-modal" role="dialog" aria-modal="true" aria-label="Escolher modo">
+            <header class="mode-modal__header">
+              <div class="mode-modal__text">
+                <p class="mode-modal__eyebrow">Exercicios do modulo</p>
+                <h2>Escolhe o modo</h2>
+                <p>So ganhas XP nos exercicios que ainda nao estao corretos.</p>
+              </div>
+            </header>
+
+            <div class="mode-stats">
+              <div class="mode-stat">
+                <span>Total</span>
+                <strong>{{ selectedModuleStats?.total ?? 0 }}</strong>
+              </div>
+              <div class="mode-stat">
+                <span>Certas</span>
+                <strong>{{ selectedModuleStats?.correct ?? 0 }}</strong>
+              </div>
+              <div class="mode-stat">
+                <span>Erradas</span>
+                <strong>{{ selectedModuleStats?.wrong ?? 0 }}</strong>
+              </div>
+              <div class="mode-stat">
+                <span>Por fazer</span>
+                <strong>{{ selectedModuleStats?.remaining ?? 0 }}</strong>
+              </div>
+            </div>
+
+            <div class="mode-grid">
+              <button type="button" class="mode-card"
+                :class="{ active: selectedMode === 'normal', disabled: !canStartMode('normal') }"
+                :disabled="!canStartMode('normal')" @click="selectedMode = 'normal'">
+                <div class="mode-card__top">
+                  <span class="mode-title">Normal</span>
+                  <span class="mode-count">{{ modeCounts.normal }}</span>
+                </div>
+                <p>Inclui exercicios novos e aqueles que erraste.</p>
+              </button>
+              <button type="button" class="mode-card"
+                :class="{ active: selectedMode === 'retry', disabled: !canStartMode('retry') }"
+                :disabled="!canStartMode('retry')" @click="selectedMode = 'retry'">
+                <div class="mode-card__top">
+                  <span class="mode-title">Repetir errados</span>
+                  <span class="mode-count">{{ modeCounts.retry }}</span>
+                </div>
+                <p>Foca-te apenas nos exercicios onde falhaste.</p>
+              </button>
+              <button type="button" class="mode-card"
+                :class="{ active: selectedMode === 'review', disabled: !canStartMode('review') }"
+                :disabled="!canStartMode('review')" @click="selectedMode = 'review'">
+                <div class="mode-card__top">
+                  <span class="mode-title">Rever</span>
+                  <span class="mode-count">{{ modeCounts.review }}</span>
+                </div>
+                <p>Rever tudo quando ja tens 100% corretos.</p>
+              </button>
+            </div>
+
+            <div class="mode-actions">
+              <UiButton variant="outline" @click="closeModeModal">Fechar</UiButton>
+              <UiButton variant="primary" :disabled="!canStartMode(selectedMode)" @click="startSelectedModule">
+                Começar
+              </UiButton>
+              
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="overlay-fade">
+        <div v-if="badgeInfoOpen" class="badge-modal-overlay" role="dialog" aria-modal="true"
+          aria-label="Informacoes sobre badges" @click.self="badgeInfoOpen = false">
+          <div class="badge-modal">
+            <header class="badge-modal__header">
+              <div>
+                <p class="badge-modal__eyebrow">Progresso do livro</p>
+                <h3>Badges e objetivos</h3>
+              </div>
+            </header>
+            <p class="badge-modal__lead">
+              Os badges representam a percentagem de exercicios respondidos corretamente. O Diamante so
+              aparece quando chegares aos 100%. O Galaxy exige 100% + quiz final.
+            </p>
+            <div class="badge-modal__list">
+              <div class="badge-modal__item">
+                <div class="badge-modal__badge badge-default">—</div>
+                <div class="badge-modal__text">
+                  <strong>Sem badge</strong>
+                  <span>0% ou nenhum exercicio concluido.</span>
+                </div>
+              </div>
+              <div class="badge-modal__item">
+                <BookBadge tier="bronze" size="xs" />
+                <div class="badge-modal__text">
+                  <strong>Bronze</strong>
+                  <span>25% de exercicios certos.</span>
+                </div>
+              </div>
+              <div class="badge-modal__item">
+                <BookBadge tier="silver" size="xs" />
+                <div class="badge-modal__text">
+                  <strong>Prata</strong>
+                  <span>50% de exercicios certos.</span>
+                </div>
+              </div>
+              <div class="badge-modal__item">
+                <BookBadge tier="gold" size="xs" />
+                <div class="badge-modal__text">
+                  <strong>Ouro</strong>
+                  <span>75% de exercicios certos.</span>
+                </div>
+              </div>
+              <div class="badge-modal__item">
+                <BookBadge tier="diamond" size="xs" />
+                <div class="badge-modal__text">
+                  <strong>Diamante</strong>
+                  <span>100% de exercicios certos.</span>
+                </div>
+              </div>
+              <div class="badge-modal__item">
+                <BookBadge tier="galaxy" size="xs" />
+                <div class="badge-modal__text">
+                  <strong>Galaxy</strong>
+                  <span>100% + quiz final com 75% de sucesso.</span>
+                </div>
+              </div>
+            </div>
+            <div class="badge-modal__footer">
+              <UiButton variant="primary" @click="badgeInfoOpen = false">Fechar</UiButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- FINAL QUIZ -->
     <section v-if="userBook && !isLoading" class="quiz-section">
       <div class="modules-header">
         <h2>Quiz Final</h2>
       </div>
 
-      <article
-        class="quiz-card"
-        :class="quizCompleted ? 'quiz-card--done' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'"
-      >
+      <article class="quiz-card"
+        :class="quizCompleted ? 'quiz-card--done' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'">
         <div class="quiz-card__icon">
           <TrophyIcon v-if="quizCompleted" class="quiz-icon" aria-hidden="true" />
           <SparklesIcon v-else-if="quizUnlocked" class="quiz-icon" aria-hidden="true" />
@@ -254,7 +558,7 @@ watch(
             <h3 class="quiz-card__title">
               {{ quizCompleted ? 'Quiz Completo' : quizUnlocked ? 'Quiz Disponível' : 'Quiz Bloqueado' }}
             </h3>
-            <BookBadge v-if="quizCompleted" tier="galaxy" size="sm" />
+            <BookBadge v-if="quizCompleted" tier="galaxy" size="xs" />
             <UiChip v-else-if="quizUnlocked" label="Desbloqueado" variant="filled" />
             <UiChip v-else label="Bloqueado" variant="outline" />
           </div>
@@ -263,7 +567,8 @@ watch(
               Conquistaste o badge Galaxy. O quiz foi concluído com sucesso.
             </template>
             <template v-else-if="quizUnlocked">
-              Completa 10 perguntas aleatórias de todos os módulos. Precisas de 75% de respostas certas para ganhar o badge Galaxy.
+              Completa 10 perguntas aleatórias de todos os módulos. Precisas de 75% de respostas certas para ganhar o
+              badge Galaxy.
             </template>
             <template v-else>
               Conclui 100% dos exercícios do livro para desbloquear o quiz final e ganhar o badge Galaxy.
@@ -338,40 +643,332 @@ watch(
   align-items: flex-end;
 }
 
-/* ── STATS ROW ──────────────────────────────────── */
-.stats-row {
+/* ── BADGE ROADMAP ──────────────────────────────── */
+.badge-roadmap {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-300);
-}
-
-.stat-card {
+  padding: var(--space-400);
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 14px;
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  padding: var(--space-300) var(--space-400);
+  border-radius: 20px;
+  box-shadow: 6px 6px 0 var(--color-shadow);
+}
+
+.roadmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-300);
+  flex-wrap: wrap;
+}
+
+.roadmap-header__text {
   display: grid;
-  gap: var(--space-050);
+  gap: var(--space-100);
 }
 
-.stat-card--accent {
-  background: var(--color-deep-100);
+.roadmap-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
 }
 
-.stat-label {
-  font-size: 11px;
+.roadmap-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-600);
+  max-width: 520px;
+}
+
+.roadmap-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+}
+
+.roadmap-meta__numbers {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.roadmap-pct {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-deep-700);
+}
+
+.roadmap-count {
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 600;
+}
+
+.roadmap-info {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.roadmap-info:hover {
+  transform: translateY(-1px);
+}
+
+.info-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-mirage-700);
+}
+
+.roadmap-track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-300);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.roadmap-track__fill {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-400));
+  transition: width 0.8s ease;
+}
+
+.roadmap-track__marker {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  transform: translate(-50%, -50%);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.roadmap-steps {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-200);
+  align-items: start;
+}
+
+.roadmap-step {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.roadmap-step.achieved {
+  opacity: 1;
+}
+
+.roadmap-step.unlocked {
+  opacity: 0.9;
+}
+
+.roadmap-step__badge {
+  display: grid;
+  place-items: center;
+  height: 48px;
+}
+
+.badge-default {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px dashed var(--color-mirage-500);
+  color: var(--color-mirage-600);
+  display: grid;
+  place-items: center;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+}
+
+.roadmap-step.achieved .badge-default {
+  width: 34px;
+  height: 34px;
+}
+
+.roadmap-step__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mirage-700);
+}
+
+.roadmap-step__threshold {
+  font-size: 11px;
   color: var(--color-mirage-500);
 }
 
-.stat-value {
-  font-size: 28px;
+/* ── MODE MODAL ────────────────────────────────── */
+.mode-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(20, 26, 33, 0.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 32px);
+}
+
+.mode-modal {
+  width: min(900px, 100%);
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  padding: 28px;
+  display: grid;
+  gap: var(--space-300);
+}
+
+.mode-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-300);
+  align-items: flex-start;
+}
+
+.mode-modal__text {
+  display: grid;
+  gap: 6px;
+}
+
+.mode-modal__eyebrow {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-deep-600);
+  font-weight: 800;
+}
+
+.mode-modal__header h2 {
+  margin: 0;
+  font-size: 22px;
   font-weight: 800;
   color: var(--color-mirage-800);
-  line-height: 1;
+}
+
+.mode-modal__header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-600);
+}
+
+.mode-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-200);
+}
+
+.mode-stat {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.mode-stat span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+  font-weight: 700;
+}
+
+.mode-stat strong {
+  font-size: 18px;
+  color: var(--color-mirage-800);
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-300);
+}
+
+.mode-card {
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  text-align: left;
+  display: grid;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mode-card:hover {
+  transform: translateY(-2px);
+}
+
+.mode-card.active {
+  background: var(--color-deep-100);
+}
+
+.mode-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mode-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mode-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+}
+
+.mode-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-600);
+}
+
+.mode-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-mirage-600);
+  line-height: 1.4;
+}
+
+.mode-actions {
+  display: flex;
+  gap: var(--space-300);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: var(--space-600);
 }
 
 /* ── MODULES SECTION ────────────────────────────── */
@@ -445,9 +1042,17 @@ watch(
   place-items: center;
 }
 
-.order-badge--fresh   { background: var(--color-mirage-800); }
-.order-badge--progress { background: var(--color-deep-600); }
-.order-badge--done    { background: var(--color-deep-500); }
+.order-badge--fresh {
+  background: var(--color-deep-600);
+}
+
+.order-badge--progress {
+  background: var(--color-deep-600);
+}
+
+.order-badge--done {
+  background: var(--color-deep-500);
+}
 
 .badge-num {
   font-size: 28px;
@@ -496,6 +1101,37 @@ watch(
 .module-progress {
   display: grid;
   gap: 6px;
+}
+
+.module-stats {
+  margin-top: var(--space-200);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-200);
+}
+
+.module-stat {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.module-stat span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+  font-weight: 700;
+}
+
+.module-stat strong {
+  font-size: 16px;
+  color: var(--color-mirage-800);
 }
 
 .prog-track {
@@ -623,8 +1259,13 @@ watch(
   background: var(--color-mirage-800);
 }
 
-.quiz-card--done .quiz-card__icon { background: var(--color-deep-500); }
-.quiz-card--ready .quiz-card__icon { background: var(--color-amber-500); }
+.quiz-card--done .quiz-card__icon {
+  background: var(--color-deep-500);
+}
+
+.quiz-card--ready .quiz-card__icon {
+  background: var(--color-amber-500);
+}
 
 .quiz-icon {
   width: 36px;
@@ -664,6 +1305,117 @@ watch(
   place-items: center;
 }
 
+/* ── BADGE MODAL ────────────────────────────────── */
+.badge-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(20, 26, 33, 0.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 32px);
+}
+
+.badge-modal {
+  width: min(620px, 100%);
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  padding: 28px;
+  display: grid;
+  gap: var(--space-300);
+}
+
+.badge-modal__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-200);
+  align-items: flex-start;
+}
+
+.badge-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-deep-600);
+  font-weight: 800;
+}
+
+.badge-modal__header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.badge-modal__close {
+  flex-shrink: 0;
+}
+
+.badge-modal__lead {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-600);
+  line-height: 1.6;
+}
+
+.badge-modal__list {
+  display: grid;
+  gap: var(--space-200);
+}
+
+.badge-modal__item {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--space-200);
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.badge-modal__badge {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.badge-modal__badge .badge-default {
+  width: 32px;
+  height: 32px;
+}
+
+.badge-modal__close .close-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.badge-modal__text {
+  display: grid;
+  gap: 2px;
+}
+
+.badge-modal__text strong {
+  font-size: 14px;
+  color: var(--color-mirage-800);
+}
+
+.badge-modal__text span {
+  font-size: 12px;
+  color: var(--color-mirage-600);
+}
+
+.badge-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ── RESPONSIVE ─────────────────────────────────── */
 @media (max-width: 900px) {
   .book-hero {
@@ -674,8 +1426,8 @@ watch(
     display: none;
   }
 
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
+  .roadmap-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -699,8 +1451,14 @@ watch(
     place-items: start;
   }
 
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
+  .roadmap-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .roadmap-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

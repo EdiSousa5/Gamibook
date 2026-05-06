@@ -1,23 +1,43 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import UiButton from '@/components/ui/UiButton.vue'
-import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import BookMockup from '@/components/ui/BookMockup.vue'
+import BookShelf from '@/components/ui/BookShelf.vue'
+import BookBadge from '@/components/ui/BookBadge.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import heroUrl from '@/assets/images/person_and_books.png'
-import { BookOpenIcon, FireIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
 import {
-  fetchUserBooks,
-} from '../services/books'
-import { fetchUserById, getUserAvatarId, getUserDisplayName } from '../services/auth'
+  FireIcon,
+  BookOpenIcon,
+  TrophyIcon,
+  PencilSquareIcon,
+  CheckCircleIcon,
+  QuestionMarkCircleIcon,
+  SparklesIcon,
+} from '@heroicons/vue/24/outline'
+import { fetchUserBooks, fetchModule } from '../services/books'
+import { fetchUsers, getUserDisplayName } from '../services/auth'
 import { getAssetUrl } from '../services/client'
-import { getLevelProgressFromPoints } from '../utils/gamification'
-import { fetchLatestUserDailyExercise, fetchDailyExercisesForBooks } from '../services/exercises'
-import type { Book, DailyExercise, User, UserBook } from '@/types'
+import {
+  fetchLatestUserDailyExercise,
+  fetchDailyExercisesForBooks,
+  fetchLatestUserExercise,
+  fetchUserExercisePoints,
+} from '../services/exercises'
+import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
+import type { Book, DailyExercise, UserBook } from '@/types'
 
-const user = ref<User | null>(null)
-const error = ref('')
+const auth = useAuthStore()
+const { user, avatarUrl, progress } = storeToRefs(auth)
+const toast = useToast()
+
 const userBooks = ref<UserBook[]>([])
-const pointsByExercise = 10
+const isLoadingProfile = ref(true)
+const userRank = ref<number | null>(null)
 
 type DailyStatus = 'loading' | 'ready' | 'cooldown' | 'no-exercises'
 const dailyStatus = ref<DailyStatus>('loading')
@@ -25,21 +45,50 @@ const dailyCooldownSeconds = ref(0)
 const dailyLastQuestion = ref('')
 let dailyTimer: number | null = null
 
-const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
-
-const userBooksList = computed(() =>
-  userBooks.value.map((entry) => entry.book_id).filter((book): book is Book => !!book),
-)
-
-const recentBook = computed(() => userBooksList.value.length > 0 ? userBooksList.value[0] : null)
-
-const booksObtained = computed(() => userBooksList.value.length)
-const answeredQuestions = computed(() => Math.max(0, Math.floor((user.value?.points ?? 0) / pointsByExercise)))
-const levelProgress = computed(() => getLevelProgressFromPoints(user.value?.points ?? 0))
-
-const avatar = computed(() => getAssetUrl(getUserAvatarId(user.value)))
+// ── Computed ──────────────────────────────────────────────────
+const recentUserBook = ref<UserBook | null>(null)
+const recentBook = computed(() => (recentUserBook.value?.book_id as Book) ?? null)
+const recentBookId = computed(() => (recentBook.value as any)?.book_id ?? null)
+const recentBadge = computed<BookBadgeTier | undefined>(() => {
+  const b = recentUserBook.value?.current_badge
+  return b && b !== 'default' ? (b as BookBadgeTier) : undefined
+})
 
 const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
+const booksObtained = computed(() => userBooks.value.length)
+
+const avatar = computed(() =>
+  avatarUrl.value || getAssetUrl(user.value?.avatar ?? user.value?.avatar_img ?? ''),
+)
+
+const progressPct = computed(() =>
+  progress.value.nextLevelXp
+    ? Math.min(100, Math.round((progress.value.progress / progress.value.nextLevelXp) * 100))
+    : 0,
+)
+
+const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'galaxy']
+const TIER_LABELS: Record<BookBadgeTier, string> = {
+  bronze: 'Bronze', silver: 'Prata', gold: 'Ouro', diamond: 'Diamante', galaxy: 'Galáxia',
+}
+const TIER_DESCS: Record<BookBadgeTier, string> = {
+  bronze: 'Acerta ≥ 25% dos exercícios',
+  silver: 'Acerta ≥ 50% dos exercícios',
+  gold: 'Acerta ≥ 75% dos exercícios',
+  diamond: 'Acerta 100% dos exercícios',
+  galaxy: 'Completa o Quiz Final',
+}
+
+const badgeCounts = computed(() => {
+  const counts: Record<BookBadgeTier, number> = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
+  for (const ub of userBooks.value) {
+    const b = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (b && b !== 'default' && b in counts) counts[b]++
+  }
+  return counts
+})
+
+const totalBadges = computed(() => Object.values(badgeCounts.value).reduce((s, v) => s + v, 0))
 
 const formatDailyCooldown = computed(() => {
   const h = Math.floor(dailyCooldownSeconds.value / 3600)
@@ -48,6 +97,19 @@ const formatDailyCooldown = computed(() => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
+const resolveUserId = (value: unknown) => {
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    return String((value as { id?: string | number }).id ?? '')
+  }
+  if (value && typeof value === 'object' && 'user_id' in value) {
+    return String((value as { user_id?: string | number }).user_id ?? '')
+  }
+  return null
+}
+
+// ── Methods ───────────────────────────────────────────────────
 const startDailyCooldownTimer = (lastDate: string) => {
   const nextTime = new Date(lastDate).getTime() + 24 * 60 * 60 * 1000
   const update = () => {
@@ -62,37 +124,27 @@ const startDailyCooldownTimer = (lastDate: string) => {
   dailyTimer = window.setInterval(update, 1000)
 }
 
-const loadDailyExerciseStatus = async (userId: string, books: UserBook[]) => {
+const loadDailyStatus = async (userId: string, books: UserBook[]) => {
   try {
-    const latestRecord = await fetchLatestUserDailyExercise(userId)
-
-    if (latestRecord?.date_created) {
-      const elapsed = Date.now() - new Date(latestRecord.date_created).getTime()
+    const latest = await fetchLatestUserDailyExercise(userId)
+    if (latest?.date_created) {
+      const elapsed = Date.now() - new Date(latest.date_created).getTime()
       if (elapsed < 24 * 60 * 60 * 1000) {
-        const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
-        if (lastEx?.content) {
+        const ex = latest.daily_exercise_id as DailyExercise | null
+        if (ex?.content) {
           dailyLastQuestion.value = String(
-            lastEx.content.pergunta ?? lastEx.content.question ?? lastEx.content.enunciado ?? '',
+            ex.content.pergunta ?? ex.content.question ?? ex.content.enunciado ?? '',
           )
         }
-        startDailyCooldownTimer(latestRecord.date_created)
+        startDailyCooldownTimer(latest.date_created)
         dailyStatus.value = 'cooldown'
         return
       }
     }
-
     const bookIds = books
-      .map((ub) => {
-        const book = ub.book_id
-        return typeof book === 'object' ? book?.book_id : undefined
-      })
+      .map((ub) => { const b = ub.book_id; return typeof b === 'object' ? b?.book_id : undefined })
       .filter((id): id is number => typeof id === 'number')
-
-    if (!bookIds.length) {
-      dailyStatus.value = 'no-exercises'
-      return
-    }
-
+    if (!bookIds.length) { dailyStatus.value = 'no-exercises'; return }
     const exercises = await fetchDailyExercisesForBooks(bookIds)
     dailyStatus.value = exercises.length ? 'ready' : 'no-exercises'
   } catch {
@@ -100,39 +152,70 @@ const loadDailyExerciseStatus = async (userId: string, books: UserBook[]) => {
   }
 }
 
-const loadUserBooks = async (userId: string) => {
-  if (!userId) return
+const loadUserRank = async (userId: string) => {
   try {
-    userBooks.value = await fetchUserBooks(userId)
+    const [users, exercises] = await Promise.all([
+      fetchUsers(100, 'Utilizador'),
+      fetchUserExercisePoints(),
+    ])
+
+    const pointsMap = new Map<string, number>()
+    for (const entry of exercises) {
+      const id = resolveUserId(entry.user_id)
+      if (!id) continue
+      const points = Number(entry.points_earned ?? 0)
+      if (!Number.isFinite(points)) continue
+      pointsMap.set(id, (pointsMap.get(id) ?? 0) + points)
+    }
+
+    const sorted = users
+      .map((u) => ({
+        id: String(u.id ?? ''),
+        totalPoints: pointsMap.get(String(u.id ?? '')) ?? 0,
+      }))
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+
+    const idx = sorted.findIndex((u) => u.id === userId)
+    userRank.value = idx >= 0 ? idx + 1 : null
   } catch {
-    error.value = 'Nao foi possivel carregar os livros do utilizador.'
+    userRank.value = null
   }
 }
 
-const loadProfile = async () => {
-  const storedId = localStorage.getItem('gb_user_id')
-  if (!storedId) {
-    user.value = null
-    return
-  }
-
-  error.value = ''
+const loadRecentBook = async (userId: string) => {
   try {
-    const me = await fetchUserById(storedId)
-    user.value = me
-    await loadUserBooks(me.id ? String(me.id) : '')
-    await loadDailyExerciseStatus(String(me.id), userBooks.value)
-  } catch {
-    error.value = 'Nao foi possivel carregar o perfil.'
-  }
+    const latestEx = await fetchLatestUserExercise(userId).catch(() => null)
+    if (latestEx?.module_id) {
+      const modData = await fetchModule(latestEx.module_id).catch(() => null)
+      if (modData?.id_book) {
+        const ub = userBooks.value.find(b => (b.book_id as any)?.book_id === modData.id_book)
+        if (ub) {
+          recentUserBook.value = ub
+          return
+        }
+      }
+    }
+  } catch (err) { }
+  recentUserBook.value = userBooks.value[0] ?? null
 }
 
 onMounted(async () => {
-  error.value = ''
+  isLoadingProfile.value = true
   try {
-    await loadProfile()
+    if (!auth.user) await auth.loadUser()
+    const userId = user.value?.id ? String(user.value.id) : null
+    if (!userId) return
+    const [books] = await Promise.all([
+      fetchUserBooks(userId).catch(() => [] as UserBook[]),
+      loadUserRank(userId),
+    ])
+    userBooks.value = books
+    await loadRecentBook(userId)
+    await loadDailyStatus(userId, books)
   } catch {
-    error.value = 'Nao foi possivel carregar os dados do dashboard.'
+    toast.error('Não foi possível carregar o dashboard.')
+  } finally {
+    isLoadingProfile.value = false
   }
 })
 
@@ -143,12 +226,14 @@ onUnmounted(() => {
 
 <template>
   <section class="dashboard">
+
+    <!-- ── HERO ───────────────────────────────────────────── -->
     <header class="hero">
       <div class="hero-copy">
         <h1>Aprende para além das páginas do livro.</h1>
         <p class="subtitle">
-          Explora conteúdos, desbloqueia módulos e pratica com exercícios gamificados pensados para reforçar a tua
-          aprendizagem.
+          Explora conteúdos, desbloqueia módulos e pratica com exercícios gamificados
+          pensados para reforçar a tua aprendizagem.
         </p>
       </div>
       <div class="hero-visual">
@@ -156,147 +241,238 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <p v-if="error" class="error">{{ error }}</p>
-
-    <!-- Exercício Diário -->
-    <section class="panel daily-panel">
-      <div class="panel-header">
-        <div>
-          <h2>Exercício Diário</h2>
-          <p class="meta">Uma pergunta por dia para manter o teu streak!</p>
-        </div>
-        <div class="streak-info" :class="{ 'streak-active': dailyStreak >= 2 }">
-          <FireIcon class="icon" aria-hidden="true" />
-          <strong>{{ dailyStreak }}</strong>
-          <span>streak</span>
-        </div>
-      </div>
-
-      <p v-if="dailyStatus === 'loading'" class="daily-loading">A verificar...</p>
-
-      <div v-else-if="dailyStatus === 'no-exercises'" class="daily-empty">
-        <p>Ainda não há exercícios diários disponíveis para os teus livros.</p>
-      </div>
-
-      <div v-else-if="dailyStatus === 'cooldown'" class="daily-cooldown">
-        <div class="cooldown-block">
-          <span class="cooldown-label">Próximo exercício em</span>
-          <strong class="cooldown-value">{{ formatDailyCooldown }}</strong>
-        </div>
-        <div v-if="dailyLastQuestion" class="daily-last">
-          <p class="daily-last__label">Última pergunta</p>
-          <p class="daily-last__text">{{ dailyLastQuestion }}</p>
-        </div>
-      </div>
-
-      <div v-else-if="dailyStatus === 'ready'" class="daily-ready">
-        <p class="daily-ready__text">O teu exercício diário está disponível!</p>
-        <RouterLink to="/daily-exercise">
-          <UiButton variant="primary">Responder Agora</UiButton>
-        </RouterLink>
-      </div>
-    </section>
-
+    <!-- ── PROFILE CARD ───────────────────────────────────── -->
     <section class="profile-card">
       <div class="profile-left">
-        <div class="profile-avatar" :class="{ fallback: !avatar }">
-          <img v-if="avatar" :src="avatar" alt="Avatar" />
-          <span v-else>{{ displayUserName(user).charAt(0).toUpperCase() }}</span>
-        </div>
-        <div class="profile-info">
-          <div class="name-row">
-            <h2>{{ displayUserName(user) }}</h2>
-            <RouterLink to="/settings/conta" class="edit-link" aria-label="Editar">
-              <UiIconButton variant="outline">
-                <PencilSquareIcon class="icon" aria-hidden="true" />
-              </UiIconButton>
-            </RouterLink>
+        <template v-if="isLoadingProfile && !user">
+          <UiSkeleton width="150px" height="150px" radius="22px" />
+          <div class="profile-info">
+            <UiSkeleton height="28px" width="180px" radius="8px" />
+            <div class="profile-stats">
+              <UiSkeleton height="64px" radius="14px" />
+              <UiSkeleton height="64px" radius="14px" />
+              <UiSkeleton height="64px" radius="14px" />
+            </div>
+            <UiSkeleton height="10px" radius="999px" />
           </div>
-          <div class="profile-stats">
-            <div class="mini-stat">
-              <div class="mini-icon">
-                <FireIcon class="icon" aria-hidden="true" />
-              </div>
-              <div class="mini-text">
-                <strong>3</strong>
-                <span>Maior streak</span>
-              </div>
+        </template>
+
+        <template v-else>
+          <div class="profile-avatar-wrapper">
+            <div class="profile-avatar" :class="{ fallback: !avatar }">
+              <img v-if="avatar" :src="avatar" alt="Avatar" />
+              <span v-else>{{ getUserDisplayName(user).charAt(0).toUpperCase() }}</span>
             </div>
-            <div class="mini-stat">
-              <div class="mini-icon">
-                <BookOpenIcon class="icon" aria-hidden="true" />
-              </div>
-              <div class="mini-text">
-                <strong>{{ booksObtained }}</strong>
-                <span>Livros obtidos</span>
-              </div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-icon">
-                <QuestionMarkCircleIcon class="icon" aria-hidden="true" />
-              </div>
-              <div class="mini-text">
-                <strong>{{ answeredQuestions }}</strong>
-                <span>Perguntas respondidas</span>
-              </div>
+            <div v-if="userRank" class="profile-rank-badge">
+              #{{ userRank }}
             </div>
           </div>
-          <div class="profile-progress">
-            <div class="progress-info">
-              <span>Nivel {{ levelProgress.level }}</span>
-              <span>{{ levelProgress.progress }}/{{ levelProgress.nextLevelXp }} XP</span>
+          <div class="profile-info">
+            <div class="name-row">
+              <h2>{{ getUserDisplayName(user) }}</h2>
+              <RouterLink to="/settings/conta" aria-label="Editar perfil">
+                <UiIconButton variant="outline">
+                  <PencilSquareIcon class="icon" aria-hidden="true" />
+                </UiIconButton>
+              </RouterLink>
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill"
-                :style="{ width: `${Math.min(100, Math.round((levelProgress.progress / levelProgress.nextLevelXp) * 100))}%` }">
+            <div class="profile-stats">
+              <div class="mini-stat" :class="{ 'mini-stat--hot': dailyStreak >= 2 }">
+                <div class="mini-icon">
+                  <FireIcon class="icon" aria-hidden="true" />
+                </div>
+                <div class="mini-text">
+                  <strong>{{ dailyStreak }}</strong>
+                  <span>Streak atual</span>
+                </div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-icon">
+                  <BookOpenIcon class="icon" aria-hidden="true" />
+                </div>
+                <div class="mini-text">
+                  <strong>{{ booksObtained }}</strong>
+                  <span>Livros obtidos</span>
+                </div>
+              </div>
+              <div class="mini-stat">
+                <div class="mini-icon">
+                  <SparklesIcon class="icon" aria-hidden="true" />
+                </div>
+                <div class="mini-text">
+                  <strong>{{ totalBadges }}</strong>
+                  <span>Badges ganhos</span>
+                </div>
+              </div>
+            </div>
+            <div class="profile-progress">
+              <div class="progress-info">
+                <span>Nível {{ progress.level }}</span>
+                <span>{{ progress.progress }}/{{ progress.nextLevelXp }} XP</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{ width: `${progressPct}%` }" />
               </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
     </section>
 
-    <div class="layout">
-      <!-- Destaque: Continuar a Jogar -->
-      <section class="panel feature-panel">
-        <div class="panel-header">
+    <!-- ── DAILY + RESUME ─────────────────────────────────── -->
+    <div class="two-col">
+
+      <!-- DESAFIO DIÁRIO -->
+      <section class="daily-card" :class="`daily-card--${dailyStatus}`">
+        <div class="daily-top">
           <div>
-            <h2>Retomar Aprendizagem</h2>
-            <p class="meta">Continua a fazer os exercícios do teu último livro acedido.</p>
+            <h2 class="daily-heading">Desafio Diário</h2>
+            <p class="daily-sub-head">Uma pergunta por dia mantém o streak ativo!</p>
+          </div>
+          <div class="streak-pill" :class="{ 'streak-pill--hot': dailyStreak >= 2 }">
+            <FireIcon class="streak-pill-icon" aria-hidden="true" />
+            <strong>{{ dailyStreak }}</strong>
           </div>
         </div>
-        <div v-if="recentBook" class="featured-book">
-          <div class="book-cover">
-            <img v-if="recentBook.cover_img" :src="getAssetUrl(recentBook.cover_img)" alt="Capa" />
-            <span v-else>Livro</span>
-          </div>
-          <div class="book-info">
-            <p class="eyebrow">A ler atualmente</p>
-            <h3 class="title">{{ recentBook.title || 'Sem título' }}</h3>
-            <p class="meta">{{ (recentBook as any).editora?.nome_editora || 'Sem editora' }}</p>
-            <div class="book-action">
-              <RouterLink :to="`/book/${(recentBook as any).book_id}`">
-                <UiButton variant="primary">Fazer Exercícios</UiButton>
-              </RouterLink>
+
+        <div v-if="dailyStatus === 'loading'" class="daily-body">
+          <UiSkeleton height="72px" radius="14px" />
+          <UiSkeleton height="48px" width="160px" radius="12px" />
+        </div>
+
+        <div v-else-if="dailyStatus === 'ready'" class="daily-body">
+          <div class="daily-available">
+            <div class="daily-icon-wrap" aria-hidden="true">
+              <QuestionMarkCircleIcon class="daily-icon" />
+            </div>
+            <div class="daily-available-text">
+              <p class="daily-available-title">Exercício disponível!</p>
+              <p class="daily-available-desc">Responde agora e mantém o teu streak ativo.</p>
             </div>
           </div>
-        </div>
-        <div v-else class="empty-state">
-          <div class="empty-icon-wrap">
-            <BookOpenIcon class="icon-lg" aria-hidden="true" />
-          </div>
-          <h3>Nenhum livro na coleção</h3>
-          <p class="empty-desc">Ainda não adicionaste nenhum livro. Explora o catálogo para começares a tua aventura!
-          </p>
-          <RouterLink to="/collection" class="mt-3 block">
-            <UiButton variant="primary">Explorar Catálogo</UiButton>
+          <RouterLink to="/daily-exercise" class="daily-cta-link">
+            <UiButton variant="primary">Responder Agora</UiButton>
           </RouterLink>
+        </div>
+
+        <div v-else-if="dailyStatus === 'cooldown'" class="daily-body">
+          <div class="daily-done-row">
+            <CheckCircleIcon class="daily-done-icon" aria-hidden="true" />
+            <span class="daily-done-label">Concluído hoje!</span>
+          </div>
+          <div class="daily-timer-block">
+            <p class="timer-label">Próximo desafio em</p>
+            <strong class="timer-value">{{ formatDailyCooldown }}</strong>
+          </div>
+          <div v-if="dailyLastQuestion" class="daily-last">
+            <p class="dl-label">Última pergunta</p>
+            <p class="dl-text">{{ dailyLastQuestion }}</p>
+          </div>
+        </div>
+
+        <div v-else class="daily-body daily-empty">
+          <BookOpenIcon class="daily-empty-icon" aria-hidden="true" />
+          <p>Sem exercícios diários disponíveis para os teus livros.</p>
         </div>
       </section>
 
+      <!-- RETOMAR APRENDIZAGEM -->
+      <section class="resume-card">
+        <h2 class="resume-heading">Retomar Aprendizagem</h2>
+
+        <div v-if="isLoadingProfile && !recentBook" class="resume-skeleton">
+          <UiSkeleton width="100px" height="145px" radius="6px" />
+          <div class="resume-skeleton-info">
+            <UiSkeleton height="12px" width="80px" radius="4px" />
+            <UiSkeleton height="22px" width="160px" radius="6px" />
+            <UiSkeleton height="12px" width="100px" radius="4px" />
+            <UiSkeleton height="40px" width="130px" radius="10px" />
+          </div>
+        </div>
+
+        <div v-else-if="recentBook" class="resume-body">
+          <RouterLink v-if="recentBookId" :to="`/book/${recentBookId}`" class="resume-book-link">
+            <BookMockup :cover-url="recentBook.cover_img ? getAssetUrl(recentBook.cover_img) : null"
+              :title="recentBook.title ?? 'Livro'" size="sm" :badge="recentBadge" />
+          </RouterLink>
+          <div class="resume-info">
+            <h3 class="resume-title">{{ recentBook.title || 'Sem título' }}</h3>
+            <p v-if="recentBook?.editora?.nome_editora" class="resume-publisher">
+              {{ recentBook.editora.nome_editora }}
+            </p>
+            <RouterLink v-if="recentBookId" :to="`/book/${recentBookId}`">
+              <UiButton variant="primary" size="sm">Ir para o Livro</UiButton>
+            </RouterLink>
+          </div>
+        </div>
+
+        <div v-else class="resume-empty">
+          <div class="resume-empty-icon-wrap">
+            <BookOpenIcon class="resume-empty-icon" aria-hidden="true" />
+          </div>
+          <h3>Nenhum livro ainda</h3>
+          <p>Adiciona um livro ao catálogo para começares.</p>
+          <RouterLink to="/collection">
+            <UiButton variant="outline" size="sm">Explorar Catálogo</UiButton>
+          </RouterLink>
+        </div>
+      </section>
     </div>
+
+    <!-- ── BADGES COLLECTION ──────────────────────────────── -->
+    <section v-if="!isLoadingProfile && booksObtained > 0" class="badges-card">
+      <div class="badges-header">
+        <h2>Os Meus Badges</h2>
+        <span class="badges-total-pill">
+          <SparklesIcon class="badges-pill-icon" aria-hidden="true" />
+          {{ totalBadges }} ganhos
+        </span>
+      </div>
+      <div class="badges-list">
+        <div v-for="tier in BADGE_TIERS" :key="tier" class="badge-row"
+          :class="badgeCounts[tier] > 0 ? 'badge-row--earned' : 'badge-row--pending'">
+          <BookBadge :tier="tier" size="sm" />
+          <div class="badge-row-info">
+            <span class="badge-row-name">{{ TIER_LABELS[tier] }}</span>
+            <span class="badge-row-desc">{{ TIER_DESCS[tier] }}</span>
+          </div>
+          <div class="badge-row-count">
+            <strong class="count-num">{{ badgeCounts[tier] }}</strong>
+            <span class="count-label">{{ badgeCounts[tier] === 1 ? 'livro' : 'livros' }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </section>
 </template>
+
+<style>
+/* CUSTOM SCROLLBAR GLOBAL DO SITE */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-wild-200, #f1f5f9);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-mirage-400, #94a3b8);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mirage-500, #64748b);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-mirage-400, #94a3b8) var(--color-wild-200, #f1f5f9);
+}
+</style>
 
 <style scoped>
 .dashboard {
@@ -304,6 +480,7 @@ onUnmounted(() => {
   gap: var(--space-600);
 }
 
+/* ── HERO ───────────────────────────────────────────────── */
 .hero {
   background: var(--color-wild-100);
   border-radius: var(--radius-400);
@@ -321,21 +498,57 @@ onUnmounted(() => {
   gap: var(--space-200);
 }
 
+.hero-copy h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--color-mirage-800);
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-600);
+  line-height: 1.6;
+}
+
 .hero-visual {
   display: grid;
   place-items: center;
-  padding: var(--space-300);
-  background: var(--color-wild-100);
 }
 
 .hero-visual img {
-  width: min(280px, 100%);
+  width: min(260px, 100%);
   height: auto;
 }
 
-.profile-avatar {
+/* ── PROFILE CARD ───────────────────────────────────────── */
+.profile-card {
+  background: var(--color-wild-100);
+  border-radius: var(--radius-400);
+  padding: var(--space-500);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.profile-left {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-400);
+  align-items: center;
+}
+
+.profile-avatar-wrapper {
+  position: relative;
   width: 150px;
   height: 150px;
+  flex-shrink: 0;
+}
+
+.profile-avatar {
+  width: 100%;
+  height: 100%;
   border-radius: 22px;
   overflow: hidden;
   background: var(--color-deep-600);
@@ -354,20 +567,20 @@ onUnmounted(() => {
   object-fit: cover;
 }
 
-
-.profile-card {
-  background: var(--color-wild-100);
-  border-radius: var(--radius-400);
-  padding: var(--space-500);
+.profile-rank-badge {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-deep-500);
+  color: #fff;
+  padding: 4px 16px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 15px;
   border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.profile-left {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-400);
-  align-items: center;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  z-index: 10;
 }
 
 .profile-info {
@@ -384,11 +597,12 @@ onUnmounted(() => {
 .name-row h2 {
   margin: 0;
   font-size: 22px;
+  font-weight: 800;
 }
 
 .profile-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-200);
 }
 
@@ -396,11 +610,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-300);
-  align-items: center;
   padding: var(--space-200) var(--space-300);
   border-radius: 14px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  transition: background 0.2s ease;
+}
+
+.mini-stat--hot {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
 }
 
 .mini-icon {
@@ -408,418 +628,643 @@ onUnmounted(() => {
   height: 44px;
   border-radius: 12px;
   border: 2px solid var(--color-mirage-800);
-  background: #fff;
+  background: var(--color-wild-200);
   display: grid;
   place-items: center;
-  box-shadow: 3px 3px 0 var(--color-shadow);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  flex-shrink: 0;
+}
+
+.mini-stat--hot .mini-icon {
+  background: var(--color-deep-500);
+  border-color: var(--color-deep-600);
+}
+
+.mini-stat--hot .icon {
+  color: #fff;
 }
 
 .mini-text {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .mini-stat strong {
   display: block;
   font-size: 20px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  line-height: 1;
 }
 
 .mini-stat span {
   display: block;
-  font-size: 14px;
-  color: var(--color-mirage-600);
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 600;
 }
 
 .profile-progress {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .progress-info {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-mirage-600);
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .progress-bar {
-  height: 10px;
+  height: 12px;
   border-radius: 999px;
   overflow: hidden;
   border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
+  background: var(--color-wild-300);
+  box-shadow: 2px 2px 0 var(--color-shadow);
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-500));
-}
-
-.layout {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-400);
-}
-
-.panel {
-  background: var(--color-wild-100);
-  border-radius: var(--radius-400);
-  padding: var(--space-500);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  display: grid;
-  gap: var(--space-300);
-}
-
-.panel-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-200);
-}
-
-.panel-header .meta {
-  color: var(--color-mirage-500);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.panel-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--space-200);
-  font-size: 12px;
-  color: var(--color-mirage-600);
-}
-
-/* Destaque Livro */
-.featured-book {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: var(--space-400);
-  padding: var(--space-400);
-  border-radius: 12px;
-  background: var(--color-wild-200);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.book-cover {
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--color-wild-300);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 3px 3px 0 rgba(2, 29, 32, 0.15);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: var(--color-mirage-600);
-}
-
-.book-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--color-mirage-500);
-  margin-bottom: 4px;
-}
-
-.book-info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.book-info h3 {
-  margin: 0;
-  font-size: 20px;
-  color: var(--color-mirage-900);
-}
-
-.book-action {
-  margin-top: var(--space-200);
-}
-
-/* Empty State Livro */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: var(--space-500) 0;
-  gap: var(--space-200);
-}
-
-.empty-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--color-wild-200);
-  display: grid;
-  place-items: center;
-  margin-bottom: var(--space-200);
-}
-
-.empty-state h3 {
-  margin: 0;
-  font-size: 18px;
-  color: var(--color-mirage-900);
-}
-
-.empty-desc {
-  margin: 0;
-  color: var(--color-mirage-600);
-  max-width: 400px;
-}
-
-/* Grelha de Atalhos (Explorar) */
-.explore-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-400);
-}
-
-.explore-link {
-  text-decoration: none;
-  color: inherit;
-}
-
-.explore-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-300);
-  height: 100%;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;
-}
-
-.explore-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 8px 8px 0 var(--color-shadow);
-}
-
-.explore-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-}
-
-.explore-text h3 {
-  margin: 0 0 6px 0;
-  font-size: 16px;
-}
-
-.explore-text p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-mirage-600);
-}
-
-.mt-3 {
-  margin-top: 12px;
-}
-
-.error {
-  color: #b13b3b;
-  font-weight: 600;
-}
-
-/* Utilitários de Cor */
-.bg-pumpkin {
-  background: var(--color-pumpkin-500);
-}
-
-.bg-blue {
-  background: #3b82f6;
-}
-
-.bg-green {
-  background: #10b981;
-}
-
-.text-white {
-  color: #ffffff !important;
-}
-
-.edit-link {
-  text-decoration: none;
-}
-
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-left {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 600px) {
-  .featured-book {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .book-cover {
-    width: 140px;
-    margin: 0 auto;
-  }
-
-  .book-action {
-    align-self: center;
-  }
+  border-radius: inherit;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .icon {
   width: 18px;
   height: 18px;
-  color: var(--color-mirage-800);
-  stroke-width: var(--icon-stroke);
+  stroke-width: 1.8;
 }
 
-.icon-lg {
-  width: 28px;
-  height: 28px;
-  color: var(--color-mirage-500);
+/* ── TWO COLUMN ─────────────────────────────────────────── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-400);
+  align-items: stretch;
 }
 
-/* Daily Exercise Panel */
-
-.streak-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
+/* ── DAILY CARD ─────────────────────────────────────────── */
+.daily-card {
   background: var(--color-wild-100);
-  box-shadow: 3px 3px 0 var(--color-shadow);
-  font-weight: 700;
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  padding: var(--space-500);
+  display: grid;
+  gap: var(--space-400);
+  align-content: start;
 }
 
-.streak-info strong {
-  font-size: 18px;
+.daily-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-200);
+}
+
+.daily-heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--color-mirage-800);
 }
 
-.streak-info span {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-mirage-600);
-}
-
-.streak-active {
-  background: var(--color-teal-200);
-}
-
-.daily-loading {
+.daily-sub-head {
+  margin: 4px 0 0;
+  font-size: 12px;
   color: var(--color-mirage-500);
-  font-size: 13px;
   font-weight: 600;
 }
 
-.daily-empty p {
-  margin: 0;
-  color: var(--color-mirage-500);
-  font-size: 14px;
+.streak-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-deep-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-weight: 800;
+  font-size: 15px;
+  flex-shrink: 0;
+  color: var(--color-deep-700);
 }
 
-.daily-cooldown {
+.streak-pill--hot {
+  background: var(--color-deep-200);
+  border-color: var(--color-deep-600);
+}
+
+.streak-pill-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-deep-600);
+}
+
+.daily-body {
   display: grid;
   gap: var(--space-300);
 }
 
-.cooldown-block {
-  display: grid;
-  gap: 4px;
+/* Ready state */
+.daily-available {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  padding: var(--space-300) var(--space-400);
+  border-radius: 14px;
+  border: 2px solid var(--color-deep-600);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-.cooldown-label {
-  font-size: 11px;
+.daily-icon-wrap {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--color-deep-600);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.daily-icon {
+  width: 28px;
+  height: 28px;
+  color: #fff;
+  stroke-width: 1.5;
+}
+
+.daily-available-text {
+  display: grid;
+  gap: 3px;
+}
+
+.daily-available-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.daily-available-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-600);
+}
+
+.daily-cta-link {
+  width: fit-content;
+}
+
+/* Cooldown state */
+.daily-done-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  padding: var(--space-200) var(--space-300);
+  border-radius: 10px;
+  background: var(--color-deep-100);
+  border: 2px solid var(--color-deep-600);
+  width: fit-content;
+}
+
+.daily-done-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-deep-700);
+}
+
+.daily-done-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-deep-700);
+}
+
+.daily-timer-block {
+  display: grid;
+  gap: 4px;
+  padding: var(--space-300) var(--space-400);
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.timer-label {
+  margin: 0;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--color-mirage-500);
 }
 
-.cooldown-value {
-  font-size: 32px;
+.timer-value {
+  font-size: 38px;
+  font-weight: 900;
   color: var(--color-mirage-800);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .daily-last {
   padding: var(--space-300);
   border-radius: 12px;
-  background: var(--color-wild-200);
   border: 2px solid var(--color-mirage-800);
-  display: grid;
-  gap: 8px;
+  background: var(--color-wild-300);
 }
 
-.daily-last__label {
-  margin: 0;
-  font-size: 11px;
+.dl-label {
+  margin: 0 0 4px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--color-mirage-500);
 }
 
-.daily-last__text {
+.dl-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-mirage-700);
+  line-height: 1.5;
+}
+
+.daily-empty {
+  place-items: center;
+  text-align: center;
+  padding: var(--space-400);
+}
+
+.daily-empty-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--color-mirage-300);
+  margin-bottom: var(--space-200);
+}
+
+.daily-empty p {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--color-mirage-800);
+  color: var(--color-mirage-500);
 }
 
-.daily-result-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
+/* ── RESUME CARD ────────────────────────────────────────── */
+.resume-card {
+  background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  padding: var(--space-500);
+  display: grid;
+  gap: var(--space-300);
+  align-content: start;
 }
 
-.daily-result-badge.correct {
-  background: var(--color-deep-100);
+.resume-heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--color-mirage-800);
 }
 
-.daily-result-badge.wrong {
-  background: #f7c4c4;
-  color: #7a1f1f;
-  border-color: #b13b3b;
+.resume-sub-head {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 600;
 }
 
-.daily-ready {
+.resume-skeleton {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-300);
+}
+
+.resume-skeleton-info {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding-top: 4px;
+}
+
+.resume-body {
   display: flex;
   align-items: center;
-  gap: var(--space-300);
-  flex-wrap: wrap;
+  gap: var(--space-400);
+  background: var(--color-wild-200);
+  padding: var(--space-400);
+  border-radius: 16px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  margin-top: var(--space-200);
 }
 
-.daily-ready__text {
+.resume-book-link {
+  flex-shrink: 0;
+}
+
+.resume-info {
+  display: grid;
+  gap: var(--space-200);
+  align-content: start;
+  min-width: 0;
+}
+
+.eyebrow {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  background: var(--color-deep-600);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.resume-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
   color: var(--color-mirage-800);
+  line-height: 1.2;
+}
+
+.resume-publisher {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 600;
+}
+
+.resume-badge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+}
+
+.resume-badge-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mirage-600);
+}
+
+.resume-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--space-300);
+  padding: var(--space-400);
+  text-align: center;
+}
+
+.resume-empty-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-wild-200);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.resume-empty-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--color-mirage-400);
+}
+
+.resume-empty h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.resume-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+}
+
+/* ── BADGES CARD ────────────────────────────────────────── */
+.badges-card {
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  padding: var(--space-500);
+  display: grid;
+  gap: var(--space-400);
+}
+
+.badges-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+}
+
+.badges-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  flex: 1;
+}
+
+.badges-total-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mirage-600);
+}
+
+.badges-pill-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.badges-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-200);
+}
+
+.badge-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-200);
+  padding: var(--space-300) var(--space-200);
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  transition: transform 0.15s ease;
+  text-align: center;
+}
+
+.badge-row:hover {
+  transform: translateY(-3px);
+}
+
+.badge-row--earned {
+  background: var(--color-wild-100);
+}
+
+.badge-row--pending {
+  background: var(--color-wild-200);
+}
+
+.badge-row--pending :deep(.badge-face) {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.badge-row--pending :deep(.badge-shadow) {
+  opacity: 0.2;
+}
+
+.badge-row-info {
+  display: grid;
+  gap: 2px;
+}
+
+.badge-row-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.badge-row--pending .badge-row-name {
+  color: var(--color-mirage-500);
+}
+
+.badge-row-desc {
+  display: none;
+}
+
+.badge-row-count {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  min-width: auto;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.badge-row--earned .badge-row-count {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+}
+
+.count-num {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-mirage-800);
+  line-height: 1;
+}
+
+.count-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-mirage-500);
+}
+
+/* ── BOOKS CARD WITH SHELF ──────────────────────────────── */
+.books-card {
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  padding: var(--space-500) 0 var(--space-600) 0;
+  display: grid;
+  gap: var(--space-300);
+  overflow: hidden;
+}
+
+.books-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-200);
+  padding: 0 var(--space-500);
+}
+
+.books-card-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-visual {
+    display: none;
+  }
+
+  .profile-left {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .name-row {
+    justify-content: center;
+  }
+
+  .profile-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-value {
+    font-size: 28px;
+  }
+
+  .badges-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .badge-row {
+    padding: var(--space-200) var(--space-300);
+  }
 }
 </style>

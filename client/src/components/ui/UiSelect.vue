@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 
 type Option = { label: string; value: string | number }
 
@@ -63,14 +64,17 @@ onBeforeUnmount(() => {
     <span v-if="label" class="label">{{ label }}</span>
     <div class="select-wrap" :class="{ open: isOpen, disabled }">
       <button class="select-trigger" type="button" :disabled="disabled" :aria-expanded="isOpen" @click="toggleOpen">
-        <span>{{ selectedLabel }}</span>
+        <span class="trigger-text">{{ selectedLabel }}</span>
+        <ChevronDownIcon class="trigger-icon" aria-hidden="true" />
       </button>
-      <div v-if="isOpen" class="select-menu" role="listbox">
-        <button v-for="option in options" :key="option.value" type="button" class="select-option"
-          :class="{ active: option.value === modelValue }" @click="handleSelect(option.value)">
-          {{ option.label }}
-        </button>
-      </div>
+      <Transition name="menu-fade">
+        <div v-if="isOpen" class="select-menu" role="listbox">
+          <button v-for="option in options" :key="option.value" type="button" class="select-option"
+            :class="{ active: option.value === modelValue }" @click="handleSelect(option.value)">
+            {{ option.label }}
+          </button>
+        </div>
+      </Transition>
     </div>
   </label>
 </template>
@@ -89,92 +93,122 @@ onBeforeUnmount(() => {
 
 .select-wrap {
   position: relative;
-  display: grid;
-  gap: 0;
+  display: block;
+  width: 100%;
 }
 
 .select-trigger {
-  padding: var(--space-200) var(--space-300);
-  padding-right: calc(var(--space-600) + 10px);
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 12px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
-  box-shadow: 4px 4px 0 var(--color-shadow);
+  box-shadow: 3px 3px 0 var(--color-shadow);
   width: 100%;
   text-align: left;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--color-mirage-800);
   cursor: pointer;
-  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.select-wrap::after {
-  content: '';
-  position: absolute;
-  right: var(--space-300);
-  top: 16px;
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 7px solid var(--color-mirage-600);
-  pointer-events: none;
+.select-trigger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 5px 5px 0 var(--color-shadow);
+  background: var(--color-wild-200);
+}
+
+.select-trigger:focus-visible {
+  outline: 2px solid var(--color-deep-500);
+  outline-offset: 3px;
 }
 
 .select-wrap.open .select-trigger {
-  background: var(--color-deep-500);
-  color: #fff;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
+  background: var(--color-wild-200);
 }
 
-.select-wrap.open::after {
-  border-top-color: #fff;
+.trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trigger-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--color-mirage-600);
+  transition: transform 0.2s ease;
+}
+
+.select-wrap.open .trigger-icon {
+  transform: rotate(180deg);
 }
 
 .select-menu {
-  border-radius: 16px;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 100;
+  border-radius: 12px;
   border: 2px solid var(--color-mirage-800);
-  border-top: 0;
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
-  overflow: hidden;
-  display: grid;
-  margin-top: -2px;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
 }
 
 .select-option {
-  padding: var(--space-200) var(--space-300);
+  padding: 10px 12px;
   background: transparent;
   border: none;
+  border-radius: 8px;
   text-align: left;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--color-mirage-700);
   cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
 }
 
 .select-option:hover {
   background: var(--color-wild-300);
+  color: var(--color-mirage-900);
 }
 
 .select-option.active {
   background: var(--color-deep-500);
   color: #fff;
-  box-shadow: inset 0 0 0 2px var(--color-mirage-800);
-}
-
-.select-trigger:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
 }
 
 .select-wrap.disabled .select-trigger {
   background: var(--color-wild-400);
   color: var(--color-mirage-500);
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
-.select-wrap.disabled::after {
+.select-wrap.disabled .trigger-icon {
   opacity: 0.5;
+}
+
+/* Transition */
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
