@@ -177,6 +177,55 @@ const dummyUsers = [
       </UiCard>
 
       <UiCard class="card-wide">
+        <h2>Avatar Frames (Customizacoes desbloqueadas por nivel)</h2>
+        <div class="frame-section">
+          <div class="frame-category">
+            <span class="tag">Basicos (Nivel 1+)</span>
+            <div class="frame-row">
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="classic" />
+                <span class="frame-level">Classic</span>
+              </div>
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="silver" />
+                <span class="frame-level">Silver</span>
+              </div>
+            </div>
+          </div>
+          <div class="frame-category">
+            <span class="tag">Premium (Nivel 5+)</span>
+            <div class="frame-row">
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="gold" />
+                <span class="frame-level">Gold</span>
+              </div>
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="crystal" />
+                <span class="frame-level">Crystal</span>
+              </div>
+            </div>
+          </div>
+          <div class="frame-category">
+            <span class="tag">Epicos (Nivel 10+)</span>
+            <div class="frame-row">
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="neon" />
+                <span class="frame-level">Neon</span>
+              </div>
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="cosmic" />
+                <span class="frame-level">Cosmic</span>
+              </div>
+              <div class="frame-item">
+                <UiAvatar alt="G" :size="80" frame="forest" />
+                <span class="frame-level">Forest</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </UiCard>
+
+      <UiCard class="card-wide">
         <h2>Badges de Livro</h2>
         <div class="badge-section-row">
           <div class="badge-book-item">
@@ -1089,10 +1138,20 @@ h2 {
 }
 
 /* Avatar frames section */
+.frame-section {
+  display: grid;
+  gap: var(--space-500);
+}
+
+.frame-category {
+  display: grid;
+  gap: var(--space-300);
+}
+
 .frame-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-500);
+  gap: var(--space-400);
   align-items: center;
 }
 
@@ -1103,10 +1162,12 @@ h2 {
 }
 
 .frame-level {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-mirage-400);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mirage-600);
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 @media (max-width: 720px) {
