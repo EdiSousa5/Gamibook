@@ -12,7 +12,7 @@ type Props = {
   alt?: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 defineEmits<{
   update: [value: AvatarFrame]
 }>()
@@ -34,13 +34,7 @@ const framesByCategory = computed(() => {
 })
 
 const isFrameLocked = (frameId: AvatarFrame): boolean => {
-  return !unlockedFrames.includes(frameId)
-}
-
-const selectFrame = (frameId: AvatarFrame) => {
-  if (!isFrameLocked(frameId)) {
-    // emit event
-  }
+  return !props.unlockedFrames.includes(frameId)
 }
 </script>
 
@@ -51,19 +45,14 @@ const selectFrame = (frameId: AvatarFrame) => {
       <div v-for="(categoryData, category) in framesByCategory" :key="category" class="frame-category">
         <span class="tag">{{ categoryData.label }}</span>
         <div class="frame-row">
-          <button
-            v-for="frameId in categoryData.frames"
-            :key="frameId"
-            class="frame-button"
+          <button v-for="frameId in categoryData.frames" :key="frameId" class="frame-button"
             :class="{ active: modelValue === frameId, locked: isFrameLocked(frameId) }"
-            :disabled="isFrameLocked(frameId)"
-            @click="$emit('update', frameId)"
-          >
+            :disabled="isFrameLocked(frameId)" @click="$emit('update', frameId)">
             <UiAvatar alt="F" :size="64" :frame="frameId" />
             <div class="frame-info">
               <span class="frame-name">{{ AVATAR_FRAMES[frameId].name }}</span>
               <span v-if="isFrameLocked(frameId)" class="frame-status locked">
-                Bloquei - Nivel {{ AVATAR_FRAMES[frameId].requiredLevel }}
+                Bloqueado - Nivel {{ AVATAR_FRAMES[frameId].requiredLevel }}
               </span>
               <span v-else class="frame-status unlocked">Desbloqueado</span>
             </div>
