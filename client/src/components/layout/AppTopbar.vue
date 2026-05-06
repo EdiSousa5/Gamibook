@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
@@ -33,6 +33,7 @@ const qrOpen = ref(false)
 const profileRef = ref<HTMLElement | null>(null)
 const canGoBack = ref(false)
 const route = useRoute()
+const router = useRouter()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -202,6 +203,20 @@ onBeforeUnmount(() => {
 })
 
 watch(() => route.fullPath, updateCanGoBack)
+
+watch(query, (val) => {
+  if (!showSearch.value) return
+  router.replace({ query: { ...route.query, q: val || undefined } })
+})
+
+watch(
+  () => route.query.q,
+  (val) => {
+    const q = (val ?? '').toString()
+    if (q !== query.value) query.value = q
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

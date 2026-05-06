@@ -7,46 +7,44 @@ import type {
 } from '@/types'
 import { authFetch } from './client'
 
-export const fetchUserExercisePoints = async (startDate?: string) => {
+export const fetchUserPointsFromHistory = async (userId: string) => {
   const params = new URLSearchParams({
-    fields: 'user_id,points_earned,date',
-    limit: '-1',
-  })
-  if (startDate) {
-    params.set('filter[date][_gte]', startDate)
-  }
-
-  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Fetch user exercise points failed: ${response.status} ${text}`.trim())
-  }
-
-  const data = await response.json().catch(() => null)
-  return (data?.data ?? []) as UserExercise[]
-}
-
-export const fetchUserPointsTotal = async (userId: string, startDate?: string) => {
-  const params = new URLSearchParams({
-    fields: 'points_earned',
+    fields: 'points',
     limit: '-1',
   })
   params.set('filter[user_id][_eq]', String(userId))
-  if (startDate) {
-    params.set('filter[date][_gte]', startDate)
-  }
 
-  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
+  const response = await authFetch(`/items/user_points_history?${params.toString()}`)
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    throw new Error(`Fetch user points total failed: ${response.status} ${text}`.trim())
+    throw new Error(`Fetch user points history failed: ${response.status} ${text}`.trim())
   }
 
   const data = await response.json().catch(() => null)
-  const items = (data?.data ?? []) as Array<{ points_earned?: number | null }>
-  return items.reduce((sum, item) => sum + Number(item.points_earned ?? 0), 0)
+  const items = (data?.data ?? []) as Array<{ points?: number | null }>
+  return items.reduce((sum, item) => sum + Number(item.points ?? 0), 0)
+}
+
+export const createUserPointsHistory = async (payload: {
+  user_id: string
+  points: number
+  source: 'exercise' | 'daily'
+  reference_id: number
+}) => {
+  const response = await authFetch('/items/user_points_history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Create user points history failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return data?.data ?? data
 }
 
 export const fetchExercisesByModule = async (moduleId: number) => {
@@ -352,6 +350,30 @@ export const fetchDailyExercisesForBooks = async (bookIds: number[]) => {
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as DailyExercise[]
+}
+
+export const fetchExercisesCreatedTodayByUser = async (userId: string): Promise<number> => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString()
+
+  const exerciseParams = new URLSearchParams({ fields: 'exercise_id', limit: '-1' })
+  exerciseParams.set('filter[created_by][_eq]', userId)
+  exerciseParams.set('filter[date_created][_gte]', todayStr)
+
+  const dailyParams = new URLSearchParams({ fields: 'daily_exercise_id', limit: '-1' })
+  dailyParams.set('filter[created_by][_eq]', userId)
+  dailyParams.set('filter[date_created][_gte]', todayStr)
+
+  const [exercisesRes, dailyRes] = await Promise.all([
+    authFetch(`/items/exercises?${exerciseParams.toString()}`),
+    authFetch(`/items/daily_exercise?${dailyParams.toString()}`),
+  ])
+
+  const exercisesData = await exercisesRes.json().catch(() => null)
+  const dailyData = await dailyRes.json().catch(() => null)
+
+  return ((exercisesData?.data ?? []) as unknown[]).length + ((dailyData?.data ?? []) as unknown[]).length
 }
 
 export const fetchLatestUserExercise = async (userId: string) => {

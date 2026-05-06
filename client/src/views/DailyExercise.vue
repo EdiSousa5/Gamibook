@@ -11,7 +11,8 @@ import {
     fetchAnsweredDailyExerciseIds,
     createUserDailyExercise,
     createUserExercise,
-    fetchUserPointsTotal,
+    fetchUserPointsFromHistory,
+    createUserPointsHistory,
 } from '../services/exercises'
 import { fetchUserById, updateUser } from '../services/auth'
 import { getStoredUserId } from '../services/client'
@@ -120,23 +121,19 @@ const saveResult = async (isCorrect: boolean) => {
         is_correct: isCorrect,
     })
 
-    const oldPoints = await fetchUserPointsTotal(userId.value).catch(() => auth.points)
+    const oldPoints = await fetchUserPointsFromHistory(userId.value).catch(() => auth.points)
     const oldLevel = getLevelProgressFromPoints(oldPoints).level
 
-    const timestamp = new Date().toISOString()
-    const recorded = await createUserExercise({
-        user_id: userId.value,
-        is_correct: isCorrect,
-        attempts: attemptsUsed.value,
-        points_earned: pointsEarned.value,
-        time_spent: QUESTION_TIME - timeLeft.value,
-        date: timestamp,
-    }).then(() => true).catch((err) => {
-        console.error(err)
-        return false
-    })
+    if (pointsEarned.value > 0) {
+        await createUserPointsHistory({
+            user_id: userId.value,
+            points: pointsEarned.value,
+            source: 'daily',
+            reference_id: exercise.value.daily_exercise_id,
+        }).catch(() => console.error('Failed to save points history'))
+    }
 
-    const newPoints = recorded ? oldPoints + pointsEarned.value : oldPoints
+    const newPoints = oldPoints + pointsEarned.value
     const newLevel = getLevelProgressFromPoints(newPoints).level
 
     await updateUser(userId.value, { exercises_daily_streak: newStreak.value })

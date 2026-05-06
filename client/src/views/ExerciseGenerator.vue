@@ -3,9 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
-import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
-import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import { gerarExercicios, gerarPerguntasDiarias } from '@/services/flowise.ts'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
@@ -23,7 +21,7 @@ import {
     deleteExercise,
     fetchApprovedExercisesByModule,
     fetchDailyExercisesByBook,
-    fetchExerciseExamplesByModule,
+    fetchExercisesCreatedTodayByUser,
 } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import type { Book, DailyExercise, Exercise, Module } from '@/types'
@@ -33,6 +31,7 @@ import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExerc
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
 import GeneratorConfigPanel from '@/components/exercise-generator/GeneratorConfigPanel.vue'
 import GeneratorLoadingOverlay from '@/components/exercise-generator/GeneratorLoadingOverlay.vue'
+import ExerciseQuotaPanel from '@/components/exercise-generator/ExerciseQuotaPanel.vue'
 import {
     normalizeExerciseList,
     normalizeModuleResults,
@@ -63,7 +62,28 @@ type Section = {
 const APPROVAL_THRESHOLD = 5
 const MAX_TOTAL_QUESTIONS = 40
 const MAX_SELECTED_MODULES = 4
+const MAX_MODULE_EXERCISES = 15
+const MAX_DAILY_EXERCISES = 20
+const DAILY_GENERATION_LIMIT = 50
 let exerciseSeed = 0
+
+const loggedUserId = localStorage.getItem('gb_user_id') ?? ''
+
+const quotaUsed = ref(0)
+const quotaLoading = ref(false)
+const remainingQuota = computed(() => Math.max(0, DAILY_GENERATION_LIMIT - quotaUsed.value))
+
+const refreshQuota = async () => {
+    if (!loggedUserId) return
+    quotaLoading.value = true
+    try {
+        quotaUsed.value = await fetchExercisesCreatedTodayByUser(loggedUserId)
+    } catch {
+        // quota display degrades silently
+    } finally {
+        quotaLoading.value = false
+    }
+}
 
 const generationMode = ref<'module' | 'daily'>('module')
 const route = useRoute()
@@ -545,6 +565,10 @@ const handleGenerate = async () => {
         error.value = `O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`
         return
     }
+    if (remainingQuota.value <= 0) {
+        error.value = `Atingiste o limite diário de ${DAILY_GENERATION_LIMIT} perguntas geradas. Tenta amanhã.`
+        return
+    }
     isGenerating.value = true
     elapsedSeconds.value = 0
     if (elapsedTimer) window.clearInterval(elapsedTimer)
@@ -602,24 +626,36 @@ const handleApprove = async (exercise: GeneratedExercise) => {
         if (generationMode.value === 'module') {
             const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
             if (!targetModuleId) return
+            const currentCount = (approvedExercisesByModule.value[targetModuleId] || []).length
+            if (currentCount >= MAX_MODULE_EXERCISES) {
+                error.value = `Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`
+                return
+            }
             await createExercise({
                 id_module: targetModuleId,
                 type: exercise.exerciseType,
                 content: exercise.content,
+                created_by: loggedUserId || undefined,
             })
             removeGenerated(exercise.localId)
             const list = await refreshApprovedExercisesForModule(targetModuleId)
             await syncModuleApproval(targetModuleId, list.length)
         } else {
             if (!selectedBookId.value) return
+            if (approvedDailyExercises.value.length >= MAX_DAILY_EXERCISES) {
+                error.value = `Este livro já atingiu o limite de ${MAX_DAILY_EXERCISES} perguntas diárias.`
+                return
+            }
             await createDailyExercise({
                 book_id: selectedBookId.value,
                 type: exercise.exerciseType,
                 content: exercise.content,
+                created_by: loggedUserId || undefined,
             })
             removeGenerated(exercise.localId)
             await refreshDailyExercises()
         }
+        await refreshQuota()
         info.value = 'Exercício aprovado e guardado com sucesso.'
     } catch (err) {
         console.error(err)
@@ -725,7 +761,7 @@ watch(selectedBookId, () => {
 })
 
 onMounted(async () => {
-    await loadInitialData()
+    await Promise.all([loadInitialData(), refreshQuota()])
 })
 </script>
 
@@ -733,7 +769,7 @@ onMounted(async () => {
     <div class="exercise-generator-page">
         <header class="hero">
             <div class="hero-content">
-                <h1 class="hero-title">Gerador de Exercícios</h1>
+                <h1 class="hero-title">Gerar de Exercícios </h1>
                 <p class="hero-subtitle">
                     Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões
                     estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por
@@ -845,6 +881,10 @@ onMounted(async () => {
                                     <h4>{{ summary.moduleItem.module_title || 'Módulo' }}</h4>
                                     <UiChip :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
                                         :variant="summary.isApproved ? 'filled' : 'outline'" />
+                                    <UiChip
+                                        :label="summary.approvedCount >= MAX_MODULE_EXERCISES ? 'Limite atingido' : `${summary.approvedCount}/${MAX_MODULE_EXERCISES} exercícios`"
+                                        :variant="summary.approvedCount >= MAX_MODULE_EXERCISES ? 'filled' : 'outline'"
+                                        size="sm" />
                                 </div>
                                 <div class="module-progress">
                                     <div class="progress-bar-bg">
@@ -867,6 +907,8 @@ onMounted(async () => {
                                     <div class="approved-list-container">
                                         <ApprovedExercisesList v-if="summary.approved.length"
                                             :exercises="summary.approved" :type-labels="typeLabels"
+                                            :max-count="MAX_MODULE_EXERCISES"
+                                            :min-required="APPROVAL_THRESHOLD"
                                             @remove="handleRemoveApproved" />
                                     </div>
                                 </div>
@@ -888,6 +930,10 @@ onMounted(async () => {
                                 <div class="module-info">
                                     <h4>Perguntas Diárias</h4>
                                     <UiChip :label="approvedDailyExercises.length + ' Guardadas'" variant="filled" />
+                                    <UiChip
+                                        :label="approvedDailyExercises.length >= MAX_DAILY_EXERCISES ? 'Limite atingido' : `${approvedDailyExercises.length}/${MAX_DAILY_EXERCISES} perguntas`"
+                                        :variant="approvedDailyExercises.length >= MAX_DAILY_EXERCISES ? 'filled' : 'outline'"
+                                        size="sm" />
                                 </div>
                                 <div class="module-progress">
                                     <ChevronDownIcon v-if="approvedDailyExercises.length > 0" class="accordion-icon"
@@ -900,6 +946,7 @@ onMounted(async () => {
                                     <div class="approved-list-container">
                                         <ApprovedExercisesList v-if="approvedDailyExercises.length"
                                             :exercises="approvedDailyExercises" :type-labels="typeLabels"
+                                            :max-count="MAX_DAILY_EXERCISES"
                                             @remove="handleRemoveDaily" />
                                     </div>
                                 </div>
@@ -936,6 +983,7 @@ onMounted(async () => {
                     :max-total-questions="MAX_TOTAL_QUESTIONS"
                     @update:count-per-module="countPerModule = Math.max(1, Number($event) || 1)"
                     @generate="handleGenerate" />
+                <ExerciseQuotaPanel :used="quotaUsed" :limit="DAILY_GENERATION_LIMIT" :is-loading="quotaLoading" />
             </div>
         </div>
 
@@ -1027,6 +1075,12 @@ onMounted(async () => {
     grid-template-columns: minmax(0, 1fr) 300px;
     gap: var(--space-500);
     align-items: start;
+}
+
+.sidebar-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-500);
 }
 
 .main-column {

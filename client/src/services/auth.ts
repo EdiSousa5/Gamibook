@@ -11,6 +11,7 @@ const USER_FIELDS = [
   'role.id',
   'role.name',
   'exercises_daily_streak',
+  'level',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {

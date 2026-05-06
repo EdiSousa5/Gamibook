@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchUserById, getUserDisplayName, isAdminUser } from '@/services/auth'
+import { fetchUserById, getUserDisplayName, isAdminUser, updateUser } from '@/services/auth'
 import { clearAccessToken, getAssetUrl, setStoredUserId } from '@/services/client'
-import { fetchUserPointsTotal } from '@/services/exercises'
+import { fetchUserPointsFromHistory, createUserPointsHistory } from '@/services/exercises'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
 
@@ -31,10 +31,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const [userData, totalPoints] = await Promise.all([
         fetchUserById(storedId),
-        fetchUserPointsTotal(storedId).catch(() => 0),
+        fetchUserPointsFromHistory(storedId).catch(() => 0),
       ])
       user.value = userData
       points.value = totalPoints
+      await syncUserLevelFromPoints(storedId)
     } catch {
       user.value = null
       points.value = 0
@@ -48,11 +49,27 @@ export const useAuthStore = defineStore('auth', () => {
       return 0
     }
     try {
-      const total = await fetchUserPointsTotal(targetId)
+      const total = await fetchUserPointsFromHistory(targetId)
       points.value = total
+      await syncUserLevelFromPoints(targetId)
       return total
     } catch {
       return points.value
+    }
+  }
+
+  const syncUserLevelFromPoints = async (userId: string) => {
+    try {
+      const totalPoints = points.value
+      const newLevel = getLevelProgressFromPoints(totalPoints).level
+      const currentLevel = user.value?.level ?? 1
+
+      if (newLevel !== currentLevel && user.value) {
+        await updateUser(userId, { level: newLevel })
+        user.value.level = newLevel
+      }
+    } catch {
+      console.error('Failed to sync user level')
     }
   }
 
@@ -89,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
     progress,
     loadUser,
     refreshPoints,
+    syncUserLevelFromPoints,
     setPoints,
     logout,
     triggerLevelUp,

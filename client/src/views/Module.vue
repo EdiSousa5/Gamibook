@@ -20,7 +20,8 @@ import {
     createUserExercise,
     fetchExercisesByModule,
     fetchUserExercisesByModule,
-    fetchUserPointsTotal,
+    fetchUserPointsFromHistory,
+    createUserPointsHistory,
     updateUserExercise,
 } from '../services/exercises'
 import { getStoredUserId } from '../services/client'
@@ -239,7 +240,7 @@ const updatePoints = async (points: number) => {
     if (points <= 0) return
     const oldLevel = getLevelProgressFromPoints(userPoints.value).level
     try {
-        const totalPoints = await fetchUserPointsTotal(userId.value)
+        const totalPoints = await fetchUserPointsFromHistory(userId.value)
         userPoints.value = totalPoints
         auth.setPoints(totalPoints)
         const newLevel = getLevelProgressFromPoints(totalPoints).level
@@ -347,14 +348,26 @@ const persistResults = async () => {
             module_id: moduleId.value,
             is_correct: result.isCorrect,
             attempts: result.attempts,
-            points_earned: result.pointsEarned,
             time_spent: result.timeSpent,
             date: timestamp,
         }
+        let userExerciseRecord: UserExercise | null = null
         if (existing?.id_user_exercises) {
-            return await updateUserExercise(existing.id_user_exercises, payload)
+            userExerciseRecord = await updateUserExercise(existing.id_user_exercises, payload)
+        } else {
+            userExerciseRecord = await createUserExercise(payload)
         }
-        return await createUserExercise(payload)
+
+        if (userExerciseRecord && result.pointsEarned > 0) {
+            await createUserPointsHistory({
+                user_id: currentUserId,
+                points: result.pointsEarned,
+                source: 'exercise',
+                reference_id: result.exerciseId,
+            }).catch(() => console.error('Failed to save points history'))
+        }
+
+        return userExerciseRecord
     })
 
     const saved = (await Promise.all(updates)).filter(Boolean) as UserExercise[]
@@ -504,7 +517,7 @@ watch(
             )
             allExercises.value = filtered
             if (storedId) {
-                userPoints.value = await fetchUserPointsTotal(storedId).catch(() => 0)
+                userPoints.value = await fetchUserPointsFromHistory(storedId).catch(() => 0)
                 auth.setPoints(userPoints.value)
             } else {
                 userPoints.value = 0

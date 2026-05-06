@@ -9,6 +9,7 @@ export type Exercise = {
   content?: Record<string, unknown>
   points?: number | null
   date_created?: string | null
+  created_by?: string | null
 }
 
 export type DailyExercise = {
@@ -17,6 +18,7 @@ export type DailyExercise = {
   type?: 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
   content?: Record<string, unknown>
   date_created?: string | null
+  created_by?: string | null
 }
 
 export type UserDailyExercise = {
@@ -42,4 +44,13 @@ export type UserExercise = {
   time_spent?: number | null
   date?: string | null
   date_updated?: string | null
+}
+
+export type UserPointsHistory = {
+  id?: number
+  user_id?: string | User
+  points?: number | null
+  source?: 'exercise' | 'daily'
+  reference_id?: number | null
+  date_created?: string | null
 }

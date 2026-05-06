@@ -10,7 +10,7 @@ import {
   getUserAvatarId,
 } from '../services/auth'
 import { fetchUserBookBadges } from '../services/books'
-import { fetchUserExercisePoints } from '../services/exercises'
+import { fetchUserPointsFromHistory } from '../services/exercises'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
@@ -110,20 +110,23 @@ const loadRankings = async () => {
   isLoading.value = true
   try {
     const startDate = getRangeStartDate(timeFilter.value) ?? undefined
-    const [users, exercises, userBooks] = await Promise.all([
+    const [users, userBooks] = await Promise.all([
       fetchUsers(undefined, 'Utilizador'),
-      fetchUserExercisePoints(startDate),
       fetchUserBookBadges(),
     ])
 
     const pointsMap = new Map<string, number>()
-    for (const entry of exercises) {
-      const userId = resolveUserId(entry.user_id)
-      if (!userId) continue
-      const points = Number(entry.points_earned ?? 0)
-      if (!Number.isFinite(points)) continue
-      pointsMap.set(userId, (pointsMap.get(userId) ?? 0) + points)
-    }
+    const pointsPromises = users.map(async (u) => {
+      const userId = String(u.id ?? '')
+      if (!userId) return
+      try {
+        const points = await fetchUserPointsFromHistory(userId)
+        pointsMap.set(userId, points)
+      } catch {
+        pointsMap.set(userId, 0)
+      }
+    })
+    await Promise.all(pointsPromises)
 
     const badgeMap = new Map<string, BadgeCounts>()
     for (const entry of userBooks) {

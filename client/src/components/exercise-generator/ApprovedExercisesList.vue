@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -13,14 +13,43 @@ type AnyExercise = Exercise | DailyExercise
 type Props = {
     exercises: AnyExercise[]
     typeLabels: Record<ExerciseType, string>
+    maxCount?: number
+    minRequired?: number
 }
 
-defineProps<Props>()
-
+const props = defineProps<Props>()
 const emit = defineEmits<{ remove: [AnyExercise] }>()
 
 const confirmOpen = ref(false)
 const pendingExercise = ref<AnyExercise | null>(null)
+
+const count = computed(() => props.exercises.length)
+const hasLimits = computed(() => props.maxCount !== undefined)
+
+const minPercent = computed(() => {
+    if (!props.maxCount || !props.minRequired) return 0
+    return Math.round((props.minRequired / props.maxCount) * 100)
+})
+
+const fillPercent = computed(() => {
+    if (!props.maxCount) return 0
+    return Math.min(100, Math.round((count.value / props.maxCount) * 100))
+})
+
+const isAtMax = computed(() => props.maxCount !== undefined && count.value >= props.maxCount)
+const isAtMin = computed(() => props.minRequired !== undefined && count.value >= props.minRequired)
+
+const statusLabel = computed(() => {
+    if (isAtMax.value) return 'Limite máximo atingido'
+    if (isAtMin.value) return 'Mínimo satisfeito'
+    return `Faltam ${(props.minRequired ?? 0) - count.value} para o mínimo`
+})
+
+const statusClass = computed(() => {
+    if (isAtMax.value) return 'progress--max'
+    if (isAtMin.value) return 'progress--ok'
+    return 'progress--below'
+})
 
 const exerciseKey = (ex: AnyExercise) =>
     (ex as Exercise).exercise_id ?? (ex as DailyExercise).daily_exercise_id
@@ -95,10 +124,42 @@ const getAnswer = (exercise: AnyExercise) => {
 
 <template>
     <div class="panel">
-        <div class="panel-header">
-            <h2>Exercicios aprovados</h2>
-            <p>Remove exercicios se precisares de ajustar o modulo.</p>
+        <!-- Progress bar header (only when limits are provided) -->
+        <div v-if="hasLimits" class="progress-header" :class="statusClass">
+            <div class="progress-labels">
+                <div class="progress-counts">
+                    <span class="count-current">{{ count }}</span>
+                    <span class="count-sep">/</span>
+                    <span class="count-max">{{ maxCount }}</span>
+                    <span class="count-unit">exercícios</span>
+                </div>
+                <span class="status-chip" :class="statusClass">{{ statusLabel }}</span>
+            </div>
+
+            <div class="bar-track">
+                <!-- Min threshold marker -->
+                <div
+                    v-if="minRequired && maxCount"
+                    class="bar-min-marker"
+                    :style="{ left: minPercent + '%' }"
+                    :title="`Mínimo: ${minRequired}`"
+                ></div>
+                <!-- Fill -->
+                <div class="bar-fill" :class="statusClass" :style="{ width: fillPercent + '%' }"></div>
+            </div>
+
+            <div class="bar-legend">
+                <span class="legend-item">
+                    <span class="legend-dot legend-dot--min"></span>
+                    Mínimo: {{ minRequired ?? '—' }}
+                </span>
+                <span class="legend-item">
+                    <span class="legend-dot legend-dot--max"></span>
+                    Máximo: {{ maxCount ?? '—' }}
+                </span>
+            </div>
         </div>
+
         <div v-if="exercises.length" class="grid">
             <UiCard v-for="exercise in exercises" :key="exerciseKey(exercise)" class="card">
                 <div class="top">
@@ -111,8 +172,9 @@ const getAnswer = (exercise: AnyExercise) => {
                 <p class="question">{{ getQuestion(exercise) }}</p>
             </UiCard>
         </div>
-        <p v-else class="state">Sem exercicios aprovados neste modulo.</p>
+        <p v-else class="state">Sem exercicios aprovados.</p>
 
+        <!-- Exercise detail / delete modal -->
         <div v-if="confirmOpen && pendingExercise" class="confirm-overlay" @click.self="closeConfirm">
             <div class="confirm-modal" role="dialog" aria-modal="true">
                 <div class="confirm-header">
@@ -183,24 +245,148 @@ const getAnswer = (exercise: AnyExercise) => {
 <style scoped>
 .panel {
     display: grid;
-    gap: 18px;
+    gap: var(--space-400);
 }
 
-.panel-header {
+/* ---- Progress header ---- */
+.progress-header {
     display: grid;
-    gap: 6px;
+    gap: var(--space-200);
+    padding: var(--space-300);
+    border-radius: var(--radius-200);
+    border: 1.5px solid var(--color-mirage-200);
+    background: var(--color-wild-100);
 }
 
-.panel-header h2 {
-    margin: 0;
+.progress-header.progress--ok {
+    border-color: var(--color-teal-400);
+    background: #f0fdf9;
 }
 
-.panel-header p {
-    margin: 0;
-    color: #555;
-    font-size: 14px;
+.progress-header.progress--max {
+    border-color: #d97706;
+    background: #fffbeb;
 }
 
+.progress-header.progress--below {
+    border-color: var(--color-mirage-200);
+    background: var(--color-wild-200);
+}
+
+.progress-labels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-200);
+}
+
+.progress-counts {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.count-current {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--color-mirage-900);
+}
+
+.progress--ok .count-current { color: var(--color-teal-700); }
+.progress--max .count-current { color: #92400e; }
+
+.count-sep {
+    font-size: 18px;
+    color: var(--color-mirage-400);
+    font-weight: 300;
+}
+
+.count-max {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-mirage-600);
+}
+
+.count-unit {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-mirage-500);
+    margin-left: 4px;
+}
+
+.status-chip {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    white-space: nowrap;
+}
+
+.status-chip.progress--ok { color: var(--color-teal-700); border-color: var(--color-teal-500); background: #dcfce7; }
+.status-chip.progress--max { color: #92400e; border-color: #d97706; background: #fef3c7; }
+.status-chip.progress--below { color: var(--color-mirage-600); border-color: var(--color-mirage-300); background: var(--color-wild-300); }
+
+/* Progress bar */
+.bar-track {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    background: var(--color-mirage-100);
+    border-radius: 999px;
+    border: 1.5px solid var(--color-mirage-200);
+    overflow: visible;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bar-fill.progress--ok { background: linear-gradient(90deg, var(--color-teal-400), var(--color-teal-600)); }
+.bar-fill.progress--max { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.bar-fill.progress--below { background: linear-gradient(90deg, var(--color-deep-300), var(--color-deep-500)); }
+
+/* Min threshold marker */
+.bar-min-marker {
+    position: absolute;
+    top: -3px;
+    transform: translateX(-50%);
+    width: 3px;
+    height: 16px;
+    background: var(--color-mirage-600);
+    border-radius: 2px;
+    z-index: 2;
+}
+
+/* Legend */
+.bar-legend {
+    display: flex;
+    gap: var(--space-400);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--color-mirage-500);
+    font-weight: 600;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-dot--min { background: var(--color-mirage-600); }
+.legend-dot--max { background: var(--color-mirage-300); border: 1.5px solid var(--color-mirage-500); }
+
+/* ---- Exercise grid ---- */
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -231,18 +417,25 @@ const getAnswer = (exercise: AnyExercise) => {
     stroke-width: var(--icon-stroke);
 }
 
-
 .question {
     margin: 0;
     font-weight: 600;
+    font-size: 13px;
+    color: var(--color-mirage-800);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
-
 
 .state {
     font-weight: 600;
-    color: #6f6f6f;
+    color: var(--color-mirage-500);
+    font-size: 13px;
 }
 
+/* ---- Modal ---- */
 .confirm-overlay {
     position: fixed;
     inset: 0;
@@ -263,11 +456,7 @@ const getAnswer = (exercise: AnyExercise) => {
     gap: var(--space-400);
 }
 
-.confirm-header {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-100);
-}
+.confirm-header { display: flex; flex-direction: column; gap: var(--space-100); }
 
 .confirm-icon-title {
     display: flex;
@@ -282,12 +471,6 @@ const getAnswer = (exercise: AnyExercise) => {
     font-weight: 800;
 }
 
-.confirm-text {
-    margin: 0;
-    color: var(--color-mirage-600);
-    font-size: 14px;
-}
-
 .exercise-preview {
     background: var(--color-wild-50);
     border: 1px solid var(--color-mirage-200);
@@ -297,9 +480,7 @@ const getAnswer = (exercise: AnyExercise) => {
     gap: var(--space-200);
 }
 
-.preview-badge {
-    justify-self: start;
-}
+.preview-badge { justify-self: start; }
 
 .question-text {
     margin: 0;
@@ -329,12 +510,5 @@ const getAnswer = (exercise: AnyExercise) => {
     display: flex;
     justify-content: flex-end;
     gap: var(--space-300);
-}
-
-.btn-danger {
-    --btn-face: #ef4444;
-    --btn-face-hover: #dc2626;
-    --btn-border: #991b1b;
-    color: #fff !important;
 }
 </style>

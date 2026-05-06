@@ -25,7 +25,7 @@ import {
   fetchLatestUserDailyExercise,
   fetchDailyExercisesForBooks,
   fetchLatestUserExercise,
-  fetchUserExercisePoints,
+  fetchUserPointsFromHistory,
 } from '../services/exercises'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -154,19 +154,20 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
 
 const loadUserRank = async (userId: string) => {
   try {
-    const [users, exercises] = await Promise.all([
-      fetchUsers(100, 'Utilizador'),
-      fetchUserExercisePoints(),
-    ])
+    const users = await fetchUsers(100, 'Utilizador')
 
     const pointsMap = new Map<string, number>()
-    for (const entry of exercises) {
-      const id = resolveUserId(entry.user_id)
-      if (!id) continue
-      const points = Number(entry.points_earned ?? 0)
-      if (!Number.isFinite(points)) continue
-      pointsMap.set(id, (pointsMap.get(id) ?? 0) + points)
-    }
+    const pointsPromises = users.map(async (u) => {
+      const id = String(u.id ?? '')
+      if (!id) return
+      try {
+        const points = await fetchUserPointsFromHistory(id)
+        pointsMap.set(id, points)
+      } catch {
+        pointsMap.set(id, 0)
+      }
+    })
+    await Promise.all(pointsPromises)
 
     const sorted = users
       .map((u) => ({
