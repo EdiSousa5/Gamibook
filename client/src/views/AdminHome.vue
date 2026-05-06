@@ -29,7 +29,25 @@ const joinedAt = computed(() => {
   return new Date(raw).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })
 })
 
+const roleName = computed(() => {
+  const role = user.value?.role
+  const name = typeof role === 'string' ? role : typeof role === 'object' && role ? (role as any).name : null
+  return (name as string | null) ?? null
+})
+
+const roleLabel = computed(() => {
+  const r = roleName.value?.trim().toLowerCase()
+  if (r === 'admin absoluto') return 'Admin Absoluto'
+  if (r === 'autor') return 'Autor'
+  if (r === 'editora') return 'Editora'
+  if (r === 'admin') return 'Admin'
+  return roleName.value ?? 'Admin'
+})
+
+const isAbsoluteAdmin = computed(() => roleName.value?.trim().toLowerCase() === 'admin absoluto')
+
 import { ChartBarIcon, CogIcon, SparklesIcon, SwatchIcon } from '@heroicons/vue/24/outline'
+import AdminActivityLog from '@/components/ui/AdminActivityLog.vue'
 
 const quickLinks = [
   { label: 'Estatísticas', desc: 'Dados de livros e utilizadores', to: '/admin/stats', icon: ChartBarIcon },
@@ -52,13 +70,15 @@ const quickLinks = [
         <div class="account-info">
           <div class="account-name-row">
             <strong class="account-name">{{ displayName }}</strong>
-            <UiChip label="Admin" variant="filled" />
+            <UiChip :label="roleLabel" variant="filled" />
           </div>
           <span class="account-email">{{ email }}</span>
           <span class="account-joined">Conta criada em {{ joinedAt }}</span>
         </div>
       </div>
     </UiCard>
+
+    <AdminActivityLog v-if="isAbsoluteAdmin" />
 
     <div class="links-grid">
       <RouterLink
@@ -104,8 +124,6 @@ h1 {
   color: var(--color-mirage-800);
   margin: 0;
 }
-
-.account-card {}
 
 .account-inner {
   display: flex;

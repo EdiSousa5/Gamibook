@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
+import BookShelf from '@/components/ui/BookShelf.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import { RouterLink } from 'vue-router'
@@ -66,7 +67,42 @@ const badgeMap = computed(() => {
 
 const badgeForBook = (bookId: number): BookBadgeTier | undefined => badgeMap.value.get(bookId)
 
+const ownedShelvesVisible = ref(1)
+const missingShelvesVisible = ref(1)
+
+const collectionRef = ref<HTMLElement | null>(null)
+const containerWidth = ref(1000)
+let resizeObserver: ResizeObserver | null = null
+
+const itemsPerShelf = computed(() => {
+  const available = containerWidth.value - 64
+  return Math.max(2, Math.floor(available / 132))
+})
+
+const ownedShelves = computed(() => {
+  const arr = otherOwnedBooks.value
+  const size = itemsPerShelf.value
+  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
+})
+const visibleOwnedShelves = computed(() => ownedShelves.value.slice(0, ownedShelvesVisible.value))
+const hasMoreOwned = computed(() => ownedShelvesVisible.value < ownedShelves.value.length)
+
+const missingShelves = computed(() => {
+  const arr = missingBooks.value
+  const size = itemsPerShelf.value
+  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
+})
+const visibleMissingShelves = computed(() => missingShelves.value.slice(0, missingShelvesVisible.value))
+const hasMoreMissing = computed(() => missingShelvesVisible.value < missingShelves.value.length)
+
 onMounted(async () => {
+  resizeObserver = new ResizeObserver((entries) => {
+    if (entries[0]) { containerWidth.value = entries[0].contentRect.width }
+  })
+  if (collectionRef.value) {
+    resizeObserver.observe(collectionRef.value)
+  }
+
   const storedId = localStorage.getItem('gb_user_id')
   if (!storedId) return
   error.value = ''
@@ -87,10 +123,14 @@ onMounted(async () => {
   }
 })
 
+onUnmounted(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+})
+
 </script>
 
 <template>
-  <section class="collection">
+  <section class="collection" ref="collectionRef">
     <div class="header">
       <div>
         <h1>Catalogo de Livros</h1>
@@ -109,8 +149,8 @@ onMounted(async () => {
           <div class="destaque-tags">
             <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
               variant="outline" />
-            <UiChip v-if="(featuredBook as any)?.editora?.nome_editora"
-              :label="(featuredBook as any).editora.nome_editora" variant="soft" />
+            <UiChip v-if="featuredBook.editora?.nome_editora" :label="featuredBook.editora.nome_editora"
+              variant="soft" />
           </div>
           <h2 class="titulo-livro">{{ featuredBook.title || 'Sem título' }}</h2>
           <p class="descricao">
@@ -124,53 +164,60 @@ onMounted(async () => {
         </div>
 
         <div class="destaque-visual">
-          <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg" :badge="badgeForBook(featuredBook.book_id)" />
+          <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg"
+            :badge="badgeForBook(featuredBook.book_id)" />
         </div>
       </div>
 
       <!-- Geometria 3D: Prateleira Grande (Sair do componente) -->
-      <div class="estante-wrapper grande" v-if="featuredBook">
-        <div class="estante-topo"></div>
-        <div class="estante-frente"></div>
-      </div>
+      <BookShelf variant="large" v-if="featuredBook" />
 
       <!-- OUTROS LIVROS (ESTANTE MEIO) -->
-      <div class="lista-wrapper" v-if="otherOwnedBooks.length">
-        <h3 class="titulo-secao">A Tua Coleção</h3>
+      <template v-if="otherOwnedBooks.length">
+        <div v-for="(shelf, index) in visibleOwnedShelves" :key="'owned-shelf-' + index">
+          <div class="lista-wrapper">
+            <h3 v-if="index === 0" class="titulo-secao">A Tua Coleção</h3>
 
-        <div class="livros-fila">
-          <div v-for="book in otherOwnedBooks" :key="book.book_id" class="livro-item"
-            :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
-            tabindex="0" role="button">
-            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" :badge="badgeForBook(book.book_id)" />
-            <span class="nome-livro">{{ book.title || 'Sem título' }}</span>
+            <div class="livros-fila">
+              <div v-for="book in shelf" :key="book.book_id" class="livro-item"
+                :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
+                tabindex="0" role="button">
+                <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm"
+                  :badge="badgeForBook(book.book_id)" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Geometria 3D: Prateleira Pequena (Dentro do componente) -->
-      <div class="estante-wrapper pequena" v-if="otherOwnedBooks.length">
-        <div class="estante-topo"></div>
-        <div class="estante-frente"></div>
-      </div>
+          <!-- Geometria 3D: Prateleira Pequena -->
+          <BookShelf variant="small" />
+        </div>
+
+        <div v-if="hasMoreOwned" class="view-more-action">
+          <UiButton variant="ghost" size="sm" @click="ownedShelvesVisible += 2">Ver mais</UiButton>
+        </div>
+      </template>
 
       <!-- LIVROS QUE NÃO TENS (ESTANTE BAIXO) -->
-      <div class="lista-wrapper" v-if="missingBooks.length">
-        <h3 class="titulo-secao">Para Descobrir</h3>
+      <template v-if="missingBooks.length">
+        <div v-for="(shelf, index) in visibleMissingShelves" :key="'missing-shelf-' + index">
+          <div class="lista-wrapper">
+            <h3 v-if="index === 0" class="titulo-secao">Para Descobrir</h3>
 
-        <div class="livros-fila">
-          <div v-for="book in missingBooks" :key="book.book_id" class="livro-item is-locked">
-            <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
-            <span class="nome-livro">{{ book.title || 'Sem título' }}</span>
+            <div class="livros-fila">
+              <div v-for="book in shelf" :key="book.book_id" class="livro-item is-locked">
+                <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Geometria 3D: Prateleira Pequena -->
-      <div class="estante-wrapper pequena" v-if="missingBooks.length">
-        <div class="estante-topo"></div>
-        <div class="estante-frente"></div>
-      </div>
+          <!-- Geometria 3D: Prateleira Pequena -->
+          <BookShelf variant="small" />
+        </div>
+
+        <div v-if="hasMoreMissing" class="view-more-action">
+          <UiButton variant="ghost" size="sm" @click="missingShelvesVisible += 2">Ver mais</UiButton>
+        </div>
+      </template>
     </UiCard>
     <p v-else class="state">Sem livros associados.</p>
   </section>
@@ -263,15 +310,13 @@ onMounted(async () => {
 
 /* Estante Principal (Sai para fora do cartão) */
 .estante-wrapper.grande {
-  /* Extende o tamanho para além das bordas em 24px para cada lado */
-  margin: 0 -24px;
+  left: 0 !important;
+  bottom: auto !important;
+  margin: -12px -24px var(--space-600);
   width: calc(100% + 48px);
-  margin-bottom: var(--space-600);
-  margin-top: -12px;
-  /* Sobe a estante ligeiramente para se encontrar melhor com o livro */
 }
 
-.estante-wrapper.grande .estante-topo {
+:deep(.estante-wrapper.grande .estante-topo) {
   height: 28px;
   background: linear-gradient(to bottom, var(--color-deep-200), var(--color-deep-400));
   border: 2px solid var(--color-mirage-800);
@@ -281,48 +326,31 @@ onMounted(async () => {
   transform: rotateX(45deg);
 }
 
-.estante-wrapper.grande .estante-frente {
-  position: relative;
+:deep(.estante-wrapper.grande .estante-frente) {
   height: 18px;
   background: var(--color-deep-600);
   border: 2px solid var(--color-mirage-800);
   border-bottom-left-radius: 4px;
   border-bottom-right-radius: 4px;
-  /* Sombra para dar flutuação */
   box-shadow: 0 16px 20px -8px rgba(2, 29, 32, 0.5);
-  /* Opcional: reflexo fino para detalhe metálico/madeira */
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* Estantes Secundárias (Encaixam dentro do cartão) */
+/* Estantes Secundárias */
 .estante-wrapper.pequena {
-  /* Respeita o padding interno (aproximadamente var(--space-400)) */
-  margin: 0 var(--space-400);
-  width: calc(100% - (var(--space-400) * 2));
-  margin-bottom: var(--space-600);
-  margin-top: -8px;
-  /* Subir a estante para aproximar dos livros da lista */
+  position: relative !important;
+  left: auto !important;
+  bottom: auto !important;
+  margin: -8px var(--space-200) var(--space-400);
+  width: calc(100% - (var(--space-200) * 2));
 }
 
-.estante-wrapper.pequena .estante-topo {
+:deep(.estante-wrapper.pequena .estante-topo) {
   height: 18px;
-  background: linear-gradient(to bottom, var(--color-deep-200), var(--color-deep-400));
-  border: 2px solid var(--color-mirage-800);
-  border-top: none;
-  border-bottom: none;
-  transform-origin: bottom;
-  transform: rotateX(45deg);
 }
 
-.estante-wrapper.pequena .estante-frente {
-  position: relative;
+:deep(.estante-wrapper.pequena .estante-frente) {
   height: 14px;
-  background: var(--color-deep-600);
-  border: 2px solid var(--color-mirage-800);
-  border-bottom-left-radius: 3px;
-  border-bottom-right-radius: 3px;
-  box-shadow: 0 8px 12px -5px rgba(2, 29, 32, 0.3);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* =========================================
@@ -344,42 +372,28 @@ onMounted(async () => {
 
 .livros-fila {
   display: flex;
-  gap: var(--space-500);
+  gap: var(--space-700);
+  justify-content: flex-start;
   align-items: flex-end;
-  overflow-x: auto;
-  padding: var(--space-300) var(--space-600);
-  /* Afasta o início e o fim da estante */
-  scrollbar-width: thin;
-}
-
-.livros-fila::-webkit-scrollbar {
-  height: 8px;
-}
-
-.livros-fila::-webkit-scrollbar-thumb {
-  background: var(--color-mirage-400);
-  border-radius: 4px;
+  margin-top: var(--space-200);
+  overflow: hidden;
+  padding: var(--space-400) var(--space-400) 0;
+  position: relative;
+  z-index: 0;
+  width: 100%;
 }
 
 .livro-item {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: var(--space-300);
+  flex-shrink: 0;
+  width: 100px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  transform: translateY(6px);
+  transform-origin: bottom center;
 }
 
 .livro-item:hover:not(.is-locked) {
-  transform: translateY(-8px);
-}
-
-.livro-item.is-selected {
-  transform: translateY(-8px);
-}
-
-.livro-item.is-selected .nome-livro {
-  color: var(--color-deep-600);
+  transform: translateY(-2px) scale(1.02);
 }
 
 .livro-item.is-locked {
@@ -388,18 +402,15 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
-.nome-livro {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-mirage-800);
-  text-align: left;
-  width: 120px;
-  line-height: 1.3;
-  margin-bottom: 6px;
-}
-
 .error {
   color: var(--color-amber-700);
+}
+
+.view-more-action {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-600);
+  margin-top: calc(var(--space-200) * -1);
 }
 
 @keyframes shelfFadeUp {

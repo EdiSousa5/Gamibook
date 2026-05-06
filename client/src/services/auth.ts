@@ -1,10 +1,5 @@
 import type { User } from '@/types'
-import {
-  authFetch,
-  normalizedDirectusUrl,
-  setAccessToken,
-  setStoredUserId,
-} from './client'
+import { authFetch, normalizedDirectusUrl, setAccessToken, setStoredUserId } from './client'
 
 const USER_FIELDS = [
   'id',
@@ -12,8 +7,6 @@ const USER_FIELDS = [
   'last_name',
   'email',
   'avatar',
-  'points',
-  'level',
   'role',
   'role.id',
   'role.name',
@@ -82,7 +75,7 @@ const fetchUserByIdWithAuth = async (id: number | string) => {
 }
 
 const fetchUsersWithAuth = async (limit?: number, roleName?: string) => {
-  const params = new URLSearchParams({ fields: USER_FIELDS.join(','), sort: '-points' })
+  const params = new URLSearchParams({ fields: USER_FIELDS.join(',') })
   if (limit) params.set('limit', String(limit))
   if (roleName) params.set('filter[role][name][_eq]', roleName)
 

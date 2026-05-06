@@ -6,20 +6,21 @@ const currentBg = ref('bg-1')
 
 const staticBackgrounds = [
   { id: 'bg-1', name: 'Original' },
-  { id: 'bg-2', name: 'Quente Angular' },
-  { id: 'bg-3', name: 'Frio Centralizado' },
-  { id: 'bg-4', name: 'Mesh Suave' },
-  { id: 'bg-5', name: 'Minimalista Vertical' },
-  { id: 'bg-6', name: 'Duplo Foco Diagonal' },
-  { id: 'bg-7', name: 'Suave Soft-Glow' },
+  { id: 'bg-2', name: 'Amanhecer' },
+  { id: 'bg-3', name: 'Oceano' },
+  { id: 'bg-4', name: 'Gelo' },
+  { id: 'bg-5', name: 'Pôr do Sol' },
+  { id: 'bg-6', name: 'Floresta' },
+  { id: 'bg-7', name: 'Horizonte' },
+  { id: 'bg-8', name: 'Névoa' },
+  { id: 'bg-9', name: 'Mel' },
 ]
 
 const animatedBackgrounds = [
-  { id: 'bg-8', name: 'Deslocamento Quente' },
-  { id: 'bg-9', name: 'Deslocamento Frio' },
-  { id: 'bg-10', name: 'Pulsação Radial' },
-  { id: 'bg-11', name: 'Globos de Luz (Intenso)' },
-  { id: 'bg-12', name: 'Onda de Energia (Intenso)' },
+  { id: 'bg-10', name: 'Maré' },
+  { id: 'bg-11', name: 'Entardecer' },
+  { id: 'bg-12', name: 'Aurora Boreal' },
+  { id: 'bg-13', name: 'Dança' },
 ]
 
 onMounted(() => {
@@ -150,19 +151,20 @@ h2 { margin: 0; font-family: var(--font-display); }
    corretamente através do atributo data, definimos as classes diretamente aqui 
    chamando as variáveis CSS root.
 */
-.bg-preview-bg-1 { background: var(--grad-1); }
-.bg-preview-bg-2 { background: var(--grad-2); }
-.bg-preview-bg-3 { background: var(--grad-3); }
-.bg-preview-bg-4 { background: var(--grad-4); }
-.bg-preview-bg-5 { background: var(--grad-5); }
-.bg-preview-bg-6 { background: var(--grad-6); }
-.bg-preview-bg-7 { background: var(--grad-7); }
+.bg-preview-bg-1  { background: var(--grad-1); }
+.bg-preview-bg-2  { background: var(--grad-2); }
+.bg-preview-bg-3  { background: var(--grad-3); }
+.bg-preview-bg-4  { background: var(--grad-4); }
+.bg-preview-bg-5  { background: var(--grad-5); }
+.bg-preview-bg-6  { background: var(--grad-6); }
+.bg-preview-bg-7  { background: var(--grad-7); }
+.bg-preview-bg-8  { background: var(--grad-8); }
+.bg-preview-bg-9  { background: var(--grad-9); }
 
-.bg-preview-bg-8 { background: var(--grad-8); background-size: 400% 400%; animation: animPanX 15s ease-in-out infinite; }
-.bg-preview-bg-9 { background: var(--grad-9); background-size: 400% 400%; animation: animPanX 18s ease-in-out infinite; }
-.bg-preview-bg-10 { background: var(--grad-10); background-size: 200% 200%; animation: animPulse 12s ease-in-out infinite; }
-.bg-preview-bg-11 { background: var(--grad-11); background-size: 200% 200%; animation: animOrbs 15s ease-in-out infinite alternate; }
-.bg-preview-bg-12 { background: var(--grad-12); background-size: 400% 400%; animation: animPanDiag 10s ease-in-out infinite; }
+.bg-preview-bg-10 { background: var(--grad-10); background-size: 400% 400%; animation: animPanX 38s ease-in-out infinite; }
+.bg-preview-bg-11 { background: var(--grad-11); background-size: 400% 400%; animation: animPanDiag 45s ease-in-out infinite; }
+.bg-preview-bg-12 { background: var(--grad-12); background-size: 100% 400%; animation: animPanY 32s ease-in-out infinite; }
+.bg-preview-bg-13 { background: var(--grad-13); background-size: 220% 220%; animation: animOrbs 60s ease-in-out infinite; }
 
 .bg-btn:hover {
   transform: translateY(-2px);
@@ -194,5 +196,26 @@ h2 { margin: 0; font-family: var(--font-display); }
   height: 24px;
   color: #fff;
   stroke-width: var(--icon-stroke, 2);
+}
+
+@keyframes animPanX {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes animPanY {
+  0% { background-position: 50% 0%; }
+  50% { background-position: 50% 100%; }
+  100% { background-position: 50% 0%; }
+}
+@keyframes animPanDiag {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+@keyframes animOrbs {
+  0% { background-position: 0% 0%, 100% 100%, 0% 0%; }
+  50% { background-position: 100% 0%, 0% 100%, 0% 0%; }
+  100% { background-position: 0% 100%, 100% 0%, 0% 0%; }
 }
 </style>

@@ -28,7 +28,7 @@ withDefaults(defineProps<Props>(), {
         <BookBadge
           v-if="badge"
           :tier="badge"
-          :size="size === 'lg' ? 'md' : 'sm'"
+          :size="size === 'lg' ? 'sm' : 'xs'"
           class="book-badge-overlay"
         />
       </div>

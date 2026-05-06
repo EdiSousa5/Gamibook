@@ -2,6 +2,7 @@ import { createDirectus, rest } from '@directus/sdk'
 
 const directusUrl = import.meta.env.VITE_DIRECTUS_URL ?? ''
 export const normalizedDirectusUrl = directusUrl.replace(/\/$/, '')
+
 const ACCESS_TOKEN_KEY = 'gb_access_token'
 const USER_ID_KEY = 'gb_user_id'
 
@@ -25,29 +26,31 @@ export const setStoredUserId = (id: string | null) => {
   }
 }
 
-export const clearAccessToken = () => {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-}
-
 export const getAssetUrl = (assetId?: string | null) => {
   if (!assetId) return ''
   if (!normalizedDirectusUrl) return ''
   return `${normalizedDirectusUrl}/assets/${assetId}`
 }
 
+// Access token lives in sessionStorage (cleared when the browser tab/window closes)
+// This prevents long-lived token persistence in localStorage that XSS can exploit indefinitely.
 export const getAccessToken = () => {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+  return sessionStorage.getItem(ACCESS_TOKEN_KEY)
 }
 
 export const setAccessToken = (token: string | null) => {
   if (typeof window === 'undefined') return
   if (token) {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token)
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, token)
   } else {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
   }
+}
+
+export const clearAccessToken = () => {
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
 export const authFetch = async (path: string, options: RequestInit = {}) => {

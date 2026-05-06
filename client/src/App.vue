@@ -7,6 +7,7 @@ import UiButton from './components/ui/UiButton.vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import LevelUpModal from './components/ui/LevelUpModal.vue'
 import BookUnlockModal from './components/ui/BookUnlockModal.vue'
+import UiToast from './components/ui/UiToast.vue'
 import { useAuthStore } from './stores/auth'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
@@ -83,6 +84,7 @@ watch(
 <template>
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
+  <UiToast />
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
       <AppSidebar :items="navItems" :username="displayName" :avatar-url="avatarUrl" @action="onNavClick" />

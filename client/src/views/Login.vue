@@ -16,7 +16,6 @@ const error = ref('')
 
 const redirectPath = computed(() => {
   const r = route.query.redirect as string | undefined
-  // Only allow internal paths to prevent open redirect
   return r && r.startsWith('/') && !r.startsWith('//') ? r : '/app'
 })
 
@@ -28,23 +27,29 @@ const info = computed(() => {
   return ''
 })
 
+const sanitizeEmail = (raw: string) => raw.trim().toLowerCase().slice(0, 254)
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)
+
 const submit = async () => {
   error.value = ''
-  if (!email.value || !password.value) {
-    error.value = 'Preenche email e password.'
-    return
-  }
+  const cleanEmail = sanitizeEmail(email.value)
+  const cleanPassword = password.value.trim()
+
+  if (!cleanEmail) { error.value = 'Preenche o email.'; return }
+  if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
+  if (!cleanPassword) { error.value = 'Preenche a password.'; return }
+  if (cleanPassword.length < 6) { error.value = 'Password demasiado curta.'; return }
 
   try {
-    const loggedUser = await loginUser(email.value, password.value)
+    const loggedUser = await loginUser(cleanEmail, cleanPassword)
     if (!loggedUser?.id) {
-      error.value = 'Credenciais invalidas.'
+      error.value = 'Credenciais inválidas.'
       return
     }
     await auth.loadUser()
     await router.push(redirectPath.value)
   } catch {
-    error.value = 'Nao foi possivel iniciar sessao.'
+    error.value = 'Não foi possível iniciar sessão.'
   }
 }
 </script>
@@ -53,7 +58,7 @@ const submit = async () => {
   <section class="auth">
     <UiCard class="card">
       <h1>Login</h1>
-      <p class="hint">Entra para continuar a tua missao.</p>
+      <p class="hint">Entra para continuar a tua missão.</p>
 
       <form @submit.prevent="submit">
         <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
@@ -68,7 +73,7 @@ const submit = async () => {
       </form>
 
       <p class="alt">
-        Ainda nao tens conta?
+        Ainda não tens conta?
         <RouterLink to="/register">Regista-te aqui</RouterLink>
       </p>
     </UiCard>

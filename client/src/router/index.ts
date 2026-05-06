@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { fetchUserById, isAdminUser } from '@/services/auth'
+import { isAdminUser } from '@/services/auth'
 import { getStoredUserId } from '@/services/client'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -129,28 +130,26 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
+
   const storedId = getStoredUserId()
   if (!storedId) return { path: '/login', query: { redirect: to.fullPath } }
 
-  if (to.meta.requiresAdmin) {
+  const auth = useAuthStore()
+
+  // Load user only once — reuse cached value from store on subsequent navigations
+  if (!auth.user) {
     try {
-      const user = await fetchUserById(storedId)
-      if (!isAdminUser(user)) return { path: '/app' }
-    } catch (error) {
-      console.error('[Router] Failed to validate admin access', error)
-      return { path: '/app' }
+      await auth.loadUser()
+    } catch {
+      return { path: '/login', query: { redirect: to.fullPath } }
     }
   }
 
-  if (to.meta.requiresAuth) {
-    try {
-      const user = await fetchUserById(storedId)
-      if (isAdminUser(user) && to.meta.userOnly) return { path: '/admin' }
-    } catch (error) {
-      console.error('[Router] Failed to validate user role', error)
-      return { path: '/login' }
-    }
-  }
+  const user = auth.user
+  if (!user) return { path: '/login', query: { redirect: to.fullPath } }
+
+  if (to.meta.requiresAdmin && !isAdminUser(user)) return { path: '/app' }
+  if (to.meta.userOnly && isAdminUser(user)) return { path: '/admin' }
 
   return true
 })

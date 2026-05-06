@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import { gerarExercicios, gerarPerguntasDiarias } from '@/services/flowise.ts'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import {
@@ -23,9 +25,10 @@ import {
     fetchDailyExercisesByBook,
     fetchExerciseExamplesByModule,
 } from '@/services/exercises'
+import { getAssetUrl } from '@/services/client'
 import type { Book, DailyExercise, Exercise, Module } from '@/types'
-import BookGrid from '@/components/exercise-generator/BookGrid.vue'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
+import BookMockup from '@/components/ui/BookMockup.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
 import GeneratorConfigPanel from '@/components/exercise-generator/GeneratorConfigPanel.vue'
@@ -63,6 +66,7 @@ const MAX_SELECTED_MODULES = 4
 let exerciseSeed = 0
 
 const generationMode = ref<'module' | 'daily'>('module')
+const route = useRoute()
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
@@ -85,6 +89,8 @@ const warning = ref('')
 const progressLabel = ref('')
 const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
+const statusFilter = ref<'all' | 'approved' | 'unapproved'>('all')
+const publisherFilter = ref<string>('all')
 
 const questionsLabel = computed(() =>
     generationMode.value === 'module'
@@ -104,6 +110,49 @@ const typeLabels: Record<ExerciseType, string> = {
     'fill-blanks': 'Preencher lacunas',
     'ordering': 'Ordenar',
 }
+
+const uniquePublishers = computed(() => {
+    const pubs = new Set<string>()
+    books.value.forEach((b: any) => {
+        if (b.editora?.nome_editora) pubs.add(b.editora.nome_editora)
+    })
+    return Array.from(pubs).sort()
+})
+
+const publisherOptions = computed(() => {
+    const opts = [{ label: 'Todas as editoras', value: 'all' }]
+    uniquePublishers.value.forEach(pub => {
+        opts.push({ label: pub, value: pub })
+    })
+    return opts
+})
+
+const statusOptions = [
+    { label: 'Todos os estados', value: 'all' },
+    { label: 'Aprovados', value: 'approved' },
+    { label: 'Por aprovar', value: 'unapproved' }
+]
+
+const filteredBooks = computed(() => {
+    let list = books.value
+
+    const searchParams = (route.query.q || route.query.search || '').toString().toLowerCase()
+    if (searchParams) {
+        list = list.filter(b => b.title?.toLowerCase().includes(searchParams))
+    }
+
+    if (statusFilter.value === 'approved') {
+        list = list.filter(b => b.is_approved)
+    } else if (statusFilter.value === 'unapproved') {
+        list = list.filter(b => !b.is_approved)
+    }
+
+    if (publisherFilter.value !== 'all') {
+        list = list.filter((b: any) => b.editora?.nome_editora === publisherFilter.value)
+    }
+
+    return list
+})
 
 const selectedModule = computed(() =>
     modules.value.find((moduleItem) => moduleItem.modules_id === selectedModuleId.value),
@@ -715,7 +764,31 @@ onMounted(async () => {
                         </div>
                     </div>
                     <div class="panel-body" v-show="!selectedBookId">
-                        <BookGrid :books="books" :selected-book-id="selectedBookId" @select="selectedBookId = $event" />
+                        <div class="filters-bar">
+                            <div class="filter-item">
+                                <UiSelect :model-value="statusFilter" :options="statusOptions"
+                                    @update="statusFilter = $event as any" />
+                            </div>
+                            <div class="filter-item">
+                                <UiSelect :model-value="publisherFilter" :options="publisherOptions"
+                                    @update="publisherFilter = $event as any" />
+                            </div>
+                        </div>
+                        <div class="books-grid">
+                            <div v-for="book in filteredBooks" :key="book.book_id" class="book-item"
+                                :class="{ 'is-selected': selectedBookId === book.book_id }"
+                                @click="selectedBookId = book.book_id" tabindex="0" role="button">
+                                <BookMockup :cover-url="book.cover_img ? getAssetUrl(book.cover_img) : null"
+                                    :title="book.title || 'Livro'" size="sm" />
+                                <div class="book-info">
+                                    <h4 class="book-title">{{ book.title }}</h4>
+                                    <UiChip :label="book.is_approved ? 'Aprovado' : 'Por aprovar'"
+                                        :variant="book.is_approved ? 'filled' : 'outline'" size="sm" />
+                                </div>
+                            </div>
+                            <p v-if="!filteredBooks.length" class="meta">Nenhum livro encontrado com os filtros atuais.
+                            </p>
+                        </div>
                     </div>
                 </UiCard>
 
@@ -783,7 +856,8 @@ onMounted(async () => {
                                         <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
                                     </p>
                                     <ChevronDownIcon v-if="summary.approvedCount > 0" class="accordion-icon"
-                                        :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }" aria-hidden="true" />
+                                        :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }"
+                                        aria-hidden="true" />
                                     <div v-else class="accordion-icon-placeholder"></div>
                                 </div>
                             </div>
@@ -1013,6 +1087,73 @@ onMounted(async () => {
 .mode-buttons {
     display: flex;
     gap: var(--space-200);
+}
+
+/* Book Grid & Filters */
+.filters-bar {
+    display: flex;
+    gap: var(--space-300);
+    margin-bottom: var(--space-400);
+    flex-wrap: wrap;
+}
+
+.filter-item {
+    min-width: 200px;
+}
+
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: var(--space-500);
+    max-height: 480px;
+    overflow-y: auto;
+    padding: var(--space-200);
+    scrollbar-width: thin;
+}
+
+.book-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-300);
+    padding: var(--space-300);
+    border-radius: 16px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    text-align: center;
+}
+
+.book-item:hover {
+    background: var(--color-wild-200);
+    transform: translateY(-6px);
+}
+
+.book-item.is-selected {
+    background: var(--color-wild-200);
+    border-color: var(--color-deep-600);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    transform: translateY(-4px);
+}
+
+.book-info {
+    display: grid;
+    gap: 6px;
+    place-items: center;
+}
+
+.book-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--color-mirage-800);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.3;
 }
 
 .header-text h2 {

@@ -13,7 +13,6 @@ export type Book = {
   ISBN?: string | null
   publish_date?: string | null
   publisher?: string
-  editora_id?: number | Editora | null
   editora?: Editora | null
   is_approved?: boolean | null
   qr_code?: string | null

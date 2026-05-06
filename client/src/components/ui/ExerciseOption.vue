@@ -15,12 +15,9 @@ const emit = defineEmits<{ select: [value: string] }>()
 </script>
 
 <template>
-  <button
-    class="option"
+  <button class="option"
     :class="{ selected: props.selected, attempted: props.attempted, correct: props.correct, wrong: props.wrong, locked: props.locked }"
-    type="button"
-    @click="emit('select', props.value)"
-  >
+    type="button" @click="emit('select', props.value)">
     <span class="option-shadow"></span>
     <span class="option-panel"></span>
     <span class="option-content">
@@ -123,10 +120,21 @@ const emit = defineEmits<{ select: [value: string] }>()
   color: var(--color-mirage-800);
 }
 
-.option:hover .option-panel { background: var(--color-teal-300); }
-.option:hover .option-shadow { background: var(--color-deep-600); }
-.option:hover .letter-shadow { background: var(--color-deep-600); }
-.option:hover .letter-face { background: var(--color-teal-100); }
+.option:hover .option-panel {
+  background: var(--color-teal-300);
+}
+
+.option:hover .option-shadow {
+  background: var(--color-deep-600);
+}
+
+.option:hover .letter-shadow {
+  background: var(--color-deep-600);
+}
+
+.option:hover .letter-face {
+  background: var(--color-teal-100);
+}
 
 .option:active .option-panel,
 .option.selected .option-panel {
@@ -146,18 +154,30 @@ const emit = defineEmits<{ select: [value: string] }>()
 
 .option:active .letter-shadow,
 .option.selected .letter-shadow,
-.option.attempted .letter-shadow { opacity: 0; }
+.option.attempted .letter-shadow {
+  opacity: 0;
+}
 
-.option.selected .option-panel { background: var(--color-teal-500); }
-.option.selected .option-shadow { background: var(--color-deep-1000); }
+.option.selected .option-panel {
+  background: var(--color-teal-500);
+}
+
+.option.selected .option-shadow {
+  background: var(--color-deep-1000);
+}
 
 .option.selected .letter-face {
   background: var(--color-deep-200);
   transform: translate(var(--option-press-x), var(--option-press-y));
 }
 
-.option.selected .letter-text { transform: translate(var(--option-press-x), var(--option-press-y)); }
-.option.selected .option-text { color: var(--color-wild-100); }
+.option.selected .letter-text {
+  transform: translate(var(--option-press-x), var(--option-press-y));
+}
+
+.option.selected .option-text {
+  color: var(--color-wild-100);
+}
 
 .option.attempted .option-panel,
 .option.attempted .letter-face,
@@ -165,13 +185,79 @@ const emit = defineEmits<{ select: [value: string] }>()
   transform: translate(var(--option-press-x), var(--option-press-y));
 }
 
-.option.correct .option-panel { background: var(--color-deep-600); }
+.option.correct .option-panel {
+  background: var(--color-deep-600);
+  animation: option-correct 0.4s ease;
+}
 
-.option.wrong .option-panel { background: #f7c4c4; border-color: #b13b3b; }
-.option.wrong .letter-face { background: #fbe1e1; border-color: #b13b3b; }
-.option.wrong .letter-shadow { background: #b13b3b; }
-.option.wrong .letter-text { color: #7a1f1f; }
-.option.wrong .option-text { color: #7a1f1f; }
+.option.wrong .option-panel {
+  background: #f7c4c4;
+  border-color: #b13b3b;
+  animation: option-wrong 0.4s ease;
+}
 
-.option.locked { cursor: not-allowed; }
+.option.wrong .letter-face {
+  background: #fbe1e1;
+  border-color: #b13b3b;
+}
+
+.option.wrong .letter-shadow {
+  background: #b13b3b;
+}
+
+.option.wrong .letter-text {
+  color: #7a1f1f;
+}
+
+.option.wrong .option-text {
+  color: #7a1f1f;
+}
+
+.option.locked {
+  cursor: not-allowed;
+}
+
+@keyframes option-correct {
+  0% {
+    transform: translate(var(--option-press-x), var(--option-press-y)) scale(1);
+  }
+
+  25% {
+    transform: translate(var(--option-press-x), var(--option-press-y)) scale(1.02);
+  }
+
+  60% {
+    transform: translate(var(--option-press-x), var(--option-press-y)) scale(0.99);
+  }
+
+  100% {
+    transform: translate(var(--option-press-x), var(--option-press-y)) scale(1);
+  }
+}
+
+@keyframes option-wrong {
+  0% {
+    transform: translate(var(--option-press-x), var(--option-press-y));
+  }
+
+  18% {
+    transform: translate(calc(var(--option-press-x) - 3px), var(--option-press-y));
+  }
+
+  36% {
+    transform: translate(calc(var(--option-press-x) + 3px), var(--option-press-y));
+  }
+
+  54% {
+    transform: translate(calc(var(--option-press-x) - 2px), var(--option-press-y));
+  }
+
+  72% {
+    transform: translate(calc(var(--option-press-x) + 2px), var(--option-press-y));
+  }
+
+  100% {
+    transform: translate(var(--option-press-x), var(--option-press-y));
+  }
+}
 </style>

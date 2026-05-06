@@ -137,7 +137,7 @@ onMounted(async () => {
                     </div>
                     <div class="book-info">
                       <strong>{{ s.book.title ?? '—' }}</strong>
-                      <span v-if="s.book.editora">{{ (s.book.editora as any).nome_editora }}</span>
+                      <span v-if="s.book.editora?.nome_editora">{{ s.book.editora.nome_editora }}</span>
                     </div>
                   </div>
                 </td>

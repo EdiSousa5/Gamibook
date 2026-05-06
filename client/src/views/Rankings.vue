@@ -1,23 +1,89 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import PodiumItem from '@/components/ui/PodiumItem.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   fetchUsers,
-  getUserDisplayName,
   getUserAvatarId,
 } from '../services/auth'
+import { fetchUserBookBadges } from '../services/books'
+import { fetchUserExercisePoints } from '../services/exercises'
 import { getAssetUrl, getStoredUserId } from '../services/client'
+import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
 
-const topGlobal = ref<User[]>([])
+type TimeFilter = 'all' | 'week' | 'month' | 'year'
+
+type BadgeCounts = Record<BookBadgeTier, number>
+
+type LeaderboardEntry = User & {
+  totalPoints: number
+  level: number
+  badgeCounts: BadgeCounts
+}
+
+const TIME_FILTERS: Array<{ id: TimeFilter; label: string }> = [
+  { id: 'all', label: 'Todo' },
+  { id: 'week', label: 'Esta semana' },
+  { id: 'month', label: 'Este mês' },
+  { id: 'year', label: 'Este ano' },
+]
+
+const topGlobal = ref<LeaderboardEntry[]>([])
 const error = ref('')
 const isLoading = ref(false)
-const displayUserName = (entry?: User | null) => getUserDisplayName(entry)
+const timeFilter = ref<TimeFilter>('all')
+const displayUserName = (entry?: User | null) => {
+  if (!entry) return '—'
+  const name = [entry.first_name, entry.last_name].filter(Boolean).join(' ').trim()
+  return name || entry.email || entry.id || '—'
+}
 const getAvatarUrl = (user?: User | null) => getAssetUrl(getUserAvatarId(user))
 const currentUserId = getStoredUserId()
+
+const buildBadgeCounts = (): BadgeCounts => ({
+  bronze: 0,
+  silver: 0,
+  gold: 0,
+  diamond: 0,
+  galaxy: 0,
+})
+
+const resolveUserId = (value: unknown) => {
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    return String((value as { id?: string | number }).id ?? '')
+  }
+  if (value && typeof value === 'object' && 'user_id' in value) {
+    return String((value as { user_id?: string | number }).user_id ?? '')
+  }
+  return null
+}
+
+const getRangeStartDate = (filter: TimeFilter) => {
+  if (filter === 'all') return null
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+
+  if (filter === 'week') {
+    const day = start.getDay()
+    const diff = (day + 6) % 7
+    start.setDate(start.getDate() - diff)
+    return start.toISOString()
+  }
+
+  if (filter === 'month') {
+    start.setDate(1)
+    return start.toISOString()
+  }
+
+  start.setMonth(0, 1)
+  return start.toISOString()
+}
 
 // Computadas para separar o pódio da lista restante
 const podiumUsers = computed(() => topGlobal.value.slice(0, 3))
@@ -39,24 +105,73 @@ const scrollToMe = () => {
   }
 }
 
-onMounted(async () => {
+const loadRankings = async () => {
   error.value = ''
   isLoading.value = true
   try {
-    const users = await fetchUsers(10, 'Utilizador')
+    const startDate = getRangeStartDate(timeFilter.value) ?? undefined
+    const [users, exercises, userBooks] = await Promise.all([
+      fetchUsers(undefined, 'Utilizador'),
+      fetchUserExercisePoints(startDate),
+      fetchUserBookBadges(),
+    ])
+
+    const pointsMap = new Map<string, number>()
+    for (const entry of exercises) {
+      const userId = resolveUserId(entry.user_id)
+      if (!userId) continue
+      const points = Number(entry.points_earned ?? 0)
+      if (!Number.isFinite(points)) continue
+      pointsMap.set(userId, (pointsMap.get(userId) ?? 0) + points)
+    }
+
+    const badgeMap = new Map<string, BadgeCounts>()
+    for (const entry of userBooks) {
+      const userId = resolveUserId(entry.user_id)
+      if (!userId) continue
+      const badge = entry.current_badge
+      if (!badge || badge === 'default') continue
+      const counts = badgeMap.get(userId) ?? buildBadgeCounts()
+      if (badge in counts) {
+        counts[badge as BookBadgeTier] += 1
+        badgeMap.set(userId, counts)
+      }
+    }
+
     topGlobal.value = users
+      .map((user) => {
+        const userId = String(user.id ?? '')
+        const totalPoints = pointsMap.get(userId) ?? 0
+        const badgeCounts = badgeMap.get(userId) ?? buildBadgeCounts()
+        const level = getLevelProgressFromPoints(totalPoints).level
+        return { ...user, totalPoints, level, badgeCounts }
+      })
+      .sort((a, b) => b.totalPoints - a.totalPoints)
   } catch {
     error.value = 'Não foi possível carregar os rankings.'
   } finally {
     isLoading.value = false
   }
-})
+}
+
+watch(timeFilter, () => {
+  loadRankings()
+}, { immediate: true })
 </script>
 
 <template>
   <section class="rankings">
-    <div class="filters-row" v-if="isUserInList">
-      <UiButton size="sm" variant="outline" @click="scrollToMe">O Meu Lugar</UiButton>
+    <div class="filters-row">
+      <div class="filters-group">
+        <span class="filters-label">Período</span>
+        <div class="filters-buttons">
+          <UiButton v-for="filter in TIME_FILTERS" :key="filter.id" size="sm"
+            :variant="timeFilter === filter.id ? 'primary' : 'outline'" @click="timeFilter = filter.id">
+            {{ filter.label }}
+          </UiButton>
+        </div>
+      </div>
+      <UiButton v-if="isUserInList" size="sm" variant="outline" @click="scrollToMe">O Meu Lugar</UiButton>
     </div>
 
     <p v-if="isLoading" class="state podium-state">A carregar rankings...</p>
@@ -66,20 +181,23 @@ onMounted(async () => {
       <section class="podium">
         <!-- 2º Lugar -->
         <div class="podium-col place-2-col">
-          <PodiumItem v-if="podiumUsers[1]" :user="podiumUsers[1]" :position="2"
-            :avatarUrl="getAvatarUrl(podiumUsers[1])" :displayName="displayUserName(podiumUsers[1])" />
+          <PodiumItem v-if="podiumUsers[1]" :position="2" :points="podiumUsers[1].totalPoints"
+            :level="podiumUsers[1].level" :avatarUrl="getAvatarUrl(podiumUsers[1])"
+            :displayName="displayUserName(podiumUsers[1])" />
         </div>
 
         <!-- 1º Lugar -->
         <div class="podium-col place-1-col">
-          <PodiumItem v-if="podiumUsers[0]" :user="podiumUsers[0]" :position="1"
-            :avatarUrl="getAvatarUrl(podiumUsers[0])" :displayName="displayUserName(podiumUsers[0])" />
+          <PodiumItem v-if="podiumUsers[0]" :position="1" :points="podiumUsers[0].totalPoints"
+            :level="podiumUsers[0].level" :avatarUrl="getAvatarUrl(podiumUsers[0])"
+            :displayName="displayUserName(podiumUsers[0])" />
         </div>
 
         <!-- 3º Lugar -->
         <div class="podium-col place-3-col">
-          <PodiumItem v-if="podiumUsers[2]" :user="podiumUsers[2]" :position="3"
-            :avatarUrl="getAvatarUrl(podiumUsers[2])" :displayName="displayUserName(podiumUsers[2])" />
+          <PodiumItem v-if="podiumUsers[2]" :position="3" :points="podiumUsers[2].totalPoints"
+            :level="podiumUsers[2].level" :avatarUrl="getAvatarUrl(podiumUsers[2])"
+            :displayName="displayUserName(podiumUsers[2])" />
         </div>
       </section>
 
@@ -87,9 +205,9 @@ onMounted(async () => {
         <UiCard v-if="remainingUsersList.length" class="list-card">
           <ul class="user-list">
             <RankingListItem v-for="(user, index) in remainingUsersList" :key="user.id || user.email || user.name"
-              :id="`user-${user.id}`" :user="user" :position="index + 4"
-              :isCurrentUser="String(user.id) === String(currentUserId)" :avatarUrl="getAvatarUrl(user)"
-              :displayName="displayUserName(user)" />
+              :id="`user-${user.id}`" :position="index + 4" :points="user.totalPoints" :level="user.level"
+              :badgeCounts="user.badgeCounts" :isCurrentUser="String(user.id) === String(currentUserId)"
+              :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)" />
           </ul>
         </UiCard>
       </div>
@@ -116,6 +234,29 @@ onMounted(async () => {
   gap: 16px;
   margin-bottom: 32px;
   z-index: 10;
+}
+
+.filters-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.filters-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-mirage-600);
+}
+
+.filters-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
 }
 
 .state {
