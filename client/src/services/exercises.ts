@@ -7,6 +7,18 @@ import type {
 } from '@/types'
 import { authFetch } from './client'
 
+export const fetchAllUserPointsFromServer = async () => {
+  const response = await fetch('http://localhost:3000/api/rankings/all-user-points')
+
+  if (!response.ok) {
+    throw new Error(`Fetch all user points failed: ${response.status}`)
+  }
+
+  const data = await response.json().catch(() => null)
+  const points = (data?.data ?? []) as Array<{ user_id: string; total_points: number }>
+  return new Map(points.map(p => [String(p.user_id), p.total_points]))
+}
+
 export const fetchUserPointsFromHistory = async (userId: string) => {
   const params = new URLSearchParams({
     fields: 'points',
@@ -17,6 +29,9 @@ export const fetchUserPointsFromHistory = async (userId: string) => {
   const response = await authFetch(`/items/user_points_history?${params.toString()}`)
 
   if (!response.ok) {
+    if (response.status === 403) {
+      return 0
+    }
     const text = await response.text().catch(() => '')
     throw new Error(`Fetch user points history failed: ${response.status} ${text}`.trim())
   }
@@ -94,7 +109,7 @@ export const fetchUserExerciseCountsByModule = async (
 
 export const fetchUserExercisesByModule = async (userId: string, moduleId: number) => {
   const params = new URLSearchParams({
-    fields: 'id_user_exercises,exercise_id,is_correct,attempts,points_earned,time_spent',
+    fields: 'id_user_exercises,exercise_id,is_correct,attempts,time_spent',
     limit: '-1',
   })
   params.set('filter[user_id][_eq]', String(userId))

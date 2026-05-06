@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type Frame = 'classic' | 'gold' | 'silver' | 'crystal' | 'neon' | 'cosmic' | 'forest'
+type Frame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
 type Props = {
   src?: string
@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
   status: undefined,
   tone: 'primary',
   ring: false,
-  frame: 'classic',
+  frame: 'essence',
 })
 </script>
 
@@ -38,7 +38,7 @@ withDefaults(defineProps<Props>(), {
   color: #fff;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   font-weight: 700;
   position: relative;
   border: 2px solid var(--color-mirage-800);
@@ -49,6 +49,7 @@ withDefaults(defineProps<Props>(), {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: var(--radius-full);
 }
 
 .status {
@@ -86,55 +87,229 @@ withDefaults(defineProps<Props>(), {
   background: var(--color-mirage-500);
 }
 
-/* Avatar Frames */
-.frame-classic {
+/* ── Frame Styles ────────────────────────────────────── */
+
+/* Essence — elegância simples */
+.frame-essence {
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
-.frame-gold {
-  border: 3px solid #d4af37;
+/* Bloom — flores desabrocham */
+.frame-bloom {
+  border: 3px solid #ec4899;
+  position: relative;
   box-shadow:
-    inset 0 0 0 1px rgba(212, 175, 55, 0.5),
+    inset 0 0 0 1px rgba(236, 72, 153, 0.4),
     4px 4px 0 var(--color-shadow);
+  overflow: hidden;
 }
 
-.frame-silver {
-  border: 3px solid #c0c0c0;
-  box-shadow:
-    inset 0 0 0 1px rgba(192, 192, 192, 0.5),
-    4px 4px 0 var(--color-shadow);
+.frame-bloom::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(circle at 25% 25%, rgba(236, 72, 153, 0.3) 0%, transparent 30%),
+    radial-gradient(circle at 75% 75%, rgba(244, 114, 182, 0.3) 0%, transparent 30%),
+    radial-gradient(circle at 75% 25%, rgba(190, 24, 93, 0.2) 0%, transparent 30%),
+    radial-gradient(circle at 25% 75%, rgba(236, 72, 153, 0.2) 0%, transparent 30%);
+  border-radius: 50%;
+  animation: bloom-pulse 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.frame-crystal {
-  border: 3px solid #b0e0e6;
-  box-shadow:
-    inset 0 0 8px rgba(176, 224, 230, 0.6),
-    0 0 12px rgba(176, 224, 230, 0.4),
-    4px 4px 0 var(--color-shadow);
+@keyframes bloom-pulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 0.8; }
 }
 
-.frame-neon {
-  border: 2px solid #00ff88;
+/* Ember — chamas dançantes */
+.frame-ember {
+  border: 3px solid #f97316;
+  position: relative;
   box-shadow:
-    inset 0 0 0 1px rgba(0, 255, 136, 0.3),
-    0 0 10px rgba(0, 255, 136, 0.8),
+    inset 0 0 12px rgba(249, 115, 22, 0.4),
+    0 0 20px rgba(249, 115, 22, 0.6),
     4px 4px 0 var(--color-shadow);
+  overflow: hidden;
 }
 
-.frame-cosmic {
-  border: 3px solid #9d4edd;
-  box-shadow:
-    inset 0 0 0 1px rgba(157, 78, 221, 0.4),
-    0 0 15px rgba(157, 78, 221, 0.6),
-    4px 4px 0 var(--color-shadow);
+.frame-ember::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background:
+    linear-gradient(to top, rgba(239, 68, 68, 0.6) 0%, transparent 40%),
+    linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, transparent 50%);
+  border-radius: 50%;
+  animation: ember-flicker 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.frame-forest {
-  border: 3px solid #228b22;
+@keyframes ember-flicker {
+  0%, 100% { opacity: 0.7; }
+  25% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+  75% { opacity: 0.5; }
+}
+
+/* Aurora — aurora boreal */
+.frame-aurora {
+  border: 3px solid #06b6d4;
+  position: relative;
   box-shadow:
-    inset 0 0 0 1px rgba(34, 139, 34, 0.5),
-    0 0 10px rgba(34, 139, 34, 0.4),
+    inset 0 0 0 1px rgba(6, 182, 212, 0.5),
+    0 0 25px rgba(6, 182, 212, 0.7),
+    0 0 40px rgba(139, 92, 246, 0.4),
     4px 4px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.frame-aurora::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(6, 182, 212, 0.5) 60deg,
+    rgba(139, 92, 246, 0.4) 120deg,
+    rgba(168, 85, 247, 0.3) 180deg,
+    rgba(59, 130, 246, 0.4) 240deg,
+    rgba(6, 182, 212, 0.5) 360deg
+  );
+  border-radius: 50%;
+  animation: aurora-spin 8s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes aurora-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Nebula — nebulosa cósmica */
+.frame-nebula {
+  border: 3px solid #a855f7;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px rgba(168, 85, 247, 0.4),
+    0 0 30px rgba(168, 85, 247, 0.8),
+    4px 4px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.frame-nebula::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(168, 85, 247, 0.6) 80deg,
+    rgba(126, 34, 206, 0.5) 160deg,
+    rgba(79, 70, 229, 0.4) 240deg,
+    rgba(168, 85, 247, 0.6) 360deg
+  );
+  border-radius: 50%;
+  animation: nebula-spin 12s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.frame-nebula::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    calc(20px - 100%) calc(10px - 100%) 0 #fff,
+    calc(60px - 100%) calc(70px - 100%) 0 rgba(255, 255, 255, 0.6),
+    calc(80px - 100%) calc(30px - 100%) 0 rgba(255, 255, 255, 0.8);
+  top: 30%;
+  left: 40%;
+  animation: nebula-twinkle 2.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes nebula-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes nebula-twinkle {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.2; }
+}
+
+/* Ethereal — aura etérea */
+.frame-ethereal {
+  border: 3px solid #60a5fa;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px rgba(96, 165, 250, 0.4),
+    0 0 30px rgba(96, 165, 250, 0.9),
+    0 0 50px rgba(168, 85, 247, 0.5),
+    4px 4px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.frame-ethereal::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(96, 165, 250, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(168, 85, 247, 0.3) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.2) 0%, transparent 60%);
+  animation: ethereal-glow 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes ethereal-glow {
+  0%, 100% { transform: scale(1) rotateZ(0deg); opacity: 0.7; }
+  50% { transform: scale(1.1) rotateZ(180deg); opacity: 0.4; }
+}
+
+/* Void — buraco negro */
+.frame-void {
+  border: 3px solid #1e1b4b;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px rgba(30, 27, 75, 0.8),
+    0 0 40px rgba(139, 92, 246, 0.9),
+    0 0 80px rgba(168, 85, 247, 0.6),
+    4px 4px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.frame-void::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(139, 92, 246, 0.8) 45deg,
+    rgba(168, 85, 247, 0.6) 90deg,
+    rgba(79, 70, 229, 0.8) 180deg,
+    rgba(139, 92, 246, 0.6) 270deg,
+    transparent 360deg
+  );
+  border-radius: 50%;
+  animation: void-spin 15s linear infinite reverse;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes void-spin {
+  to { transform: rotate(360deg); }
 }
 </style>

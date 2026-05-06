@@ -8,7 +8,9 @@ export const getUnlockedFrames = (userLevel: number): AvatarFrame[] => {
   )
 }
 
-export const fetchUserAvatarCustomization = async (userId: string): Promise<UserAvatarCustomization | null> => {
+export const fetchUserAvatarCustomization = async (
+  userId: string,
+): Promise<UserAvatarCustomization | null> => {
   const params = new URLSearchParams({
     limit: '1',
   })

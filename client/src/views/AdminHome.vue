@@ -84,23 +84,13 @@ const quickLinks = [
       </div>
     </UiCard>
 
-    <AvatarFrameSelector
-      v-if="user"
-      :model-value="selectedFrame"
-      :unlocked-frames="unlockedFrames"
-      :user-level="user.level ?? 1"
-      @update="selectedFrame = $event"
-    />
+    <AvatarFrameSelector v-if="user" :model-value="selectedFrame" :unlocked-frames="unlockedFrames"
+      :user-level="user.level ?? 1" @update="selectedFrame = $event" />
 
     <AdminActivityLog v-if="isAbsoluteAdmin" />
 
     <div class="links-grid">
-      <RouterLink
-        v-for="link in quickLinks"
-        :key="link.to"
-        :to="link.to"
-        class="link-card"
-      >
+      <RouterLink v-for="link in quickLinks" :key="link.to" :to="link.to" class="link-card">
         <div class="link-icon-wrap" aria-hidden="true">
           <component :is="link.icon" class="link-icon" />
         </div>

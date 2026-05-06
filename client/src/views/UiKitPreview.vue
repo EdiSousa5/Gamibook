@@ -183,12 +183,14 @@ const dummyUsers = [
             <span class="tag">Basicos (Nivel 1+)</span>
             <div class="frame-row">
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="classic" />
-                <span class="frame-level">Classic</span>
+                <UiAvatar alt="E" :size="80" frame="essence" />
+                <span class="frame-level">Essence</span>
+                <span class="frame-desc">Elegância pura</span>
               </div>
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="silver" />
-                <span class="frame-level">Silver</span>
+                <UiAvatar alt="B" :size="80" frame="bloom" />
+                <span class="frame-level">Bloom</span>
+                <span class="frame-desc">Flores desabrocham</span>
               </div>
             </div>
           </div>
@@ -196,29 +198,34 @@ const dummyUsers = [
             <span class="tag">Premium (Nivel 5+)</span>
             <div class="frame-row">
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="gold" />
-                <span class="frame-level">Gold</span>
+                <UiAvatar alt="Em" :size="80" frame="ember" />
+                <span class="frame-level">Ember</span>
+                <span class="frame-desc">Chamas dançantes</span>
               </div>
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="crystal" />
-                <span class="frame-level">Crystal</span>
+                <UiAvatar alt="Au" :size="80" frame="aurora" />
+                <span class="frame-level">Aurora</span>
+                <span class="frame-desc">Aurora boreal</span>
               </div>
             </div>
           </div>
           <div class="frame-category">
-            <span class="tag">Epicos (Nivel 10+)</span>
+            <span class="tag">Epicos (Nivel 9+)</span>
             <div class="frame-row">
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="neon" />
-                <span class="frame-level">Neon</span>
+                <UiAvatar alt="N" :size="80" frame="nebula" />
+                <span class="frame-level">Nebula</span>
+                <span class="frame-desc">Nebulosa cósmica</span>
               </div>
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="cosmic" />
-                <span class="frame-level">Cosmic</span>
+                <UiAvatar alt="Et" :size="80" frame="ethereal" />
+                <span class="frame-level">Ethereal</span>
+                <span class="frame-desc">Aura etérea</span>
               </div>
               <div class="frame-item">
-                <UiAvatar alt="G" :size="80" frame="forest" />
-                <span class="frame-level">Forest</span>
+                <UiAvatar alt="V" :size="80" frame="void" />
+                <span class="frame-level">Void</span>
+                <span class="frame-desc">O abismo infinito</span>
               </div>
             </div>
           </div>
@@ -1137,24 +1144,6 @@ h2 {
   text-align: center;
 }
 
-/* Avatar frames section */
-.frame-section {
-  display: grid;
-  gap: var(--space-500);
-}
-
-.frame-category {
-  display: grid;
-  gap: var(--space-300);
-}
-
-.frame-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-400);
-  align-items: center;
-}
-
 .frame-item {
   display: grid;
   gap: var(--space-150);
@@ -1168,6 +1157,12 @@ h2 {
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.frame-desc {
+  font-size: 10px;
+  color: var(--color-mirage-500);
+  text-align: center;
 }
 
 @media (max-width: 720px) {

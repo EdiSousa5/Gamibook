@@ -154,7 +154,7 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
 
 const loadUserRank = async (userId: string) => {
   try {
-    const users = await fetchUsers(100, 'Utilizador')
+    const users = await fetchUsers(100)
 
     const pointsMap = new Map<string, number>()
     const pointsPromises = users.map(async (u) => {

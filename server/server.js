@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { ErrorHandler } = require("./utils/error.js");
+const rankingsRouter = require("./routes/rankings.js");
 
 // read environment variables from .env file
 require("dotenv").config();
@@ -32,6 +33,8 @@ app.use((req, res, next) => {
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", service: "gamibook-api" });
 });
+
+app.use("/api/rankings", rankingsRouter);
 
 // handle invalid routes (404)
 app.use((req, res) => {

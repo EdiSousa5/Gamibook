@@ -1,4 +1,4 @@
-export type AvatarFrame = 'classic' | 'gold' | 'silver' | 'crystal' | 'neon' | 'cosmic' | 'forest'
+export type AvatarFrame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
 export type AvatarFrameConfig = {
   id: AvatarFrame
@@ -17,53 +17,53 @@ export type UserAvatarCustomization = {
 }
 
 export const AVATAR_FRAMES: Record<AvatarFrame, AvatarFrameConfig> = {
-  classic: {
-    id: 'classic',
-    name: 'Classic',
+  essence: {
+    id: 'essence',
+    name: 'Essence',
     requiredLevel: 1,
     category: 'basic',
-    description: 'O frame clássico padrão',
+    description: 'A essência pura, simples e elegante',
   },
-  silver: {
-    id: 'silver',
-    name: 'Silver',
-    requiredLevel: 1,
+  bloom: {
+    id: 'bloom',
+    name: 'Bloom',
+    requiredLevel: 3,
     category: 'basic',
-    description: 'Um frame de prata elegante',
+    description: 'Flores que desabrocham continuamente',
   },
-  gold: {
-    id: 'gold',
-    name: 'Gold',
+  ember: {
+    id: 'ember',
+    name: 'Ember',
     requiredLevel: 5,
     category: 'premium',
-    description: 'Um frame dourado de luxo',
+    description: 'Chamas dançantes de um fogo celestial',
   },
-  crystal: {
-    id: 'crystal',
-    name: 'Crystal',
-    requiredLevel: 5,
+  aurora: {
+    id: 'aurora',
+    name: 'Aurora',
+    requiredLevel: 7,
     category: 'premium',
-    description: 'Um frame cristalino brilhante',
+    description: 'Aurora boreal em tons vibrantes',
   },
-  neon: {
-    id: 'neon',
-    name: 'Neon',
-    requiredLevel: 10,
+  nebula: {
+    id: 'nebula',
+    name: 'Nebula',
+    requiredLevel: 9,
     category: 'epic',
-    description: 'Um frame neon futurista',
+    description: 'Uma nebulosa cósmica em rotação',
   },
-  cosmic: {
-    id: 'cosmic',
-    name: 'Cosmic',
-    requiredLevel: 10,
+  ethereal: {
+    id: 'ethereal',
+    name: 'Ethereal',
+    requiredLevel: 11,
     category: 'epic',
-    description: 'Um frame cósmico místico',
+    description: 'Aura etérea e luminosa',
   },
-  forest: {
-    id: 'forest',
-    name: 'Forest',
-    requiredLevel: 10,
+  void: {
+    id: 'void',
+    name: 'Void',
+    requiredLevel: 15,
     category: 'epic',
-    description: 'Um frame florestal natural',
+    description: 'O abismo infinito com poder cósmico',
   },
 }
