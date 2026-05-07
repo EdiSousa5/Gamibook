@@ -89,10 +89,13 @@ export const checkAndUpdateBadge = async (
     if (!approvedModules.length) return currentTier
 
     const stats = await Promise.all(
-      approvedModules.map(async (m) => ({
-        total: await fetchApprovedExerciseCountsByModule(m.modules_id),
-        done: await fetchUserExerciseCountsByModule(userId, m.modules_id, true),
-      })),
+      approvedModules.map(async (m) => {
+        const [total, done] = await Promise.all([
+          fetchApprovedExerciseCountsByModule(m.modules_id),
+          fetchUserExerciseCountsByModule(userId, m.modules_id, true),
+        ])
+        return { total, done }
+      }),
     )
 
     const totalExercises = stats.reduce((s, v) => s + v.total, 0)
@@ -100,16 +103,16 @@ export const checkAndUpdateBadge = async (
     if (totalExercises === 0) return currentTier
 
     const pct = (doneExercises / totalExercises) * 100
+    const allDone = pct >= 100
+
     const newTier = tierForPct(pct)
 
     const currentRank = TIER_ORDER.indexOf(currentTier)
     const newRank = TIER_ORDER.indexOf(newTier)
 
-    // No advancement — return current stored tier
     if (newRank <= currentRank) return currentTier
 
-    const unlockQuiz = pct >= 100
-    await updateUserBookBadge(userBook.user_book_id, newTier, unlockQuiz)
+    await updateUserBookBadge(userBook.user_book_id, newTier, allDone)
     return newTier
   } catch (err) {
     console.error('[Badge] checkAndUpdateBadge failed', err)
@@ -124,7 +127,7 @@ export const fetchExercisesForBook = async (bookId: number): Promise<Map<number,
   const pairs = await Promise.all(
     approvedModules.map(async (m) => {
       const exercises = await fetchExercisesByModule(m.modules_id)
-      const filtered = exercises.filter((e) => e.type !== 'fill-blanks' && e.type !== 'ordering')
+      const filtered = exercises
       return [m.modules_id, filtered] as const
     }),
   )

@@ -15,6 +15,7 @@ import {
 } from '../services/badges'
 import { getStoredUserId } from '../services/client'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
+import { FEEDBACK_DELAY_MS } from '@/utils/timing'
 import type { Book, Exercise, UserBook } from '@/types'
 
 const route = useRoute()
@@ -73,7 +74,7 @@ const showFeedback = (type: 'correct' | 'wrong') => {
   feedbackTimer.value = window.setTimeout(() => {
     feedback.value = null
     feedbackTimer.value = null
-  }, 2000)
+  }, FEEDBACK_DELAY_MS)
 }
 
 const goNext = () => {
@@ -90,7 +91,7 @@ const handleCorrect = () => {
   isLocked.value = true
   answers.value[currentIndex.value] = true
   showFeedback('correct')
-  window.setTimeout(goNext, 2000)
+  window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleIncorrect = () => {
@@ -100,7 +101,7 @@ const handleIncorrect = () => {
   isLocked.value = true
   answers.value[currentIndex.value] = false
   showFeedback('wrong')
-  window.setTimeout(goNext, 2000)
+  window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleTimeout = () => {
@@ -108,7 +109,7 @@ const handleTimeout = () => {
   isLocked.value = true
   answers.value[currentIndex.value] = false
   showFeedback('wrong')
-  window.setTimeout(goNext, 2000)
+  window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleSelect = (option: string) => {
@@ -483,8 +484,8 @@ watch(
 }
 
 .summary-score--fail {
-  background: #f7c4c4;
-  border-color: #b13b3b;
+  background: var(--color-pumpkin-100);
+  border-color: var(--color-pumpkin-500);
 }
 
 .summary-score span {
@@ -649,7 +650,7 @@ watch(
 }
 
 .result-pill.correct { background: var(--color-deep-100); }
-.result-pill.wrong { background: #f7c4c4; border-color: #b13b3b; color: #7a1f1f; }
+.result-pill.wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
 
 .question-divider {
   height: 1px;

@@ -11,10 +11,13 @@ import {
   getUserAvatarId,
 } from '../services/auth'
 import { fetchUserBookBadges } from '../services/books'
-import { fetchUserPointsFromHistory } from '../services/exercises'
+import { fetchAllUsersPoints } from '../services/exercises'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
+import { useToast } from '@/composables/useToast'
 import type { User } from '@/types'
+
+const toast = useToast()
 
 type TimeFilter = 'all' | 'week' | 'month' | 'year'
 
@@ -53,17 +56,6 @@ const buildBadgeCounts = (): BadgeCounts => ({
   galaxy: 0,
 })
 
-const resolveUserId = (value: unknown) => {
-  if (typeof value === 'number') return String(value)
-  if (typeof value === 'string') return value
-  if (value && typeof value === 'object' && 'id' in value) {
-    return String((value as { id?: string | number }).id ?? '')
-  }
-  if (value && typeof value === 'object' && 'user_id' in value) {
-    return String((value as { user_id?: string | number }).user_id ?? '')
-  }
-  return null
-}
 
 const getRangeStartDate = (filter: TimeFilter) => {
   if (filter === 'all') return null
@@ -102,7 +94,7 @@ const scrollToMe = () => {
       el.classList.remove('highlight-pulse-green')
     }, 2500)
   } else {
-    alert('Ainda não te encontras nesta tabela de classificação!')
+    toast.info('Ainda não te encontras nesta tabela de classificação!')
   }
 }
 
@@ -111,27 +103,15 @@ const loadRankings = async () => {
   isLoading.value = true
   try {
     const startDate = getRangeStartDate(timeFilter.value) ?? undefined
-    const [users, userBooks] = await Promise.all([
+    const [users, userBooks, pointsMap] = await Promise.all([
       fetchUsers(undefined, 'Utilizador'),
       fetchUserBookBadges(),
+      fetchAllUsersPoints(startDate),
     ])
-
-    const pointsMap = new Map<string, number>()
-    const pointsPromises = users.map(async (u) => {
-      const userId = String(u.id ?? '')
-      if (!userId) return
-      try {
-        const points = await fetchUserPointsFromHistory(userId)
-        pointsMap.set(userId, points)
-      } catch {
-        pointsMap.set(userId, 0)
-      }
-    })
-    await Promise.all(pointsPromises)
 
     const badgeMap = new Map<string, BadgeCounts>()
     for (const entry of userBooks) {
-      const userId = resolveUserId(entry.user_id)
+      const userId = String(entry.user_id ?? '')
       if (!userId) continue
       const badge = entry.current_badge
       if (!badge || badge === 'default') continue
@@ -262,7 +242,7 @@ watch(timeFilter, () => {
 }
 
 .error {
-  color: #b13b3b;
+  color: var(--color-pumpkin-700);
 }
 
 .podium-state {
@@ -309,8 +289,7 @@ watch(timeFilter, () => {
   max-width: 1120px;
   position: relative;
   z-index: 10;
-  margin-top: -40px;
-  /* Faz com que a lista passe um bocado por cima dos pódios */
+  margin-top: var(--rankings-list-overlap, -40px);
 }
 
 .list-card {

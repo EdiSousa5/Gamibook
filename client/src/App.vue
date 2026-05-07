@@ -11,6 +11,7 @@ import UiToast from './components/ui/UiToast.vue'
 import { useAuthStore } from './stores/auth'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
+import { setUnauthorizedHandler } from './services/client'
 
 const router = useRouter()
 const route = useRoute()
@@ -69,6 +70,7 @@ onMounted(() => {
     document.documentElement.setAttribute('data-bg', savedBg)
   }
 
+  setUnauthorizedHandler(() => router.push('/login'))
   auth.loadUser()
   updateCanGoBack()
 })

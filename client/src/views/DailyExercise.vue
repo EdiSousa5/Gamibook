@@ -10,7 +10,6 @@ import {
     fetchLatestUserDailyExercise,
     fetchAnsweredDailyExerciseIds,
     createUserDailyExercise,
-    createUserExercise,
     fetchUserPointsFromHistory,
     createUserPointsHistory,
 } from '../services/exercises'
@@ -19,7 +18,9 @@ import { getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '../utils/gamification'
 import { useAuthStore } from '@/stores/auth'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
+import { FEEDBACK_DELAY_MS } from '@/utils/timing'
 import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
+import UiResultPill from '@/components/ui/UiResultPill.vue'
 import type { DailyExercise, User } from '@/types'
 
 const router = useRouter()
@@ -89,8 +90,8 @@ const handleSelect = async (option: string) => {
         stopTimer()
         isLocked.value = true
         if (attemptsUsed.value === 0) {
-            const bonus = currentStreak.value >= 2 ? 10 : 0
-            pointsEarned.value = 15 + bonus
+            const bonus = currentStreak.value >= 2 ? 5 : 0
+            pointsEarned.value = 10 + bonus
             newStreak.value = currentStreak.value + 1
         } else {
             pointsEarned.value = 5
@@ -98,7 +99,7 @@ const handleSelect = async (option: string) => {
         }
         result.value = 'correct'
         await saveResult(true)
-        window.setTimeout(() => { mode.value = 'done' }, 1500)
+        window.setTimeout(() => { mode.value = 'done' }, FEEDBACK_DELAY_MS)
         return
     }
 
@@ -112,7 +113,7 @@ const handleSelect = async (option: string) => {
         newStreak.value = 0
         result.value = 'wrong'
         await saveResult(false)
-        window.setTimeout(() => { mode.value = 'done' }, 1500)
+        window.setTimeout(() => { mode.value = 'done' }, FEEDBACK_DELAY_MS)
     }
 }
 
@@ -321,7 +322,7 @@ onUnmounted(() => {
 
                 <div v-if="result === 'correct' && newStreak >= 2" class="streak-bonus-banner">
                     <FireIcon class="streak-bonus-icon" aria-hidden="true" />
-                    Bónus de streak: <strong>+10 pontos extra</strong> por {{ newStreak }} dias seguidos!
+                    Bónus de streak: <strong>+5 pontos extra</strong> por {{ newStreak }} dias seguidos!
                 </div>
 
                 <RouterLink to="/app">
@@ -344,10 +345,7 @@ onUnmounted(() => {
                     </div>
                     <div class="question-top">
                         <div class="question-title">Exercício Diário</div>
-                        <div v-if="result" class="result-pill" :class="result">
-                            <span class="result-pill__label">{{ result === 'correct' ? 'Certo!' : 'Errado' }}</span>
-                            <strong v-if="pointsEarned > 0" class="result-pill__xp">+{{ pointsEarned }} XP</strong>
-                        </div>
+                        <UiResultPill v-if="result" :result="result" :points="pointsEarned" />
                         <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
                     <div class="question-divider"></div>
@@ -434,7 +432,7 @@ onUnmounted(() => {
 }
 
 .state.error {
-    color: #b13b3b;
+    color: var(--color-pumpkin-700);
 }
 
 .info-card {
@@ -552,8 +550,8 @@ onUnmounted(() => {
 }
 
 .done-recap__yours {
-    background: #fbe1e1;
-    border-color: #b13b3b;
+    background: var(--color-pumpkin-100);
+    border-color: var(--color-pumpkin-500);
 }
 
 .done-recap__answer-label {
@@ -573,7 +571,7 @@ onUnmounted(() => {
 .done-recap__yours-text {
     font-size: 16px;
     font-weight: 800;
-    color: #7a1f1f;
+    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
 }
 
 /* Done card */
@@ -595,8 +593,8 @@ onUnmounted(() => {
 }
 
 .done-wrong {
-    border-color: #b13b3b;
-    background: #fdf3f3;
+    border-color: var(--color-pumpkin-500);
+    background: var(--color-pumpkin-50, var(--color-pumpkin-100));
 }
 
 .done-result-header {
@@ -621,8 +619,8 @@ onUnmounted(() => {
 }
 
 .done-icon--wrong {
-    background: #fbe1e1;
-    border-color: #b13b3b;
+    background: var(--color-pumpkin-100);
+    border-color: var(--color-pumpkin-500);
 }
 
 .done-icon-svg {
@@ -633,7 +631,7 @@ onUnmounted(() => {
 }
 
 .done-icon--wrong .done-icon-svg {
-    color: #b13b3b;
+    color: var(--color-pumpkin-700);
 }
 
 .done-verdict {
@@ -815,47 +813,6 @@ onUnmounted(() => {
     font-size: 16px;
 }
 
-.result-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 2px solid var(--color-mirage-800);
-    font-weight: 700;
-    background: var(--color-wild-100);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-    animation: feedback-pop 0.35s ease;
-    white-space: nowrap;
-}
-
-.result-pill.correct {
-    background: var(--color-deep-100);
-}
-
-.result-pill.wrong {
-    background: #f7c4c4;
-    border-color: #b13b3b;
-}
-
-.result-pill__label {
-    font-size: 13px;
-    color: var(--color-mirage-800);
-}
-
-.result-pill.wrong .result-pill__label {
-    color: #7a1f1f;
-}
-
-.result-pill__xp {
-    font-size: 12px;
-    color: var(--color-deep-700);
-}
-
-.result-pill.wrong .result-pill__xp {
-    color: #7a1f1f;
-}
-
 .question-top {
     display: flex;
     align-items: center;
@@ -901,23 +858,6 @@ onUnmounted(() => {
 
 .options-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@keyframes feedback-pop {
-    0% {
-        transform: translateY(-6px) scale(0.95);
-        opacity: 0;
-    }
-
-    60% {
-        transform: translateY(0) scale(1.02);
-        opacity: 1;
-    }
-
-    100% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
 }
 
 @media (max-width: 860px) {

@@ -87,6 +87,6 @@ onMounted(loadUser)
 }
 
 .error {
-    color: #b13b3b;
+    color: var(--color-pumpkin-700);
 }
 </style>

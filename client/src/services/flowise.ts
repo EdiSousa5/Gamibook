@@ -2,9 +2,16 @@ const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL ?? 'http://localhost:3000'
 const CHATFLOW_ID = import.meta.env.VITE_FLOWISE_CHATFLOW_ID ?? '18a5aadf-041b-4c26-ba74-a062281b843d'
 const DAILY_CHATFLOW_ID = import.meta.env.VITE_FLOWISE_DAILY_CHATFLOW_ID ?? '17ac9a00-1a6c-47c0-9544-2ef5a2d02bc2'
 
+type FlowiseRawData = {
+  json?: Record<string, unknown>
+  data?: unknown
+  text?: string
+  [key: string]: unknown
+}
+
 type FlowiseResponse = {
-  raw: any
-  parsed: any
+  raw: FlowiseRawData
+  parsed: Record<string, unknown> | unknown[]
 }
 
 // Os parâmetros agora têm os nomes EXATOS das variáveis do teu Prompt Template
@@ -25,7 +32,7 @@ export type GerarPerguntasDiariasParams = {
 
 const callFlowise = async (
   chatflowId: string,
-  promptValues: Record<string, any>,
+  promptValues: Record<string, string | number | object>,
   questionLabel: string,
 ): Promise<FlowiseResponse> => {
   const normalizedPromptValues = Object.fromEntries(
@@ -65,29 +72,28 @@ const callFlowise = async (
     throw new Error(`Erro ao contactar o Flowise: ${detail}`)
   }
 
-  const data = await response.json()
+  const data = await response.json() as FlowiseRawData
 
   try {
-    if ((data as any)?.json) {
-      const jsonKeys = Object.keys((data as any).json || {})
-      const resultadosCount = Array.isArray((data as any).json?.resultados)
-        ? (data as any).json.resultados.length
-        : 0
+    if (data?.json) {
+      const jsonKeys = Object.keys(data.json)
+      const resultadosVal = (data.json as Record<string, unknown>).resultados
+      const resultadosCount = Array.isArray(resultadosVal) ? resultadosVal.length : 0
       const hasJsonContent = jsonKeys.length > 0 || resultadosCount > 0
 
-      if (hasJsonContent) return { raw: data, parsed: (data as any).json }
+      if (hasJsonContent) return { raw: data, parsed: data.json }
     }
 
-    if ((data as any)?.data) return { raw: data, parsed: (data as any).data }
-    if (typeof (data as any)?.text !== 'string') return { raw: data, parsed: data }
+    if (data?.data) return { raw: data, parsed: data.data as Record<string, unknown> }
+    if (typeof data?.text !== 'string') return { raw: data, parsed: data }
 
     try {
-      return { raw: data, parsed: JSON.parse((data as any).text) }
+      return { raw: data, parsed: JSON.parse(data.text) as Record<string, unknown> }
     } catch {
-      const start = (data as any).text.indexOf('{')
-      const end = (data as any).text.lastIndexOf('}')
+      const start = data.text.indexOf('{')
+      const end = data.text.lastIndexOf('}')
       if (start >= 0 && end > start) {
-        return { raw: data, parsed: JSON.parse((data as any).text.slice(start, end + 1)) }
+        return { raw: data, parsed: JSON.parse(data.text.slice(start, end + 1)) as Record<string, unknown> }
       }
       throw new Error('JSON nao encontrado na resposta do Flowise')
     }

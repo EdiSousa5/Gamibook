@@ -56,7 +56,7 @@ The client communicates **directly with Directus** (via `@directus/sdk`) for all
 - **types/** — Shared TypeScript interfaces: `User`, `Book`, `Module`, `Exercise`, `DailyExercise`, `UserExercise`, `UserPointsHistory`, `UserBook`
 - **composables/** — `useExerciseRunner.ts`, `useToast.ts`
 - **utils/**
-  - `gamification.ts` — Level progression: level 1 = 100 XP, each level +5% (exponential curve)
+  - `gamification.ts` — Level progression: level 1 = 100 XP, each level +8% (exponential curve)
   - `exerciseParser.ts` — Normalises AI-generated JSON into typed `Exercise` objects
   - `exerciseUtils.ts` — Option parsing, shuffle, correct-answer validation, question text extraction
 - **views/** — One file per route (see Routes section below)
@@ -64,7 +64,7 @@ The client communicates **directly with Directus** (via `@directus/sdk`) for all
 
 ### Exercise Types
 
-Four types are supported: `multiple-choice`, `true-false`, `fill-blanks`, `ordering`.
+Two types are supported: `multiple-choice`, `true-false`.
 Flow: Flowise → `exerciseParser.ts` → `ExerciseGenerator.vue` (admin) / `Module.vue` (user).
 
 Exercise rules:

@@ -19,7 +19,7 @@ import {
     createExercise,
     deleteDailyExercise,
     deleteExercise,
-    fetchApprovedExercisesByModule,
+    fetchExercisesByModule,
     fetchDailyExercisesByBook,
     fetchExercisesCreatedTodayByUser,
 } from '@/services/exercises'
@@ -127,8 +127,6 @@ const elapsedLabel = computed(() => {
 const typeLabels: Record<ExerciseType, string> = {
     'multiple-choice': 'Escolha múltipla',
     'true-false': 'Verdadeiro / Falso',
-    'fill-blanks': 'Preencher lacunas',
-    'ordering': 'Ordenar',
 }
 
 const uniquePublishers = computed(() => {
@@ -227,8 +225,6 @@ const groupedSections = computed<Section[]>(() => {
             grouped.set(moduleId, {
                 'multiple-choice': [],
                 'true-false': [],
-                'fill-blanks': [],
-                'ordering': [],
             })
         }
         grouped.get(moduleId)?.[exercise.exerciseType].push(exercise)
@@ -291,7 +287,7 @@ const refreshApprovedExercises = async () => {
         const entries = await Promise.all(
             selectedModuleIds.value.map(async (moduleId) => [
                 moduleId,
-                await fetchApprovedExercisesByModule(moduleId),
+                await fetchExercisesByModule(moduleId),
             ] as const),
         )
         const nextMap: Record<number, Exercise[]> = {}
@@ -311,7 +307,7 @@ const refreshAllApprovedExercisesForBook = async () => {
         const entries = await Promise.all(
             filteredModules.value.map(async (m) => [
                 m.modules_id,
-                await fetchApprovedExercisesByModule(m.modules_id)
+                await fetchExercisesByModule(m.modules_id)
             ] as const)
         )
         const nextMap: Record<number, Exercise[]> = {}
@@ -326,7 +322,7 @@ const refreshAllApprovedExercisesForBook = async () => {
 
 const refreshApprovedExercisesForModule = async (moduleId: number) => {
     try {
-        const list = await fetchApprovedExercisesByModule(moduleId)
+        const list = await fetchExercisesByModule(moduleId)
         approvedExercisesByModule.value = {
             ...approvedExercisesByModule.value,
             [moduleId]: list,

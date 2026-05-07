@@ -142,6 +142,10 @@ export const fetchBookByQrCode = async (qrCode: string): Promise<Book | null> =>
   const params = new URLSearchParams({ fields: 'book_id,title,cover_img,description', limit: '1' })
   params.set('filter[qr_code][_eq]', qrCode)
   const response = await authFetch(`/items/books?${params.toString()}`)
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch book by QR code failed: ${response.status} ${text}`.trim())
+  }
   const data = await response.json().catch(() => null)
   return (data?.data?.[0] ?? null) as Book | null
 }
@@ -151,6 +155,10 @@ export const checkBookOwnership = async (userId: string, bookId: number): Promis
   params.set('filter[user_id][_eq]', userId)
   params.set('filter[book_id][_eq]', String(bookId))
   const response = await authFetch(`/items/user_books?${params.toString()}`)
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Check book ownership failed: ${response.status} ${text}`.trim())
+  }
   const data = await response.json().catch(() => null)
   return (data?.data?.length ?? 0) > 0
 }
