@@ -6,12 +6,8 @@ import UiChip from '@/components/ui/UiChip.vue'
 import { fetchUserById, getUserDisplayName } from '@/services/auth'
 import { getAssetUrl } from '@/services/client'
 import type { User } from '@/types'
-import type { AvatarFrame } from '@/types/avatar'
-import { getUnlockedFrames } from '@/services/avatar'
-import AvatarFrameSelector from '@/components/AvatarFrameSelector.vue'
 
 const user = ref<User | null>(null)
-const selectedFrame = ref<AvatarFrame>('classic')
 
 onMounted(async () => {
   const storedId = localStorage.getItem('gb_user_id')
@@ -50,8 +46,6 @@ const roleLabel = computed(() => {
 
 const isAbsoluteAdmin = computed(() => roleName.value?.trim().toLowerCase() === 'admin absoluto')
 
-const unlockedFrames = computed(() => getUnlockedFrames(user.value?.level ?? 1))
-
 import { ChartBarIcon, CogIcon, SparklesIcon, SwatchIcon } from '@heroicons/vue/24/outline'
 import AdminActivityLog from '@/components/ui/AdminActivityLog.vue'
 
@@ -72,7 +66,7 @@ const quickLinks = [
 
     <UiCard class="account-card">
       <div class="account-inner">
-        <UiAvatar :alt="initials" :src="avatarUrl" :size="72" :frame="selectedFrame" />
+        <UiAvatar :alt="initials" :src="avatarUrl" :size="72" />
         <div class="account-info">
           <div class="account-name-row">
             <strong class="account-name">{{ displayName }}</strong>
@@ -84,13 +78,15 @@ const quickLinks = [
       </div>
     </UiCard>
 
-    <AvatarFrameSelector v-if="user" :model-value="selectedFrame" :unlocked-frames="unlockedFrames"
-      :user-level="user.level ?? 1" @update="selectedFrame = $event" />
-
     <AdminActivityLog v-if="isAbsoluteAdmin" />
 
     <div class="links-grid">
-      <RouterLink v-for="link in quickLinks" :key="link.to" :to="link.to" class="link-card">
+      <RouterLink
+        v-for="link in quickLinks"
+        :key="link.to"
+        :to="link.to"
+        class="link-card"
+      >
         <div class="link-icon-wrap" aria-hidden="true">
           <component :is="link.icon" class="link-icon" />
         </div>

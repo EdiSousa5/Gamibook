@@ -11,7 +11,7 @@ import {
   getUserAvatarId,
 } from '../services/auth'
 import { fetchUserBookBadges } from '../services/books'
-import { fetchAllUserPointsFromServer } from '../services/exercises'
+import { fetchUserPointsFromHistory } from '../services/exercises'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
@@ -112,7 +112,7 @@ const loadRankings = async () => {
   try {
     const startDate = getRangeStartDate(timeFilter.value) ?? undefined
     const [users, userBooks] = await Promise.all([
-      fetchUsers(undefined),
+      fetchUsers(undefined, 'Utilizador'),
       fetchUserBookBadges(),
     ])
 
