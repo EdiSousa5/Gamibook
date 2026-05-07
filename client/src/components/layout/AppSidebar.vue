@@ -100,7 +100,7 @@ const initials = computed(() => {
   overflow-x: hidden;
   padding-right: var(--space-200);
   padding-bottom: var(--space-200);
-  margin-top: var(--space-600);
+  padding-top: var(--space-600);
 }
 
 .spacer {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import UiButton from '@/components/ui/UiButton.vue'
 import UiSideMenuItem from '@/components/ui/UiSideMenuItem.vue'
 import {
   UserIcon,
@@ -77,10 +76,12 @@ const isActive = (path: string) => route.path === path
   background: var(--color-wild-100);
   border-radius: var(--radius-400);
   padding: var(--space-500);
+  padding-bottom: calc(var(--space-500) + 8px);
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
   min-height: 560px;
   align-content: start;
+  overflow: visible;
 }
 
 @media (max-width: 900px) {

@@ -55,8 +55,9 @@ defineProps<Props>()
     background: var(--color-wild-100);
     border: 2px solid var(--color-mirage-800);
     border-radius: 16px;
+    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
     z-index: 1;
-    transition: transform 0.15s ease, background 0.15s ease;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .item-content {
@@ -121,6 +122,7 @@ defineProps<Props>()
     background: var(--color-deep-100);
     border-color: var(--color-deep-600);
     transform: translate(var(--item-offset-x), var(--item-offset-y));
+    box-shadow: none;
 }
 
 .ui-side-menu-item.active .item-content,

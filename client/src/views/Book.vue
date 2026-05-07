@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import UiIconButton from '@/components/ui/UiIconButton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
@@ -14,7 +13,6 @@ import {
   LockClosedIcon,
   SparklesIcon,
   TrophyIcon,
-  XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import {
   fetchBook,
@@ -106,8 +104,6 @@ const currentTierRank = computed(() => badgeOrder.indexOf(currentTier.value))
 const isBadgeAchieved = (tier: BadgeTierOrDefault) =>
   badgeOrder.indexOf(tier) <= currentTierRank.value
 
-const badgeSizeForStep = (tier: BadgeTierOrDefault) =>
-  (isBadgeAchieved(tier) ? 'sm' : 'xs')
 
 const nextBadge = computed(() => {
   const pct = overallPercent.value
@@ -293,27 +289,52 @@ watch(
         </div>
       </div>
 
-      <div class="roadmap-steps">
-        <div v-for="step in badgeSteps" :key="step.id" class="roadmap-step" :class="{
-          achieved: isBadgeAchieved(step.tier),
-          unlocked: step.tier === 'galaxy' && quizUnlocked && !quizCompleted,
-          galaxy: step.tier === 'galaxy',
-        }">
-          <div class="roadmap-step__badge">
-            <div v-if="step.tier === 'default'" class="badge-default" aria-hidden="true">—</div>
-            <BookBadge v-else :tier="step.tier as BookBadgeTier" :size="badgeSizeForStep(step.tier)" />
+      <div class="roadmap-bar-outer">
+        <div class="roadmap-milestones">
+          <div v-for="step in badgeSteps.filter(s => s.tier !== 'galaxy')" :key="step.id"
+            class="roadmap-milestone"
+            :class="{ achieved: isBadgeAchieved(step.tier) }"
+            :style="{
+              left: step.threshold === 0 ? '0%' : step.threshold === 100 ? '100%' : `${step.threshold}%`,
+              transform: step.threshold === 0 ? 'translateX(0)' : step.threshold === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
+            }">
+            <div class="roadmap-milestone__badge">
+              <div v-if="step.tier === 'default'" class="badge-default" aria-hidden="true">—</div>
+              <BookBadge v-else :tier="step.tier as BookBadgeTier" :size="isBadgeAchieved(step.tier) ? 'sm' : 'xs'" />
+            </div>
+            <span class="roadmap-milestone__label">{{ step.label }}</span>
+            <span class="roadmap-milestone__pct">{{ step.threshold === 0 ? 'Inicio' : `${step.threshold}%` }}</span>
           </div>
-          <span class="roadmap-step__label">{{ step.label }}</span>
-          <span class="roadmap-step__threshold">
-            <template v-if="step.tier === 'galaxy'">Quiz final</template>
-            <template v-else>{{ step.threshold }}%</template>
-          </span>
+        </div>
+
+        <div class="roadmap-track-wrap">
+          <div class="roadmap-track">
+            <div class="roadmap-track__fill" :style="{ width: `${Math.min(overallPercent, 100)}%` }" />
+          </div>
+          <div class="roadmap-track__marker" :style="{ left: `${Math.min(overallPercent, 100)}%` }" />
         </div>
       </div>
 
-      <div class="roadmap-track">
-        <div class="roadmap-track__fill" :style="{ width: `${Math.min(overallPercent, 100)}%` }" />
-        <div class="roadmap-track__marker" :style="{ left: `${Math.min(overallPercent, 100)}%` }" />
+      <div class="galaxy-unlock" :class="{
+        'galaxy-unlock--done': quizCompleted,
+        'galaxy-unlock--ready': quizUnlocked && !quizCompleted,
+      }">
+        <div class="galaxy-unlock__badge">
+          <BookBadge tier="galaxy" :size="isBadgeAchieved('galaxy') ? 'sm' : 'xs'" />
+        </div>
+        <div class="galaxy-unlock__body">
+          <span class="galaxy-unlock__name">Galaxy</span>
+          <span class="galaxy-unlock__desc">
+            <template v-if="quizCompleted">Conquistado! Badge maximo atingido.</template>
+            <template v-else-if="quizUnlocked">Faz o quiz final para conquistar este badge.</template>
+            <template v-else>Completa 100% dos exercicios para desbloquear o quiz final.</template>
+          </span>
+        </div>
+        <div class="galaxy-unlock__state">
+          <CheckIcon v-if="quizCompleted" class="galaxy-state-icon galaxy-state-icon--done" />
+          <SparklesIcon v-else-if="quizUnlocked" class="galaxy-state-icon galaxy-state-icon--ready" />
+          <LockClosedIcon v-else class="galaxy-state-icon" />
+        </div>
       </div>
     </section>
 
@@ -447,7 +468,7 @@ watch(
                   <span class="mode-title">Repetir errados</span>
                   <span class="mode-count">{{ modeCounts.retry }}</span>
                 </div>
-                <p>Foca-te apenas nos exercicios onde falhaste.</p>
+                <p>Foca-te apenas nos exercicios onde falhaste. Sem XP neste modo.</p>
               </button>
               <button type="button" class="mode-card"
                 :class="{ active: selectedMode === 'review', disabled: !canStartMode('review') }"
@@ -496,35 +517,35 @@ watch(
                 </div>
               </div>
               <div class="badge-modal__item">
-                <BookBadge tier="bronze" size="xs" />
+                <div class="badge-modal__badge"><BookBadge tier="bronze" size="xs" /></div>
                 <div class="badge-modal__text">
                   <strong>Bronze</strong>
                   <span>25% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <BookBadge tier="silver" size="xs" />
+                <div class="badge-modal__badge"><BookBadge tier="silver" size="xs" /></div>
                 <div class="badge-modal__text">
                   <strong>Prata</strong>
                   <span>50% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <BookBadge tier="gold" size="xs" />
+                <div class="badge-modal__badge"><BookBadge tier="gold" size="xs" /></div>
                 <div class="badge-modal__text">
                   <strong>Ouro</strong>
                   <span>75% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <BookBadge tier="diamond" size="xs" />
+                <div class="badge-modal__badge"><BookBadge tier="diamond" size="xs" /></div>
                 <div class="badge-modal__text">
                   <strong>Diamante</strong>
                   <span>100% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <BookBadge tier="galaxy" size="xs" />
+                <div class="badge-modal__badge"><BookBadge tier="galaxy" size="xs" /></div>
                 <div class="badge-modal__text">
                   <strong>Galaxy</strong>
                   <span>100% + quiz final com 75% de sucesso.</span>
@@ -728,63 +749,33 @@ watch(
   color: var(--color-mirage-700);
 }
 
-.roadmap-track {
+.roadmap-bar-outer {
+  display: grid;
+  gap: 10px;
+}
+
+.roadmap-milestones {
   position: relative;
-  height: 12px;
-  border-radius: 999px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-300);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  overflow: hidden;
+  height: 80px;
 }
 
-.roadmap-track__fill {
+.roadmap-milestone {
   position: absolute;
-  inset: 0;
-  width: 0;
-  background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-400));
-  transition: width 0.8s ease;
-}
-
-.roadmap-track__marker {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--color-wild-100);
-  border: 2px solid var(--color-mirage-800);
-  transform: translate(-50%, -50%);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-}
-
-.roadmap-steps {
+  top: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-200);
-  align-items: start;
-}
-
-.roadmap-step {
-  display: grid;
-  gap: 6px;
   justify-items: center;
-  text-align: center;
-  opacity: 0.6;
+  gap: 3px;
+  opacity: 0.5;
 }
 
-.roadmap-step.achieved {
+.roadmap-milestone.achieved {
   opacity: 1;
 }
 
-.roadmap-step.unlocked {
-  opacity: 0.9;
-}
-
-.roadmap-step__badge {
+.roadmap-milestone__badge {
+  height: 42px;
   display: grid;
   place-items: center;
-  height: 48px;
 }
 
 .badge-default {
@@ -798,20 +789,120 @@ watch(
   font-weight: 700;
 }
 
-.roadmap-step.achieved .badge-default {
+.roadmap-milestone.achieved .badge-default {
   width: 34px;
   height: 34px;
 }
 
-.roadmap-step__label {
-  font-size: 12px;
+.roadmap-milestone__label {
+  font-size: 11px;
   font-weight: 700;
   color: var(--color-mirage-700);
+  white-space: nowrap;
 }
 
-.roadmap-step__threshold {
-  font-size: 11px;
+.roadmap-milestone__pct {
+  font-size: 10px;
   color: var(--color-mirage-500);
+  white-space: nowrap;
+}
+
+.roadmap-track-wrap {
+  position: relative;
+}
+
+.roadmap-track {
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-300);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.roadmap-track__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-400));
+  transition: width 0.8s ease;
+}
+
+.roadmap-track__marker {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px var(--color-deep-500);
+  z-index: 1;
+}
+
+.galaxy-unlock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  opacity: 0.55;
+}
+
+.galaxy-unlock--ready {
+  opacity: 1;
+  background: var(--color-deep-100);
+}
+
+.galaxy-unlock--done {
+  opacity: 1;
+  background: var(--color-deep-200, #b8e8e4);
+}
+
+.galaxy-unlock__badge {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+}
+
+.galaxy-unlock__body {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.galaxy-unlock__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+}
+
+.galaxy-unlock__desc {
+  font-size: 12px;
+  color: var(--color-mirage-600);
+}
+
+.galaxy-unlock__state {
+  flex-shrink: 0;
+}
+
+.galaxy-state-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-mirage-400);
+}
+
+.galaxy-state-icon--done {
+  color: var(--color-deep-600);
+}
+
+.galaxy-state-icon--ready {
+  color: var(--color-deep-500);
 }
 
 /* ── MODE MODAL ────────────────────────────────── */
@@ -1426,8 +1517,8 @@ watch(
     display: none;
   }
 
-  .roadmap-steps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .roadmap-milestones {
+    height: 90px;
   }
 }
 

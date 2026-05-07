@@ -4,6 +4,7 @@ import PodiumItem from '@/components/ui/PodiumItem.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   fetchUsers,
@@ -25,11 +26,11 @@ type LeaderboardEntry = User & {
   badgeCounts: BadgeCounts
 }
 
-const TIME_FILTERS: Array<{ id: TimeFilter; label: string }> = [
-  { id: 'all', label: 'Todo' },
-  { id: 'week', label: 'Esta semana' },
-  { id: 'month', label: 'Este mês' },
-  { id: 'year', label: 'Este ano' },
+const TIME_FILTERS: Array<{ value: TimeFilter; label: string }> = [
+  { value: 'all', label: 'Todo o Tempo' },
+  { value: 'week', label: 'Esta semana' },
+  { value: 'month', label: 'Este mês' },
+  { value: 'year', label: 'Este ano' },
 ]
 
 const topGlobal = ref<LeaderboardEntry[]>([])
@@ -96,9 +97,9 @@ const scrollToMe = () => {
   const el = document.getElementById(`user-${currentUserId}`)
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.add('highlight-pulse')
+    el.classList.add('highlight-pulse-green')
     setTimeout(() => {
-      el.classList.remove('highlight-pulse')
+      el.classList.remove('highlight-pulse-green')
     }, 2500)
   } else {
     alert('Ainda não te encontras nesta tabela de classificação!')
@@ -164,17 +165,9 @@ watch(timeFilter, () => {
 
 <template>
   <section class="rankings">
-    <div class="filters-row">
-      <div class="filters-group">
-        <span class="filters-label">Período</span>
-        <div class="filters-buttons">
-          <UiButton v-for="filter in TIME_FILTERS" :key="filter.id" size="sm"
-            :variant="timeFilter === filter.id ? 'primary' : 'outline'" @click="timeFilter = filter.id">
-            {{ filter.label }}
-          </UiButton>
-        </div>
-      </div>
-      <UiButton v-if="isUserInList" size="sm" variant="outline" @click="scrollToMe">O Meu Lugar</UiButton>
+    <div class="filters-wrapper">
+      <span class="filters-label">Filtrar por Período:</span>
+      <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS" @update="timeFilter = $event as TimeFilter" />
     </div>
 
     <p v-if="isLoading" class="state podium-state">A carregar rankings...</p>
@@ -186,21 +179,24 @@ watch(timeFilter, () => {
         <div class="podium-col place-2-col">
           <PodiumItem v-if="podiumUsers[1]" :position="2" :points="podiumUsers[1].totalPoints"
             :level="podiumUsers[1].level" :avatarUrl="getAvatarUrl(podiumUsers[1])"
-            :displayName="displayUserName(podiumUsers[1])" />
+            :displayName="displayUserName(podiumUsers[1])"
+            :elementId="`user-${podiumUsers[1].id}`" />
         </div>
 
         <!-- 1º Lugar -->
         <div class="podium-col place-1-col">
           <PodiumItem v-if="podiumUsers[0]" :position="1" :points="podiumUsers[0].totalPoints"
             :level="podiumUsers[0].level" :avatarUrl="getAvatarUrl(podiumUsers[0])"
-            :displayName="displayUserName(podiumUsers[0])" />
+            :displayName="displayUserName(podiumUsers[0])"
+            :elementId="`user-${podiumUsers[0].id}`" />
         </div>
 
         <!-- 3º Lugar -->
         <div class="podium-col place-3-col">
           <PodiumItem v-if="podiumUsers[2]" :position="3" :points="podiumUsers[2].totalPoints"
             :level="podiumUsers[2].level" :avatarUrl="getAvatarUrl(podiumUsers[2])"
-            :displayName="displayUserName(podiumUsers[2])" />
+            :displayName="displayUserName(podiumUsers[2])"
+            :elementId="`user-${podiumUsers[2].id}`" />
         </div>
       </section>
 
@@ -217,6 +213,10 @@ watch(timeFilter, () => {
     </template>
 
     <p v-else-if="!isLoading && !error" class="state">Sem utilizadores disponíveis.</p>
+
+    <div v-if="isUserInList" class="fab-container">
+      <UiButton variant="primary" class="fab-button" @click="scrollToMe">O Meu Lugar</UiButton>
+    </div>
   </section>
 </template>
 
@@ -230,36 +230,28 @@ watch(timeFilter, () => {
   color: var(--color-mirage-900);
 }
 
-.filters-row {
+.filters-wrapper {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 32px;
   z-index: 10;
-}
-
-.filters-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  background: var(--color-wild-100);
+  padding: 16px 24px;
+  border-radius: var(--radius-400);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  width: 100%;
+  max-width: 600px;
 }
 
 .filters-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
   color: var(--color-mirage-600);
-}
-
-.filters-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
 }
 
 .state {
@@ -334,5 +326,36 @@ watch(timeFilter, () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* --- Botão Flutuante (FAB) --- */
+.fab-container {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 50;
+}
+
+.fab-button {
+  --btn-offset-x: 5px;
+  --btn-offset-y: 7px;
+}
+
+:deep(.highlight-pulse-green) {
+  animation: pulse-green 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pulse-green {
+  0%   { transform: scale(1); }
+  15%  { transform: scale(1.04); }
+  50%  { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .fab-container {
+    bottom: 16px;
+    right: 16px;
+  }
 }
 </style>

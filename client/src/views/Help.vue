@@ -82,16 +82,6 @@ const exerciseTypes = [
     label: 'Verdadeiro ou Falso',
     desc: 'Avalia se uma afirmação está correta ou incorreta. Simples mas eficaz para testar conceitos.',
   },
-  {
-    icon: PencilSquareIcon,
-    label: 'Preencher Espaços',
-    desc: 'Completa uma frase com a palavra ou expressão em falta. Testa a memória e compreensão do texto.',
-  },
-  {
-    icon: AdjustmentsHorizontalIcon,
-    label: 'Ordenação',
-    desc: 'Organiza um conjunto de elementos na ordem correta. Ideal para sequências e processos.',
-  },
 ]
 
 const steps = [

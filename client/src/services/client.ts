@@ -66,8 +66,16 @@ export const authFetch = async (path: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers)
   headers.set('Authorization', `Bearer ${token}`)
 
-  return fetch(`${normalizedDirectusUrl}${path}`, {
+  const response = await fetch(`${normalizedDirectusUrl}${path}`, {
     ...options,
     headers,
   })
+
+  if (response.status === 401) {
+    clearAccessToken()
+    setStoredUserId(null)
+    window.location.href = '/login'
+  }
+
+  return response
 }

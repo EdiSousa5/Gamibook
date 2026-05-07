@@ -68,7 +68,6 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
 
           <div class="actions">
             <UiButton variant="primary" class="btn-primary" @click="goToBook">Ver livro</UiButton>
-            <UiButton variant="outline" @click="emit('close')">Fechar</UiButton>
           </div>
 
         </div>

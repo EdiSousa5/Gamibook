@@ -176,10 +176,22 @@ const missingShelves = computed(() => {
 const visibleMissingShelves = computed(() => missingShelves.value.slice(0, missingShelvesVisible.value))
 const hasMoreMissing = computed(() => missingShelvesVisible.value < missingShelves.value.length)
 
-// Reset pagination when filters change
+const filteredAllOwnedBooks = computed(() => {
+  let list = ownedBooks.value
+  if (viewFilter.value === 'completed') {
+    list = list.filter((b) => completedBookIds.value.has(b.book_id))
+  }
+  return applyBookFilters(list)
+})
+
+// Reset pagination when filters change and keep featured book within filtered results
 watch([viewFilter, publisherFilter, sortBy, searchQuery], () => {
   ownedShelvesVisible.value = 1
   missingShelvesVisible.value = 1
+  const filtered = filteredAllOwnedBooks.value
+  if (filtered.length && !filtered.find((b) => b.book_id === selectedBookId.value)) {
+    selectedBookId.value = filtered[0]?.book_id ?? null
+  }
 })
 
 onMounted(async () => {
@@ -265,8 +277,10 @@ onUnmounted(() => {
           </div>
 
           <div class="destaque-visual">
-            <BookMockup :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg"
-              :badge="badgeForBook(featuredBook.book_id)" />
+            <Transition name="book-swap" mode="out-in">
+              <BookMockup :key="featuredBook.book_id" :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg"
+                :badge="badgeForBook(featuredBook.book_id)" />
+            </Transition>
           </div>
         </div>
 
@@ -491,7 +505,7 @@ onUnmounted(() => {
   margin-top: var(--space-200);
   padding: var(--space-400) var(--space-400) var(--space-200);
   position: relative;
-  z-index: 0;
+  z-index: 1;
   width: 100%;
 }
 
@@ -500,18 +514,17 @@ onUnmounted(() => {
   width: 100px;
   cursor: pointer;
   transition: transform 0.2s ease;
-  transform: translateY(2px);
+  transform: translateY(16px);
   transform-origin: bottom center;
 }
 
 .livro-item:hover:not(.is-locked) {
-  transform: translateY(-4px) scale(1.02);
+  transform: translateY(10px) scale(1.02);
 }
 
 .livro-item.is-locked {
   cursor: not-allowed;
-  filter: grayscale(1);
-  opacity: 0.6;
+  filter: grayscale(1) brightness(0.75);
 }
 
 .error {
@@ -528,6 +541,21 @@ onUnmounted(() => {
   justify-content: center;
   margin-bottom: var(--space-600);
   margin-top: calc(var(--space-200) * -1);
+}
+
+.book-swap-enter-active,
+.book-swap-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.book-swap-enter-from {
+  opacity: 0;
+  transform: translateY(10px) scale(0.94);
+}
+
+.book-swap-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
 }
 
 @keyframes shelfFadeUp {

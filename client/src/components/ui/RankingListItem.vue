@@ -26,12 +26,6 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
                     <span class="name">{{ displayName }}</span>
                     <div class="meta-row">
                         <span class="level">Nivel {{ level }}</span>
-                        <div class="badge-counts">
-                            <div v-for="tier in BADGE_TIERS" :key="tier" class="badge-chip">
-                                <BookBadge :tier="tier" size="xs" />
-                                <span class="badge-count">{{ badgeCounts[tier] ?? 0 }}</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
