@@ -159,7 +159,7 @@ export const unlockBook = async (userId: string, bookId: number): Promise<void> 
   const response = await authFetch('/items/user_books', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: userId, book_id: bookId }),
+    body: JSON.stringify({ user_id: userId, book_id: bookId, current_badge: 'default', final_quiz_unlocked: false }),
   })
   if (!response.ok) {
     const text = await response.text().catch(() => '')

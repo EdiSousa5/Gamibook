@@ -1,6 +1,6 @@
 export const roundToNearest5 = (value: number) => 5 * Math.round(value / 5)
 
-export const getNextLevelXp = (previousLevelXp: number) => roundToNearest5(previousLevelXp * 1.05)
+export const getNextLevelXp = (previousLevelXp: number) => roundToNearest5(previousLevelXp * 1.15)
 
 export const getLevelProgressFromPoints = (points: number) => {
   const safePoints = Number.isFinite(points) ? Math.max(0, points) : 0

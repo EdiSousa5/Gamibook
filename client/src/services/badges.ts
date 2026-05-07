@@ -73,16 +73,20 @@ export const updateUserBookBadge = async (
   return (data?.data ?? data) as UserBook
 }
 
-export const checkAndUpdateBadge = async (userId: string, bookId: number): Promise<void> => {
+export const checkAndUpdateBadge = async (
+  userId: string,
+  bookId: number,
+): Promise<BadgeTierOrDefault> => {
   try {
     const userBook = await fetchUserBook(userId, bookId)
-    if (!userBook?.user_book_id) return
+    if (!userBook?.user_book_id) return 'default'
 
-    if (userBook.current_badge === 'galaxy') return
+    const currentTier = (userBook.current_badge ?? 'default') as BadgeTierOrDefault
+    if (currentTier === 'galaxy') return 'galaxy'
 
     const modules = await fetchModulesByBook(bookId)
     const approvedModules = modules.filter((m) => m.status !== 'unapproved' && isMainChapter(m))
-    if (!approvedModules.length) return
+    if (!approvedModules.length) return currentTier
 
     const stats = await Promise.all(
       approvedModules.map(async (m) => ({
@@ -93,20 +97,23 @@ export const checkAndUpdateBadge = async (userId: string, bookId: number): Promi
 
     const totalExercises = stats.reduce((s, v) => s + v.total, 0)
     const doneExercises = stats.reduce((s, v) => s + v.done, 0)
-    if (totalExercises === 0) return
+    if (totalExercises === 0) return currentTier
 
     const pct = (doneExercises / totalExercises) * 100
     const newTier = tierForPct(pct)
-    const currentTier = (userBook.current_badge ?? 'default') as BadgeTierOrDefault
 
     const currentRank = TIER_ORDER.indexOf(currentTier)
     const newRank = TIER_ORDER.indexOf(newTier)
-    if (newRank <= currentRank) return
+
+    // No advancement — return current stored tier
+    if (newRank <= currentRank) return currentTier
 
     const unlockQuiz = pct >= 100
     await updateUserBookBadge(userBook.user_book_id, newTier, unlockQuiz)
+    return newTier
   } catch (err) {
     console.error('[Badge] checkAndUpdateBadge failed', err)
+    return 'default'
   }
 }
 

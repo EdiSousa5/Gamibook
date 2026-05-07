@@ -8,17 +8,18 @@ const props = defineProps<{
     level: number
     avatarUrl?: string | null
     displayName: string
+    elementId?: string
 }>()
 
 const isFirst = computed(() => props.position === 1)
 </script>
 
 <template>
-    <div class="podium-item" :class="`place-${position}`">
+    <div class="podium-item" :class="`place-${position}`" :id="elementId">
         <div class="podium-header">
             <div class="avatar-wrap">
                 <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
-                    :size="isFirst ? 160 : (position === 2 ? 135 : 120)" />
+                    :size="isFirst ? 190 : (position === 2 ? 160 : 140)" />
                 <div class="place-badge">#{{ position }}</div>
                 <div class="level-pill">Nivel {{ level }}</div>
             </div>

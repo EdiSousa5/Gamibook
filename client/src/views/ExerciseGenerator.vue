@@ -769,7 +769,7 @@ onMounted(async () => {
     <div class="exercise-generator-page">
         <header class="hero">
             <div class="hero-content">
-                <h1 class="hero-title">Gerar de Exercícios </h1>
+                <h1 class="hero-title">Gerar Exercícios </h1>
                 <p class="hero-subtitle">
                     Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões
                     estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por
@@ -887,14 +887,6 @@ onMounted(async () => {
                                         size="sm" />
                                 </div>
                                 <div class="module-progress">
-                                    <div class="progress-bar-bg">
-                                        <div class="progress-bar-fill"
-                                            :style="{ width: Math.min(100, (summary.approvedCount / summary.required) * 100) + '%' }">
-                                        </div>
-                                    </div>
-                                    <p class="progress-text">
-                                        <strong>{{ summary.approvedCount }} / {{ summary.required }}</strong>
-                                    </p>
                                     <ChevronDownIcon v-if="summary.approvedCount > 0" class="accordion-icon"
                                         :class="{ 'is-rotated': expandedModules[summary.moduleItem.modules_id] }"
                                         aria-hidden="true" />
@@ -935,7 +927,7 @@ onMounted(async () => {
                                         :variant="approvedDailyExercises.length >= MAX_DAILY_EXERCISES ? 'filled' : 'outline'"
                                         size="sm" />
                                 </div>
-                                <div class="module-progress">
+                                <div class="module-progress module-progress--icon-only">
                                     <ChevronDownIcon v-if="approvedDailyExercises.length > 0" class="accordion-icon"
                                         :class="{ 'is-rotated': expandedModules[-1] }" aria-hidden="true" />
                                     <div v-else class="accordion-icon-placeholder"></div>
@@ -1328,30 +1320,9 @@ onMounted(async () => {
     justify-content: flex-end;
 }
 
-.progress-bar-bg {
-    flex: 1;
-    height: 8px;
-    background: var(--color-mirage-100);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.progress-bar-fill {
-    height: 100%;
-    background: var(--color-deep-500);
-    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.approved-module-card.is-approved .progress-bar-fill {
-    background: var(--color-teal-500);
-}
-
-.progress-text {
-    margin: 0;
-    font-size: 14px;
-    color: var(--color-mirage-700);
-    min-width: 48px;
-    text-align: right;
+.module-progress--icon-only {
+    flex: unset;
+    max-width: unset;
 }
 
 .accordion-icon {

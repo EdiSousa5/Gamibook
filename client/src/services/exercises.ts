@@ -94,7 +94,7 @@ export const fetchUserExerciseCountsByModule = async (
 
 export const fetchUserExercisesByModule = async (userId: string, moduleId: number) => {
   const params = new URLSearchParams({
-    fields: 'id_user_exercises,exercise_id,is_correct,attempts,points_earned,time_spent',
+    fields: 'id_user_exercises,exercise_id,is_correct,attempts,time_spent',
     limit: '-1',
   })
   params.set('filter[user_id][_eq]', String(userId))

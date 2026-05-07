@@ -52,6 +52,10 @@ const questionText = computed(() => {
     return String(content.pergunta ?? content.question ?? content.enunciado ?? content.frase ?? 'Pergunta indisponível')
 })
 
+const correctAnswer = computed(() =>
+    shuffledOptions.value.find(opt => exercise.value ? checkOptionCorrect(exercise.value, opt) : false) ?? '—'
+)
+
 const formatCooldown = computed(() => {
     const h = Math.floor(cooldownSeconds.value / 3600)
     const m = Math.floor((cooldownSeconds.value % 3600) / 60)
@@ -274,27 +278,56 @@ onUnmounted(() => {
             </RouterLink>
         </div>
 
-        <div v-else-if="mode === 'done'" class="info-card result-card"
-            :class="result === 'correct' ? 'result-correct' : 'result-wrong'">
-            <div class="result-icon-wrap" :class="result === 'correct' ? 'result-icon--correct' : 'result-icon--wrong'">
-                <CheckCircleIcon v-if="result === 'correct'" class="result-icon-svg" aria-hidden="true" />
-                <XCircleIcon v-else class="result-icon-svg" aria-hidden="true" />
+        <div v-else-if="mode === 'done'" class="done-wrapper">
+            <!-- Left: question + answer recap -->
+            <div class="done-recap">
+                <span class="done-recap__kicker">Pergunta de hoje</span>
+                <p class="done-recap__question">{{ questionText }}</p>
+                <div class="done-recap__answer" :class="result === 'correct' ? 'done-recap__answer--correct' : 'done-recap__answer--wrong'">
+                    <span class="done-recap__answer-label">Resposta correta</span>
+                    <strong class="done-recap__answer-text">{{ correctAnswer }}</strong>
+                </div>
+                <div v-if="result === 'wrong' && selectedOption" class="done-recap__yours">
+                    <span class="done-recap__answer-label">A tua resposta</span>
+                    <strong class="done-recap__yours-text">{{ selectedOption }}</strong>
+                </div>
             </div>
-            <h2>{{ result === 'correct' ? 'Resposta Certa!' : 'Resposta Errada' }}</h2>
-            <p v-if="result === 'correct'">
-                Ganhaste <strong>+{{ pointsEarned }} pontos</strong>!
-                <span v-if="newStreak >= 2" class="streak-bonus">
-                    Mais <strong>+10 pontos</strong> de bónus pelo streak!
-                </span>
-            </p>
-            <p v-else>Não ganhaste pontos desta vez. O teu streak foi reiniciado.</p>
-            <div class="result-streak">
-                <FireIcon class="fire-icon" :class="{ active: newStreak >= 2 }" aria-hidden="true" />
-                <span>Streak atual: <strong>{{ newStreak }}</strong></span>
+
+            <!-- Right: result card -->
+            <div class="done-card" :class="result === 'correct' ? 'done-correct' : 'done-wrong'">
+                <div class="done-result-header">
+                    <div class="done-icon-wrap" :class="result === 'correct' ? 'done-icon--correct' : 'done-icon--wrong'">
+                        <CheckCircleIcon v-if="result === 'correct'" class="done-icon-svg" aria-hidden="true" />
+                        <XCircleIcon v-else class="done-icon-svg" aria-hidden="true" />
+                    </div>
+                    <div class="done-verdict">
+                        <h2 class="done-title">{{ result === 'correct' ? 'Resposta Certa!' : 'Resposta Errada' }}</h2>
+                        <p class="done-desc" v-if="result === 'correct'">Continua assim e mantém o teu streak!</p>
+                        <p class="done-desc" v-else>Não foi desta vez. Amanhã é outro dia!</p>
+                    </div>
+                </div>
+
+                <div class="done-stats">
+                    <div class="done-stat" :class="{ 'done-stat--highlight': pointsEarned > 0 }">
+                        <span class="done-stat__label">Pontos ganhos</span>
+                        <strong class="done-stat__value">+{{ pointsEarned }}</strong>
+                    </div>
+                    <div class="done-stat done-stat--streak" :class="{ 'done-stat--active': newStreak >= 2 }">
+                        <FireIcon class="done-stat__icon" :class="{ active: newStreak >= 2 }" aria-hidden="true" />
+                        <span class="done-stat__label">Streak atual</span>
+                        <strong class="done-stat__value">{{ newStreak }}</strong>
+                    </div>
+                </div>
+
+                <div v-if="result === 'correct' && newStreak >= 2" class="streak-bonus-banner">
+                    <FireIcon class="streak-bonus-icon" aria-hidden="true" />
+                    Bónus de streak: <strong>+10 pontos extra</strong> por {{ newStreak }} dias seguidos!
+                </div>
+
+                <RouterLink to="/app">
+                    <UiButton variant="primary" size="lg">Voltar ao Dashboard</UiButton>
+                </RouterLink>
             </div>
-            <RouterLink to="/app">
-                <UiButton variant="primary">Voltar ao Dashboard</UiButton>
-            </RouterLink>
         </div>
 
         <template v-else-if="mode === 'answering' && exercise">
@@ -349,12 +382,6 @@ onUnmounted(() => {
     border-bottom: 2px solid var(--color-wild-400);
 }
 
-.header-left h1 {
-    margin: 0 0 4px;
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--color-mirage-800);
-}
 
 .meta {
     color: var(--color-mirage-500);
@@ -469,82 +496,252 @@ onUnmounted(() => {
     font-weight: 600;
 }
 
-.result-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
+/* Done wrapper – two-column layout */
+.done-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-400);
+    align-items: start;
+}
+
+/* Left panel: question recap */
+.done-recap {
+    border-radius: 16px;
     border: 2px solid var(--color-mirage-800);
-    font-size: 12px;
+    background: var(--color-wild-200);
+    box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
+    padding: 28px;
+    display: grid;
+    gap: var(--space-300);
+}
+
+.done-recap__kicker {
+    display: inline-block;
+    font-size: 11px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--color-mirage-500);
 }
 
-.result-badge.correct {
-    background: var(--color-deep-100);
-    color: var(--color-mirage-800);
+.done-recap__question {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-mirage-900);
+    line-height: 1.45;
 }
 
-.result-badge.wrong {
-    background: #f7c4c4;
-    color: #7a1f1f;
-    border-color: #b13b3b;
-}
-
-.result-card {
-    text-align: center;
-    justify-items: center;
-}
-
-.result-correct {
-    background: var(--color-deep-100);
-}
-
-.result-wrong {
-    background: #fdf0f0;
-}
-
-.result-icon-wrap {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
+.done-recap__answer,
+.done-recap__yours {
+    padding: 14px 16px;
+    border-radius: 12px;
     border: 2px solid var(--color-mirage-800);
     display: grid;
-    place-items: center;
-    background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 var(--color-shadow);
+    gap: 4px;
 }
 
-.result-icon--correct {
+.done-recap__answer--correct {
     background: var(--color-deep-100);
+    border-color: var(--color-deep-600);
 }
 
-.result-icon--wrong {
+.done-recap__answer--wrong {
+    background: var(--color-deep-100);
+    border-color: var(--color-deep-600);
+}
+
+.done-recap__yours {
     background: #fbe1e1;
     border-color: #b13b3b;
 }
 
-.result-icon-svg {
-    width: 32px;
-    height: 32px;
-    color: var(--color-deep-700);
-    stroke-width: 1.5;
+.done-recap__answer-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-mirage-500);
 }
 
-.result-icon--wrong .result-icon-svg {
+.done-recap__answer-text {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--color-deep-800, #0f4f4c);
+}
+
+.done-recap__yours-text {
+    font-size: 16px;
+    font-weight: 800;
+    color: #7a1f1f;
+}
+
+/* Done card */
+.done-card {
+    border-radius: 16px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
+    padding: 32px;
+    display: grid;
+    gap: var(--space-400);
+    max-width: 560px;
+    animation: card-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.done-correct {
+    border-color: var(--color-deep-600);
+    background: var(--color-deep-200, #b8e8e4);
+}
+
+.done-wrong {
+    border-color: #b13b3b;
+    background: #fdf3f3;
+}
+
+.done-result-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-400);
+}
+
+.done-icon-wrap {
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--color-mirage-800);
+    display: grid;
+    place-items: center;
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.done-icon--correct {
+    background: var(--color-deep-200, #b8e8e4);
+}
+
+.done-icon--wrong {
+    background: #fbe1e1;
+    border-color: #b13b3b;
+}
+
+.done-icon-svg {
+    width: 36px;
+    height: 36px;
+    stroke-width: 1.5;
+    color: var(--color-deep-700);
+}
+
+.done-icon--wrong .done-icon-svg {
     color: #b13b3b;
 }
 
-.result-streak {
+.done-verdict {
+    display: grid;
+    gap: 4px;
+}
+
+.done-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--color-mirage-900);
+}
+
+.done-desc {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-mirage-500);
+}
+
+.done-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-300);
+}
+
+.done-stat {
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    display: grid;
+    gap: 4px;
+    position: relative;
+}
+
+.done-stat--highlight {
+    background: var(--color-deep-100);
+}
+
+.done-stat--streak {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.done-stat--active {
+    background: var(--color-teal-100);
+}
+
+.done-stat__icon {
+    width: 20px;
+    height: 20px;
+    color: var(--color-mirage-400);
+    stroke-width: 2;
+    margin-bottom: 4px;
+}
+
+.done-stat__icon.active {
+    color: var(--color-pumpkin-500);
+}
+
+.done-stat__label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-mirage-500);
+}
+
+.done-stat__value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--color-mirage-800);
+    line-height: 1;
+}
+
+.streak-bonus-banner {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
-    color: var(--color-mirage-600);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 2px solid var(--color-deep-600);
+    background: var(--color-deep-200, #b8e8e4);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-mirage-800);
 }
 
-.streak-bonus {
-    font-size: 13px;
-    color: var(--color-teal-600);
-    font-weight: 700;
+.streak-bonus-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--color-deep-700);
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+@keyframes card-in {
+    from {
+        transform: translateY(16px) scale(0.97);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 /* Question card (same as Module.vue) */
@@ -720,6 +917,12 @@ onUnmounted(() => {
     100% {
         transform: translateY(0) scale(1);
         opacity: 1;
+    }
+}
+
+@media (max-width: 860px) {
+    .done-wrapper {
+        grid-template-columns: 1fr;
     }
 }
 

@@ -6,7 +6,7 @@ import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
 import type { Book } from '@/types'
 
@@ -31,7 +31,6 @@ const query = ref('')
 const menuOpen = ref(false)
 const qrOpen = ref(false)
 const profileRef = ref<HTMLElement | null>(null)
-const canGoBack = ref(false)
 const route = useRoute()
 const router = useRouter()
 
@@ -46,6 +45,18 @@ const showSearch = computed(() =>
   route.path.startsWith('/collection') || route.path.startsWith('/exercise-generator'),
 )
 const showBack = computed(() => route.path !== '/app')
+
+const getParentRoute = (): string => {
+  const path = route.path
+  const moduleMatch = path.match(/^\/book\/(\d+)\/module\//)
+  if (moduleMatch) return `/book/${moduleMatch[1]}`
+  if (path.match(/^\/book\/\d+/)) return '/collection'
+  if (path.startsWith('/settings')) return '/app'
+  if (path.startsWith('/admin')) return '/app'
+  return '/app'
+}
+
+const goBack = () => router.push(getParentRoute())
 
 const initials = computed(() => {
   const value = props.username?.trim() || 'U'
@@ -182,27 +193,14 @@ const onDocumentClick = (event: MouseEvent) => {
   if (!profileRef.value.contains(event.target as Node)) closeMenu()
 }
 
-const updateCanGoBack = () => {
-  if (typeof window === 'undefined') return
-  canGoBack.value = window.history.length > 1
-}
-
-const goBack = () => {
-  if (!canGoBack.value) return
-  window.history.back()
-}
-
 onMounted(() => {
   document.addEventListener('click', onDocumentClick)
-  updateCanGoBack()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
   stopScanner()
 })
-
-watch(() => route.fullPath, updateCanGoBack)
 
 watch(query, (val) => {
   if (!showSearch.value) return
@@ -221,7 +219,7 @@ watch(
 
 <template>
   <header class="topbar">
-    <div v-if="canGoBack && showBack" class="back">
+    <div v-if="showBack" class="back">
       <UiPillButton class="back-button" @click="goBack">
         <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
         Voltar para tras
@@ -232,11 +230,14 @@ watch(
       <UiSearch :model-value="query" @update="query = $event" />
     </div>
     <div class="actions">
+      <UiIconButton variant="outline" size="lg" aria-label="Notificações">
+        <BellIcon class="icon" aria-hidden="true" />
+      </UiIconButton>
       <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
         <QrCodeIcon class="icon" aria-hidden="true" />
       </UiIconButton>
       <div class="profile" ref="profileRef">
-        <button class="profile-button" type="button" @click="toggleMenu">
+        <button class="profile-button" :class="{ 'is-open': menuOpen }" type="button" @click="toggleMenu">
           <UiAvatar :alt="initials" :size="44" :src="avatarUrl" />
           <div v-if="!isAdmin" class="profile-details">
             <div class="level-row">
@@ -260,6 +261,7 @@ watch(
   </header>
 
   <!-- QR Modal -->
+  <Teleport to="body">
   <div v-if="qrOpen" class="qr-overlay" @click.self="closeQr">
     <div class="qr-modal">
       <div class="qr-header">
@@ -368,6 +370,7 @@ watch(
       />
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -405,7 +408,10 @@ watch(
   margin-left: auto;
 }
 
-.profile { position: relative; }
+.profile {
+  position: relative;
+  display: inline-flex;
+}
 
 .profile-button {
   display: inline-flex;
@@ -453,6 +459,11 @@ watch(
   width: 16px;
   height: 16px;
   color: var(--color-mirage-500);
+  transition: transform 0.2s ease;
+}
+
+.profile-button.is-open .caret {
+  transform: rotate(180deg);
 }
 
 .profile-menu {
@@ -464,24 +475,31 @@ watch(
   border-radius: 12px;
   box-shadow: 4px 4px 0 var(--color-shadow);
   min-width: 100%;
-  display: grid;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
   z-index: 2;
 }
 
 .menu-item {
-  padding: var(--space-200) var(--space-300);
+  padding: 10px 12px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   text-align: left;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  color: inherit;
+  color: var(--color-mirage-700);
   display: block;
+  transition: background 0.1s ease, color 0.1s ease;
 }
 
-.menu-item:hover { background: var(--color-wild-300); }
+.menu-item:hover {
+  background: var(--color-wild-300);
+  color: var(--color-mirage-900);
+}
 
 /* QR Modal */
 .qr-overlay {
@@ -490,7 +508,7 @@ watch(
   background: rgba(2, 29, 32, 0.55);
   display: grid;
   place-items: center;
-  z-index: 20;
+  z-index: 9999;
   padding: 16px;
 }
 

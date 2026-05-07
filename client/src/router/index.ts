@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAdminUser } from '@/services/auth'
-import { getStoredUserId } from '@/services/client'
+import { getStoredUserId, getAccessToken } from '@/services/client'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -133,6 +133,9 @@ router.beforeEach(async (to) => {
 
   const storedId = getStoredUserId()
   if (!storedId) return { path: '/login', query: { redirect: to.fullPath } }
+
+  const token = getAccessToken()
+  if (!token) return { path: '/login', query: { redirect: to.fullPath } }
 
   const auth = useAuthStore()
 

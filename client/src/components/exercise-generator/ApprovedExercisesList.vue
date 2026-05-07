@@ -251,25 +251,26 @@ const getAnswer = (exercise: AnyExercise) => {
 /* ---- Progress header ---- */
 .progress-header {
     display: grid;
-    gap: var(--space-200);
-    padding: var(--space-300);
-    border-radius: var(--radius-200);
-    border: 1.5px solid var(--color-mirage-200);
+    gap: var(--space-300);
+    padding: var(--space-400);
+    border-radius: 14px;
+    border: 2px solid var(--color-mirage-800);
     background: var(--color-wild-100);
+    box-shadow: 4px 4px 0 rgba(46, 127, 123, 0.35);
 }
 
 .progress-header.progress--ok {
-    border-color: var(--color-teal-400);
-    background: #f0fdf9;
+    border-color: var(--color-teal-600);
+    background: var(--color-deep-100);
 }
 
 .progress-header.progress--max {
-    border-color: #d97706;
-    background: #fffbeb;
+    border-color: var(--color-teal-600);
+    background: var(--color-deep-100);
 }
 
 .progress-header.progress--below {
-    border-color: var(--color-mirage-200);
+    border-color: var(--color-mirage-800);
     background: var(--color-wild-200);
 }
 
@@ -293,8 +294,8 @@ const getAnswer = (exercise: AnyExercise) => {
     color: var(--color-mirage-900);
 }
 
-.progress--ok .count-current { color: var(--color-teal-700); }
-.progress--max .count-current { color: #92400e; }
+.progress--ok .count-current { color: var(--color-deep-700); }
+.progress--max .count-current { color: var(--color-deep-700); }
 
 .count-sep {
     font-size: 18px;
@@ -318,15 +319,16 @@ const getAnswer = (exercise: AnyExercise) => {
 .status-chip {
     font-size: 11px;
     font-weight: 700;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 999px;
-    border: 1.5px solid currentColor;
+    border: 2px solid var(--color-mirage-800);
     white-space: nowrap;
+    box-shadow: 2px 2px 0 rgba(46, 127, 123, 0.25);
 }
 
-.status-chip.progress--ok { color: var(--color-teal-700); border-color: var(--color-teal-500); background: #dcfce7; }
-.status-chip.progress--max { color: #92400e; border-color: #d97706; background: #fef3c7; }
-.status-chip.progress--below { color: var(--color-mirage-600); border-color: var(--color-mirage-300); background: var(--color-wild-300); }
+.status-chip.progress--ok { color: var(--color-deep-800); border-color: var(--color-deep-600); background: var(--color-deep-200, #b8e8e4); }
+.status-chip.progress--max { color: var(--color-deep-800); border-color: var(--color-deep-600); background: var(--color-deep-200, #b8e8e4); }
+.status-chip.progress--below { color: var(--color-mirage-700); border-color: var(--color-mirage-800); background: var(--color-wild-300, var(--color-wild-200)); }
 
 /* Progress bar */
 .bar-track {
@@ -335,7 +337,7 @@ const getAnswer = (exercise: AnyExercise) => {
     height: 10px;
     background: var(--color-mirage-100);
     border-radius: 999px;
-    border: 1.5px solid var(--color-mirage-200);
+    border: 2px solid var(--color-mirage-300);
     overflow: visible;
 }
 
@@ -345,8 +347,8 @@ const getAnswer = (exercise: AnyExercise) => {
     transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.bar-fill.progress--ok { background: linear-gradient(90deg, var(--color-teal-400), var(--color-teal-600)); }
-.bar-fill.progress--max { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.bar-fill.progress--ok { background: linear-gradient(90deg, var(--color-teal-400), var(--color-deep-600)); }
+.bar-fill.progress--max { background: linear-gradient(90deg, var(--color-teal-400), var(--color-deep-600)); }
 .bar-fill.progress--below { background: linear-gradient(90deg, var(--color-deep-300), var(--color-deep-500)); }
 
 /* Min threshold marker */
@@ -384,7 +386,7 @@ const getAnswer = (exercise: AnyExercise) => {
 }
 
 .legend-dot--min { background: var(--color-mirage-600); }
-.legend-dot--max { background: var(--color-mirage-300); border: 1.5px solid var(--color-mirage-500); }
+.legend-dot--max { background: var(--color-deep-400, var(--color-teal-500)); border: 1.5px solid var(--color-deep-600); }
 
 /* ---- Exercise grid ---- */
 .grid {
@@ -442,7 +444,7 @@ const getAnswer = (exercise: AnyExercise) => {
     background: rgba(2, 29, 32, 0.28);
     display: grid;
     place-items: center;
-    z-index: 40;
+    z-index: 9999;
 }
 
 .confirm-modal {
