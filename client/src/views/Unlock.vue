@@ -137,7 +137,7 @@ const onModalClose = () => {
 }
 
 .status-icon--owned { background: var(--color-deep-100); }
-.status-icon--error { background: #fbe1e1; border-color: #b13b3b; }
+.status-icon--error { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
 .status-icon--warn  { background: var(--color-amber-100); border-color: #92400e; }
 
 .status-svg {
@@ -147,7 +147,7 @@ const onModalClose = () => {
   stroke-width: 1.5;
 }
 
-.status-icon--error .status-svg { color: #b13b3b; }
+.status-icon--error .status-svg { color: var(--color-pumpkin-700); }
 .status-icon--warn  .status-svg { color: #92400e; }
 
 .unlock-title {

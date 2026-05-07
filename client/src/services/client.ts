@@ -29,7 +29,9 @@ export const setStoredUserId = (id: string | null) => {
 export const getAssetUrl = (assetId?: string | null) => {
   if (!assetId) return ''
   if (!normalizedDirectusUrl) return ''
-  return `${normalizedDirectusUrl}/assets/${assetId}`
+  const token = getAccessToken()
+  const base = `${normalizedDirectusUrl}/assets/${assetId}`
+  return token ? `${base}?access_token=${token}` : base
 }
 
 // Access token lives in sessionStorage (cleared when the browser tab/window closes)
@@ -53,6 +55,12 @@ export const clearAccessToken = () => {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
+let _onUnauthorized: (() => void) | null = null
+
+export const setUnauthorizedHandler = (handler: () => void) => {
+  _onUnauthorized = handler
+}
+
 export const authFetch = async (path: string, options: RequestInit = {}) => {
   if (!normalizedDirectusUrl) {
     throw new Error('VITE_DIRECTUS_URL is not set. Directus requests will fail.')
@@ -74,8 +82,26 @@ export const authFetch = async (path: string, options: RequestInit = {}) => {
   if (response.status === 401) {
     clearAccessToken()
     setStoredUserId(null)
-    window.location.href = '/login'
+    _onUnauthorized?.()
   }
 
   return response
+}
+
+export const parseResponse = async <T>(response: Response, label: string): Promise<T> => {
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`${label} failed: ${response.status} ${text}`.trim())
+  }
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as T
+}
+
+export const parseListResponse = async <T>(response: Response, label: string): Promise<T[]> => {
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`${label} failed: ${response.status} ${text}`.trim())
+  }
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as T[]
 }

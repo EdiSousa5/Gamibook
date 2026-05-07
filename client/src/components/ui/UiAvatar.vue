@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+
 type Frame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
 type Props = {
@@ -11,7 +13,7 @@ type Props = {
   frame?: Frame
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   src: '',
   alt: 'avatar',
   size: 48,
@@ -20,12 +22,15 @@ withDefaults(defineProps<Props>(), {
   ring: false,
   frame: 'essence',
 })
+
+const imgError = ref(false)
+watch(() => props.src, () => { imgError.value = false })
 </script>
 
 <template>
   <div class="ui-avatar" :class="[`tone-${tone}`, `frame-${frame}`, { ring }]"
     :style="{ width: `${size}px`, height: `${size}px` }">
-    <img v-if="src" :src="src" :alt="alt" />
+    <img v-if="src && !imgError" :src="src" :alt="alt" @error="imgError = true" />
     <span v-else>{{ alt.charAt(0).toUpperCase() }}</span>
     <span v-if="status" class="status" :class="status"></span>
   </div>
@@ -38,18 +43,20 @@ withDefaults(defineProps<Props>(), {
   color: #fff;
   display: grid;
   place-items: center;
-  overflow: visible;
+  overflow: hidden;
   font-weight: 700;
   position: relative;
+  flex-shrink: 0;
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
 .ui-avatar img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--radius-full);
 }
 
 .status {

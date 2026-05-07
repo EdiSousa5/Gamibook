@@ -2,7 +2,9 @@
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { TrophyIcon, ArrowRightIcon } from '@heroicons/vue/24/outline'
 import UiButton from './UiButton.vue'
+import UiModal from './UiModal.vue'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
+import { generateConfetti } from '@/utils/confetti'
 
 const props = defineProps<{
   visible: boolean
@@ -57,24 +59,12 @@ const rightLabel = computed(() => {
   return `Nível ${displayLevel.value + 1}`
 })
 
-const COLORS = ['#2e7f7b', '#1a5e5b', '#4ade80', '#86efac', '#34d399', '#6ee7b7', '#166534', '#a7f3d0', '#059669', '#6ee7b7']
-const confetti = Array.from({ length: 32 }, (_, i) => ({
-  id: i,
-  color: COLORS[i % COLORS.length],
-  left: `${(i * 3.25 + (i % 5) * 1.1) % 100}%`,
-  delay: `${(i * 0.1) % 1.4}s`,
-  dur: `${2.2 + (i % 6) * 0.3}s`,
-  w: `${6 + (i % 4) * 3}px`,
-  h: `${8 + (i % 3) * 5}px`,
-  rot: `${(i * 53) % 360}deg`,
-}))
+const confetti = generateConfetti()
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="overlay-fade">
-      <div v-if="visible" class="levelup-overlay" role="dialog" aria-modal="true" aria-label="Subiste de nível!">
-        <div class="levelup-card">
+  <UiModal :visible="visible" aria-label="Subiste de nível!">
+    <div class="levelup-card">
 
           <div class="confetti-wrap" aria-hidden="true">
             <span
@@ -124,23 +114,10 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
           </UiButton>
 
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </UiModal>
 </template>
 
 <style scoped>
-.levelup-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
 .levelup-card {
   position: relative;
   background: var(--color-wild-100);
@@ -306,12 +283,4 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   border-radius: inherit;
 }
 
-/* Overlay transition */
-.overlay-fade-enter-active { animation: overlay-in 0.3s ease both; }
-.overlay-fade-leave-active { animation: overlay-in 0.2s ease reverse both; }
-
-@keyframes overlay-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 </style>

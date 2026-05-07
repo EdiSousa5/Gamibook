@@ -2,92 +2,47 @@
 import { computed, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
 import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
-import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import { BoltIcon, FireIcon, InboxStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import {
-    shuffleArray,
-    buildOptions,
-    isOptionCorrect as checkOptionCorrect,
-    getQuestionText,
-} from '@/utils/exerciseUtils'
-import {
-    fetchBook,
-    fetchModule,
-} from '../services/books'
-import {
-    createUserExercise,
-    fetchExercisesByModule,
-    fetchUserExercisesByModule,
-    fetchUserPointsFromHistory,
-    createUserPointsHistory,
-    updateUserExercise,
-} from '../services/exercises'
-import { getStoredUserId } from '../services/client'
-import { checkAndUpdateBadge, fetchUserBook } from '../services/badges'
-import { getLevelProgressFromPoints } from '../utils/gamification'
-import { useAuthStore } from '@/stores/auth'
+import { isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
-import type { Book, Exercise, Module, UserExercise } from '@/types'
-
-const auth = useAuthStore()
+import UiResultPill from '@/components/ui/UiResultPill.vue'
+import UiStatCard from '@/components/ui/UiStatCard.vue'
+import { useModuleSession } from '@/composables/useModuleSession'
+import type { SessionMode } from '@/composables/useModuleSession'
+import { FEEDBACK_DELAY_MS } from '@/utils/timing'
+import { useBadgeQueue } from '@/composables/useBadgeQueue'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
 const moduleId = computed(() => Number(route.params.moduleId || 1))
-
-type SessionMode = 'normal' | 'retry' | 'review'
-
-const book = ref<Book | null>(null)
-const moduleData = ref<Module | null>(null)
-const exercises = ref<Exercise[]>([])
-const allExercises = ref<Exercise[]>([])
-const error = ref('')
-const isLoading = ref(false)
-const currentIndex = ref(0)
 const QUESTION_TIME = 30
-const isCompleted = ref(false)
-const isSaving = ref(false)
-const correctStreak = ref(0)
-const userId = ref<string | null>(null)
-const userPoints = ref(0)
-const sessionPoints = ref(0)
-const xpDelta = ref(0)
-const xpPulse = ref(0)
-const streakDelta = ref(0)
-const streakAnimState = ref<'idle' | 'up' | 'lost'>('idle')
-const feedback = ref<null | { type: 'correct' | 'wrong'; points: number }>(null)
-const feedbackTimer = ref<number | null>(null)
-const existingRecords = ref<Record<number, UserExercise>>({})
-const shuffledOptionsByExercise = ref<Record<number, string[]>>({})
-const viewState = ref<'setup' | 'runner' | 'summary'>('setup')
-const selectedMode = ref<SessionMode>('normal')
-const sessionMode = ref<SessionMode>('normal')
-const pendingResults = ref<
-    Array<{
-        exerciseId: number
-        isCorrect: boolean
-        attempts: number
-        timeSpent: number
-        pointsEarned: number
-        previousStatus: 'correct' | 'wrong' | 'new'
-    }>
->([])
 
-const initialBadge = ref<string>('default')
-const badgeQueue = ref<BookBadgeTier[]>([])
-const showBadgeModal = computed(() => badgeQueue.value.length > 0)
-const earnedBadgeTier = computed<BookBadgeTier | null>(() => badgeQueue.value[0] ?? null)
-const isLevelUpQueued = ref(false)
-
-const currentExercise = computed(() => exercises.value[currentIndex.value] || null)
+const {
+    book, moduleData, exercises, allExercises, error, isLoading,
+    currentIndex, isCompleted, isSaving, correctStreak, userId,
+    sessionPoints, xpDelta, xpPulse, streakDelta, streakAnimState,
+    feedback, shuffledOptionsByExercise,
+    viewState, selectedMode, sessionMode, isLevelUpQueued, pendingResults, initialBadge,
+    currentExercise, isReviewMode,
+    exerciseCounts, modeLabel,
+    canStartMode, recommendedMode, currentExerciseStatus,
+    summary, completionStats, exerciseResults,
+    isPointsEligible, awardXp, recordResult, showFeedback,
+    resetSessionState, startSession, persistResults,
+    loadData,
+} = useModuleSession(bookId, moduleId)
 
 const {
     timeLeft, selectedOption, attemptedOptions, isLocked, attemptsUsed,
     isTrueFalse, maxAttempts, attemptsLabel, timerDash,
     stopTimer, resetQuestionState,
 } = useExerciseRunner(QUESTION_TIME, () => handleTimeout(), currentExercise)
+
+const { showBadgeModal, earnedBadgeTier, runBadgeCheck, handleBadgeModalClose } =
+    useBadgeQueue(userId, bookId, isLevelUpQueued, initialBadge)
 
 const currentQuestionText = computed(() =>
     currentExercise.value ? getQuestionText(currentExercise.value) : '',
@@ -98,303 +53,14 @@ const options = computed(() => {
     return shuffledOptionsByExercise.value[currentExercise.value.exercise_id] || []
 })
 
-const isReviewMode = computed(() => sessionMode.value === 'review')
-
-const getPreviousStatus = (exerciseId: number): 'correct' | 'wrong' | 'new' => {
-    const record = existingRecords.value[exerciseId]
-    if (record?.is_correct === true) return 'correct'
-    if (record?.is_correct === false) return 'wrong'
-    return 'new'
-}
-
-const exerciseCounts = computed(() => {
-    let correct = 0
-    let wrong = 0
-    let fresh = 0
-    for (const ex of allExercises.value) {
-        const id = Number(ex.exercise_id)
-        const status = Number.isFinite(id) ? getPreviousStatus(id) : 'new'
-        if (status === 'correct') correct += 1
-        else if (status === 'wrong') wrong += 1
-        else fresh += 1
-    }
-    const total = allExercises.value.length
-    const remaining = Math.max(0, total - (correct + wrong))
-    return { total, correct, wrong, fresh, remaining }
-})
-
-const modeCounts = computed(() => ({
-    normal: exerciseCounts.value.fresh + exerciseCounts.value.wrong,
-    retry: exerciseCounts.value.wrong,
-    review: exerciseCounts.value.total,
-}))
-
-const canStartMode = (mode: SessionMode) => {
-    if (mode === 'normal') return modeCounts.value.normal > 0
-    if (mode === 'retry') return modeCounts.value.retry > 0
-    return exerciseCounts.value.correct === exerciseCounts.value.total && modeCounts.value.review > 0
-}
-
-const recommendedMode = computed<SessionMode>(() => {
-    if (!exerciseCounts.value.total) return 'normal'
-    if (exerciseCounts.value.correct === exerciseCounts.value.total) return 'review'
-    if (exerciseCounts.value.wrong > 0) return 'retry'
-    return 'normal'
-})
-
-const currentExerciseStatus = computed(() => {
-    const id = currentExercise.value?.exercise_id
-    if (!id) return 'new'
-    return getPreviousStatus(Number(id))
-})
-
-const modeLabel = computed(() => {
-    if (sessionMode.value === 'retry') return 'Repetir errados'
-    if (sessionMode.value === 'review') return 'Rever exercicios'
-    return 'Modo normal'
-})
-
 const modeFromQuery = computed<SessionMode | null>(() => {
     const raw = String(route.query.mode || '')
     if (raw === 'normal' || raw === 'retry' || raw === 'review') return raw
     return null
 })
 
-const summary = computed(() => {
-    const answered = pendingResults.value.length
-    const correct = pendingResults.value.filter((item) => item.isCorrect).length
-    const previouslyCorrect = pendingResults.value.filter((item) => item.previousStatus === 'correct').length
-    const previouslyWrong = pendingResults.value.filter((item) => item.previousStatus === 'wrong').length
-    const points = pendingResults.value.reduce((sum, item) => sum + item.pointsEarned, 0)
-    const timeSpent = pendingResults.value.reduce((sum, item) => sum + item.timeSpent, 0)
-    return {
-        total: exercises.value.length,
-        answered,
-        correct,
-        wrong: Math.max(0, answered - correct),
-        points,
-        timeSpent,
-        previouslyCorrect,
-        previouslyWrong,
-    }
-})
-
-const completionStats = computed(() => {
-    const total = summary.value.total
-    const correct = summary.value.correct
-    const wrong = summary.value.wrong
-    const points = summary.value.points
-    const successRate = total ? Math.round((correct / total) * 100) : 0
-    return { total, correct, wrong, points, successRate }
-})
-
-const currentXp = computed(() => sessionPoints.value)
-
-const exerciseResults = computed(() =>
-    exercises.value.map((exercise, index) => {
-        const exerciseId = Number(exercise.exercise_id)
-        const result = pendingResults.value.find((item) => item.exerciseId === exerciseId)
-        const isCorrect = result?.isCorrect
-        const points = result?.pointsEarned ?? 0
-        const status = isCorrect === true ? 'correct' : isCorrect === false ? 'wrong' : 'pending'
-        return {
-            index: index + 1,
-            text: getQuestionText(exercise),
-            status,
-            points,
-            previousStatus: result?.previousStatus ?? 'new',
-        }
-    }),
-)
-
-
 const isOptionCorrect = (option: string) =>
     currentExercise.value ? checkOptionCorrect(currentExercise.value, option) : false
-
-const showFeedback = (type: 'correct' | 'wrong', points: number) => {
-    feedback.value = { type, points }
-    if (feedbackTimer.value) {
-        window.clearTimeout(feedbackTimer.value)
-    }
-    feedbackTimer.value = window.setTimeout(() => {
-        feedback.value = null
-        feedbackTimer.value = null
-    }, 2200)
-}
-
-watch(correctStreak, (newVal, oldVal) => {
-    if (newVal > oldVal && newVal > 0) {
-        streakAnimState.value = 'up'
-        window.setTimeout(() => { streakAnimState.value = 'idle' }, 700)
-    } else if (newVal === 0 && oldVal > 0) {
-        streakAnimState.value = 'lost'
-        window.setTimeout(() => { streakAnimState.value = 'idle' }, 600)
-    }
-})
-
-const awardXp = (basePoints: number, bonusPoints = 0) => {
-    const total = basePoints + bonusPoints
-    if (total <= 0) return
-    sessionPoints.value += total
-    if (basePoints > 0) {
-        xpDelta.value = basePoints
-        xpPulse.value += 1
-        window.setTimeout(() => { xpDelta.value = 0 }, 2200)
-    }
-    if (bonusPoints > 0) {
-        streakDelta.value = bonusPoints
-        window.setTimeout(() => { streakDelta.value = 0 }, 2200)
-    }
-}
-
-const isPointsEligible = (exerciseId: number) =>
-    sessionMode.value !== 'review' && getPreviousStatus(exerciseId) !== 'correct'
-
-const updatePoints = async (points: number) => {
-    if (!userId.value) return
-    if (points <= 0) return
-    const oldLevel = getLevelProgressFromPoints(userPoints.value).level
-    try {
-        const totalPoints = await fetchUserPointsFromHistory(userId.value)
-        userPoints.value = totalPoints
-        auth.setPoints(totalPoints)
-        const newLevel = getLevelProgressFromPoints(totalPoints).level
-        if (newLevel > oldLevel) {
-            isLevelUpQueued.value = true
-            auth.triggerLevelUp(oldLevel, newLevel, totalPoints)
-        }
-    } catch (err) {
-        console.error(err)
-    }
-}
-
-const recordResult = (isCorrect: boolean, attempts: number, points: number) => {
-    if (!currentExercise.value?.exercise_id) return
-    const exerciseId = currentExercise.value.exercise_id
-    const timeSpent = QUESTION_TIME - timeLeft.value
-    const previousStatus = getPreviousStatus(exerciseId)
-    const pointsEarned = isPointsEligible(exerciseId) ? points : 0
-    const entry = {
-        exerciseId,
-        isCorrect,
-        attempts,
-        timeSpent,
-        pointsEarned,
-        previousStatus,
-    }
-    const existingIndex = pendingResults.value.findIndex((item) => item.exerciseId === exerciseId)
-    if (existingIndex >= 0) {
-        pendingResults.value.splice(existingIndex, 1, entry)
-    } else {
-        pendingResults.value.push(entry)
-    }
-}
-
-const resetSessionState = () => {
-    isCompleted.value = false
-    currentIndex.value = 0
-    correctStreak.value = 0
-    pendingResults.value = []
-    sessionPoints.value = 0
-    xpDelta.value = 0
-    xpPulse.value = 0
-    feedback.value = null
-    isSaving.value = false
-    isLevelUpQueued.value = false
-    stopTimer()
-}
-
-const buildSessionExercises = (mode: SessionMode) => {
-    if (mode === 'normal') {
-        return allExercises.value.filter((exercise) => {
-            const id = Number(exercise.exercise_id)
-            return !Number.isFinite(id) || getPreviousStatus(id) !== 'correct'
-        })
-    }
-    if (mode === 'retry') {
-        return allExercises.value.filter((exercise) => {
-            const id = Number(exercise.exercise_id)
-            return Number.isFinite(id) && getPreviousStatus(id) === 'wrong'
-        })
-    }
-    return [...allExercises.value]
-}
-
-const setSessionExercises = (list: Exercise[]) => {
-    if (!list.length) {
-        exercises.value = []
-        shuffledOptionsByExercise.value = {}
-        return
-    }
-    const shuffled = shuffleArray(list)
-    exercises.value = shuffled
-    shuffledOptionsByExercise.value = Object.fromEntries(
-        shuffled
-            .filter((item) => Number.isFinite(item.exercise_id))
-            .map((item) => [
-                Number(item.exercise_id),
-                item.type === 'true-false' ? buildOptions(item) : shuffleArray(buildOptions(item)),
-            ] as const),
-    )
-}
-
-const startSession = (mode: SessionMode = selectedMode.value) => {
-    if (!canStartMode(mode)) return
-    sessionMode.value = mode
-    viewState.value = 'runner'
-    resetSessionState()
-    const list = buildSessionExercises(mode)
-    setSessionExercises(list)
-    if (!list.length) {
-        viewState.value = 'setup'
-    }
-}
-
-
-const persistResults = async () => {
-    if (!userId.value || isReviewMode.value) return
-    const currentUserId = userId.value
-    const updates = pendingResults.value.map(async (result) => {
-        const existing = existingRecords.value[result.exerciseId]
-        const timestamp = new Date().toISOString()
-        if (existing?.is_correct === true) return
-        const payload = {
-            user_id: currentUserId,
-            exercise_id: result.exerciseId,
-            module_id: moduleId.value,
-            is_correct: result.isCorrect,
-            attempts: result.attempts,
-            time_spent: result.timeSpent,
-            date: timestamp,
-        }
-        let userExerciseRecord: UserExercise | null = null
-        if (existing?.id_user_exercises) {
-            userExerciseRecord = await updateUserExercise(existing.id_user_exercises, payload)
-        } else {
-            userExerciseRecord = await createUserExercise(payload)
-        }
-
-        if (userExerciseRecord && result.pointsEarned > 0) {
-            await createUserPointsHistory({
-                user_id: currentUserId,
-                points: result.pointsEarned,
-                source: 'exercise',
-                reference_id: result.exerciseId,
-            }).catch(() => console.error('Failed to save points history'))
-        }
-
-        return userExerciseRecord
-    })
-
-    const saved = (await Promise.all(updates)).filter(Boolean) as UserExercise[]
-    for (const record of saved) {
-        const exerciseId = Number(record.exercise_id)
-        if (Number.isFinite(exerciseId)) {
-            existingRecords.value[exerciseId] = record
-        }
-    }
-    await updatePoints(summary.value.points)
-}
 
 const goNext = async () => {
     if (currentIndex.value + 1 >= exercises.value.length) {
@@ -408,10 +74,6 @@ const goNext = async () => {
         return
     }
     currentIndex.value += 1
-}
-
-const handleBadgeModalClose = () => {
-    badgeQueue.value = badgeQueue.value.slice(1)
 }
 
 const handleCorrect = async () => {
@@ -432,23 +94,21 @@ const handleCorrect = async () => {
         basePoints = 5
     }
     const points = eligibleForPoints ? basePoints + bonusPoints : 0
-    recordResult(true, attemptsUsed.value + 1, points)
+    recordResult(true, attemptsUsed.value + 1, points, QUESTION_TIME - timeLeft.value)
     awardXp(eligibleForPoints ? basePoints : 0, eligibleForPoints ? bonusPoints : 0)
     showFeedback('correct', points)
-    window.setTimeout(goNext, 2200)
+    window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleIncorrect = async () => {
     attemptsUsed.value += 1
     correctStreak.value = 0
     showFeedback('wrong', 0)
-    if (attemptsUsed.value < maxAttempts.value) {
-        return
-    }
+    if (attemptsUsed.value < maxAttempts.value) return
     stopTimer()
     isLocked.value = true
-    recordResult(false, attemptsUsed.value, 0)
-    window.setTimeout(goNext, 2200)
+    recordResult(false, attemptsUsed.value, 0, QUESTION_TIME - timeLeft.value)
+    window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleTimeout = async () => {
@@ -456,8 +116,8 @@ const handleTimeout = async () => {
     isLocked.value = true
     correctStreak.value = 0
     showFeedback('wrong', 0)
-    recordResult(false, maxAttempts.value, 0)
-    window.setTimeout(goNext, 2200)
+    recordResult(false, maxAttempts.value, 0, QUESTION_TIME)
+    window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleSelect = (option: string) => {
@@ -473,108 +133,18 @@ const handleSelect = (option: string) => {
     }
 }
 
-watch(
-    [bookId, moduleId],
-    async ([currentBookId, currentModuleId]) => {
-        error.value = ''
-        isLoading.value = true
-        viewState.value = 'setup'
-        resetSessionState()
-        exercises.value = []
-        shuffledOptionsByExercise.value = {}
-        allExercises.value = []
-        try {
-            const storedId = getStoredUserId()
-            userId.value = storedId
-            const [bookInfo, moduleInfo, exerciseList, userBookInfo] = await Promise.all([
-                fetchBook(currentBookId),
-                fetchModule(currentModuleId),
-                fetchExercisesByModule(currentModuleId),
-                storedId ? fetchUserBook(storedId, currentBookId) : Promise.resolve(null),
-            ])
-            book.value = bookInfo
-            moduleData.value = moduleInfo
-            initialBadge.value = userBookInfo?.current_badge || 'default'
-            const filtered = exerciseList.filter(
-                (item) => item.type !== 'fill-blanks' && item.type !== 'ordering',
-            )
-            allExercises.value = filtered
-            if (storedId) {
-                userPoints.value = await fetchUserPointsFromHistory(storedId).catch(() => 0)
-                auth.setPoints(userPoints.value)
-            } else {
-                userPoints.value = 0
-                auth.setPoints(0)
-            }
-            if (storedId) {
-                const existing = await fetchUserExercisesByModule(storedId, currentModuleId)
-                existingRecords.value = Object.fromEntries(
-                    existing
-                        .map((item) => [
-                            Number(item.exercise_id),
-                            item,
-                        ] as const)
-                        .filter((entry) => Number.isFinite(entry[0])),
-                )
-            } else {
-                existingRecords.value = {}
-            }
-            if (!allExercises.value.length) {
-                stopTimer()
-            }
-        } catch {
-            error.value = 'Nao foi possivel carregar o modulo.'
-            book.value = null
-            moduleData.value = null
-            exercises.value = []
-            allExercises.value = []
-            shuffledOptionsByExercise.value = {}
-            existingRecords.value = {}
-            stopTimer()
-        } finally {
-            isLoading.value = false
-        }
-    },
-    { immediate: true },
-)
-
-watch(
-    [isLoading, viewState],
-    ([loading, state]) => {
-        if (!loading && state === 'setup' && allExercises.value.length > 0) {
-            const queryMode = modeFromQuery.value
-            const modeToStart = (queryMode && canStartMode(queryMode))
-                ? queryMode
-                : recommendedMode.value
-
-            selectedMode.value = modeToStart
-            if (canStartMode(modeToStart)) {
-                startSession(modeToStart)
-            }
-        }
-    },
-    { immediate: true },
-)
-
-watch(
-    currentExercise,
-    (nextExercise, previousExercise) => {
-        if (!nextExercise || nextExercise === previousExercise) return
-        resetQuestionState()
-    },
-)
-
 // ── Confirmation modal ─────────────────────────────────────
 const confirmModal = ref<{
     title: string
     message: string
     confirmLabel: string
+    cancelLabel?: string
     resolve: (val: boolean) => void
 } | null>(null)
 
-const openConfirm = (title: string, message: string, confirmLabel = 'Confirmar') =>
+const openConfirm = (title: string, message: string, confirmLabel = 'Confirmar', cancelLabel?: string) =>
     new Promise<boolean>((resolve) => {
-        confirmModal.value = { title, message, confirmLabel, resolve }
+        confirmModal.value = { title, message, confirmLabel, cancelLabel, resolve }
     })
 
 const handleModalConfirm = () => {
@@ -585,31 +155,6 @@ const handleModalConfirm = () => {
 const handleModalCancel = () => {
     confirmModal.value?.resolve(false)
     confirmModal.value = null
-}
-
-const BADGE_TIER_ORDER = ['default', 'bronze', 'silver', 'gold', 'diamond', 'galaxy'] as const
-
-const enqueueBadgeModals = (newBadge: string) => {
-    if (newBadge === 'default' || newBadge === initialBadge.value) return
-    const startRank = Math.max(0, BADGE_TIER_ORDER.indexOf(initialBadge.value as typeof BADGE_TIER_ORDER[number]))
-    const endRank = BADGE_TIER_ORDER.indexOf(newBadge as typeof BADGE_TIER_ORDER[number])
-    if (endRank <= startRank) return
-    const earned: BookBadgeTier[] = []
-    for (let r = startRank + 1; r <= endRank; r++) {
-        const t = BADGE_TIER_ORDER[r]
-        if (t && t !== 'default') earned.push(t as BookBadgeTier)
-    }
-    initialBadge.value = newBadge
-    if (earned.length > 0) {
-        const delay = isLevelUpQueued.value ? 6000 : 1000
-        setTimeout(() => { badgeQueue.value = [...badgeQueue.value, ...earned] }, delay)
-    }
-}
-
-const runBadgeCheck = async () => {
-    if (!userId.value) return
-    const newBadge = await checkAndUpdateBadge(userId.value, bookId.value).catch(() => initialBadge.value as string)
-    enqueueBadgeModals(String(newBadge))
 }
 
 const quitSession = async () => {
@@ -628,30 +173,50 @@ const quitSession = async () => {
     await runBadgeCheck()
 }
 
-let resolveLeave: ((val: boolean) => void) | null = null
-const showLeaveModal = ref(false)
+watch(
+    [bookId, moduleId],
+    async ([currentBookId, currentModuleId]) => {
+        stopTimer()
+        resetSessionState()
+        await loadData(currentBookId, currentModuleId)
+    },
+    { immediate: true },
+)
 
-const confirmLeave = () => {
-    showLeaveModal.value = false
-    resolveLeave?.(true)
-    resolveLeave = null
-}
+watch(
+    [isLoading, viewState],
+    ([loading, state]) => {
+        if (!loading && state === 'setup' && allExercises.value.length > 0) {
+            const queryMode = modeFromQuery.value
+            const modeToStart = (queryMode && canStartMode(queryMode))
+                ? queryMode
+                : recommendedMode.value
+            selectedMode.value = modeToStart
+            if (canStartMode(modeToStart)) {
+                startSession(modeToStart)
+            }
+        }
+    },
+    { immediate: true },
+)
 
-const cancelLeave = () => {
-    showLeaveModal.value = false
-    resolveLeave?.(false)
-    resolveLeave = null
-}
+watch(
+    currentExercise,
+    (nextExercise, previousExercise) => {
+        if (!nextExercise || nextExercise === previousExercise) return
+        resetQuestionState()
+    },
+)
 
 onBeforeRouteLeave(() => {
     if (viewState.value !== 'runner' || !pendingResults.value.length) return true
-    showLeaveModal.value = true
-    return new Promise<boolean>((resolve) => {
-        resolveLeave = resolve
-    })
+    return openConfirm(
+        'Sair do quiz?',
+        'Se saíres agora, as respostas desta sessão não serão guardadas.',
+        'Sair',
+        'Ficar',
+    )
 })
-
-
 </script>
 
 <template>
@@ -667,10 +232,6 @@ onBeforeRouteLeave(() => {
         <p v-if="isLoading" class="state">A carregar exercicios...</p>
         <p v-else-if="error" class="state error">{{ error }}</p>
         <p v-else-if="!allExercises.length" class="state">Sem exercicios aprovados para este modulo.</p>
-
-        <div v-else-if="viewState === 'setup'" class="setup-shell">
-            <p>Seleciona um modo para começar.</p>
-        </div>
 
         <div v-else-if="viewState === 'summary'" class="summary-screen">
             <!-- Hero score banner -->
@@ -753,31 +314,30 @@ onBeforeRouteLeave(() => {
         <div v-else class="runner">
             <div class="runner-stats">
                 <template v-if="sessionMode === 'normal'">
-                    <div class="runner-stat" :key="xpPulse" :class="{ 'runner-stat--pulse': xpPulse > 0 }">
-                        <BoltIcon class="stat-icon" aria-hidden="true" />
-                        <div class="stat-body">
-                            <span class="stat-label">XP nesta sessao</span>
-                            <span class="stat-value">{{ sessionPoints }}</span>
-                        </div>
-                        <span v-if="xpDelta > 0" class="stat-delta">+{{ xpDelta }}</span>
-                    </div>
-                    <div class="runner-stat runner-stat--streak"
-                        :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost' }">
-                        <FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" />
-                        <div class="stat-body">
-                            <span class="stat-label">Streak</span>
-                            <span class="stat-value">{{ correctStreak }}</span>
-                        </div>
-                        <span v-if="streakDelta > 0" class="stat-delta stat-delta--streak">+{{ streakDelta }}</span>
-                    </div>
+                    <UiStatCard
+                        :key="xpPulse"
+                        label="XP nesta sessao"
+                        :value="sessionPoints"
+                        :delta="xpDelta > 0 ? `+${xpDelta}` : undefined"
+                        :class="{ 'runner-stat--pulse': xpPulse > 0 }"
+                    >
+                        <template #icon><BoltIcon class="stat-icon" aria-hidden="true" /></template>
+                    </UiStatCard>
+                    <UiStatCard
+                        label="Streak"
+                        :value="correctStreak"
+                        :delta="streakDelta > 0 ? `+${streakDelta}` : undefined"
+                        delta-variant="streak"
+                        class="runner-stat--streak"
+                        :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost' }"
+                    >
+                        <template #icon><FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" /></template>
+                    </UiStatCard>
                 </template>
-                <div class="runner-stat">
-                    <InboxStackIcon class="stat-icon" aria-hidden="true" />
-                    <div class="stat-body">
-                        <span class="stat-label">Pergunta</span>
-                        <span class="stat-value">{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></span>
-                    </div>
-                </div>
+                <UiStatCard label="Pergunta" :value="currentIndex + 1">
+                    <template #icon><InboxStackIcon class="stat-icon" aria-hidden="true" /></template>
+                    <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
+                </UiStatCard>
             </div>
 
             <div class="question-card">
@@ -801,12 +361,7 @@ onBeforeRouteLeave(() => {
                             <span v-else-if="!isReviewMode && currentExerciseStatus === 'wrong'"
                                 class="status-pill warn">Falhou antes</span>
                             <span v-if="isReviewMode" class="status-pill review">Revisao</span>
-                            <div v-if="feedback" class="result-pill" :class="feedback.type">
-                                <span class="result-pill__label">{{ feedback.type === 'correct' ? 'Certo!' : 'Errado'
-                                    }}</span>
-                                <strong v-if="feedback.points > 0" class="result-pill__xp">+{{ feedback.points }}
-                                    XP</strong>
-                            </div>
+                            <UiResultPill v-if="feedback" :result="feedback.type" :points="feedback.points" />
                             <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                         </div>
                     </div>
@@ -824,10 +379,10 @@ onBeforeRouteLeave(() => {
             </div>
 
             <div class="runner-footer">
-                <button class="quit-button" type="button" @click="quitSession">
+                <UiButton variant="outline" @click="quitSession">
                     <XMarkIcon class="quit-icon" aria-hidden="true" />
                     Terminar quiz
-                </button>
+                </UiButton>
             </div>
 
         </div>
@@ -837,37 +392,15 @@ onBeforeRouteLeave(() => {
 
     </section>
 
-    <!-- Quit confirmation modal -->
-    <Teleport to="body">
-        <Transition name="modal-fade">
-            <div v-if="confirmModal" class="confirm-overlay" @click.self="handleModalCancel">
-                <div class="confirm-modal">
-                    <h3 class="confirm-title">{{ confirmModal.title }}</h3>
-                    <p class="confirm-message">{{ confirmModal.message }}</p>
-                    <div class="confirm-actions">
-                        <button class="confirm-btn confirm-btn--cancel" type="button" @click="handleModalCancel">Cancelar</button>
-                        <button class="confirm-btn confirm-btn--confirm" type="button" @click="handleModalConfirm">{{ confirmModal.confirmLabel }}</button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
-
-    <!-- Leave confirmation modal -->
-    <Teleport to="body">
-        <Transition name="modal-fade">
-            <div v-if="showLeaveModal" class="confirm-overlay" @click.self="cancelLeave">
-                <div class="confirm-modal">
-                    <h3 class="confirm-title">Sair do quiz?</h3>
-                    <p class="confirm-message">Se saíres agora, as respostas desta sessão não serão guardadas.</p>
-                    <div class="confirm-actions">
-                        <button class="confirm-btn confirm-btn--cancel" type="button" @click="cancelLeave">Ficar</button>
-                        <button class="confirm-btn confirm-btn--confirm" type="button" @click="confirmLeave">Sair</button>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </Teleport>
+    <UiConfirmModal
+        :visible="!!confirmModal"
+        :title="confirmModal?.title ?? ''"
+        :message="confirmModal?.message ?? ''"
+        :confirm-label="confirmModal?.confirmLabel"
+        :cancel-label="confirmModal?.cancelLabel"
+        @confirm="handleModalConfirm"
+        @cancel="handleModalCancel"
+    />
 </template>
 
 <style scoped>
@@ -920,21 +453,6 @@ onBeforeRouteLeave(() => {
     gap: var(--space-300);
 }
 
-.runner-stat {
-    position: relative;
-    padding: 12px 16px;
-    border-radius: 14px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-    box-shadow: 4px 4px 0 var(--color-shadow);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 700;
-    overflow: visible;
-    transition: background 0.2s ease;
-}
-
 .runner-stat--streak {
     background: var(--color-teal-200);
 }
@@ -955,43 +473,10 @@ onBeforeRouteLeave(() => {
     color: var(--color-pumpkin-500);
 }
 
-.stat-body {
-    display: grid;
-    gap: 1px;
-}
-
-.stat-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-mirage-500);
-    font-weight: 700;
-}
-
-.stat-value {
-    font-size: 20px;
-    color: var(--color-mirage-800);
-    line-height: 1;
-}
-
 .stat-sep {
     font-size: 14px;
     color: var(--color-mirage-400);
     font-weight: 600;
-}
-
-.stat-delta {
-    position: absolute;
-    right: 8px;
-    top: -10px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--color-teal-200);
-    border: 2px solid var(--color-mirage-800);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--color-mirage-800);
-    animation: xp-pop 1.4s ease;
 }
 
 .state {
@@ -1000,18 +485,8 @@ onBeforeRouteLeave(() => {
 }
 
 .state.error {
-    color: #b13b3b;
+    color: var(--color-pumpkin-700);
 }
-
-.setup-shell {
-    padding: 24px;
-    border-radius: 16px;
-    border: 2px dashed var(--color-mirage-400);
-    background: var(--color-wild-200);
-    color: var(--color-mirage-600);
-    font-weight: 600;
-}
-
 
 .runner {
     display: grid;
@@ -1044,64 +519,6 @@ onBeforeRouteLeave(() => {
     box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
 }
 
-.result-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 2px solid var(--color-mirage-800);
-    font-weight: 700;
-    background: var(--color-wild-100);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-    animation: feedback-pop 0.35s ease;
-    white-space: nowrap;
-}
-
-.result-pill.correct {
-    background: var(--color-deep-100);
-}
-
-.result-pill.wrong {
-    background: #f7c4c4;
-    border-color: #b13b3b;
-}
-
-.result-pill__label {
-    font-size: 13px;
-    color: var(--color-mirage-800);
-}
-
-.result-pill.wrong .result-pill__label {
-    color: #7a1f1f;
-}
-
-.result-pill__xp {
-    font-size: 12px;
-    color: var(--color-deep-700);
-}
-
-.result-pill.wrong .result-pill__xp {
-    color: #7a1f1f;
-}
-
-@keyframes xp-pop {
-    0% {
-        transform: translateY(10px) scale(0.9);
-        opacity: 0;
-    }
-
-    55% {
-        transform: translateY(-4px) scale(1.06);
-        opacity: 1;
-    }
-
-    100% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
-}
-
 @keyframes xp-pulse {
     0% {
         transform: scale(1);
@@ -1113,23 +530,6 @@ onBeforeRouteLeave(() => {
 
     100% {
         transform: scale(1);
-    }
-}
-
-@keyframes feedback-pop {
-    0% {
-        transform: translateY(-6px) scale(0.95);
-        opacity: 0;
-    }
-
-    60% {
-        transform: translateY(0) scale(1.02);
-        opacity: 1;
-    }
-
-    100% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
     }
 }
 
@@ -1160,9 +560,9 @@ onBeforeRouteLeave(() => {
 }
 
 .status-pill.warn {
-    background: #f7c4c4;
-    border-color: #b13b3b;
-    color: #7a1f1f;
+    background: var(--color-pumpkin-100);
+    border-color: var(--color-pumpkin-500);
+    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
 }
 
 .status-pill.done {
@@ -1394,7 +794,7 @@ onBeforeRouteLeave(() => {
 
 .summary-chip--correct { background: var(--color-deep-100); }
 
-.summary-chip--wrong { background: #fbe1e1; border-color: #b13b3b; }
+.summary-chip--wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
 
 .summary-chip--pending { background: var(--color-wild-200); }
 
@@ -1405,7 +805,7 @@ onBeforeRouteLeave(() => {
     line-height: 1;
 }
 
-.summary-chip--wrong .summary-chip__value { color: #b13b3b; }
+.summary-chip--wrong .summary-chip__value { color: var(--color-pumpkin-700); }
 
 .summary-chip__label {
     font-size: 11px;
@@ -1436,7 +836,7 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-item.correct { background: var(--color-deep-100); }
-.summary-item.wrong { background: #fbe1e1; border-color: #b13b3b; }
+.summary-item.wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
 .summary-item.pending { background: var(--color-wild-200); opacity: 0.65; }
 
 .summary-item__left {
@@ -1472,7 +872,7 @@ onBeforeRouteLeave(() => {
     white-space: nowrap;
 }
 
-.summary-item.wrong .summary-item__question { color: #7a1f1f; }
+.summary-item.wrong .summary-item__question { color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
 
 .summary-item__tags {
     display: flex;
@@ -1487,7 +887,7 @@ onBeforeRouteLeave(() => {
     color: var(--color-mirage-500);
 }
 
-.summary-tag--warn { color: #b13b3b; }
+.summary-tag--warn { color: var(--color-pumpkin-700); }
 
 .summary-item__right {
     display: flex;
@@ -1516,9 +916,9 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-item__status-badge.wrong {
-    background: #f7c4c4;
-    color: #7a1f1f;
-    border-color: #b13b3b;
+    background: var(--color-pumpkin-100);
+    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
+    border-color: var(--color-pumpkin-500);
 }
 
 .summary-item__pts {
@@ -1551,131 +951,10 @@ onBeforeRouteLeave(() => {
     margin: 0 auto;
 }
 
-.quit-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border-radius: 14px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-200);
-    box-shadow: 4px 4px 0 var(--color-shadow);
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-mirage-700);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.quit-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 4px 6px 0 var(--color-shadow);
-    background: var(--color-wild-300, var(--color-wild-200));
-}
-
-.quit-button:active {
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 var(--color-shadow);
-}
-
 .quit-icon {
     width: 16px;
     height: 16px;
     stroke-width: 2.5;
-}
-
-/* Confirmation modals */
-.confirm-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 29, 32, 0.55);
-    backdrop-filter: blur(4px);
-    display: grid;
-    place-items: center;
-    z-index: 9999;
-    padding: 16px;
-}
-
-.confirm-modal {
-    background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-800);
-    border-radius: 20px;
-    box-shadow: 8px 8px 0 var(--color-shadow);
-    padding: 32px;
-    width: min(420px, 100%);
-    display: grid;
-    gap: var(--space-300);
-}
-
-.confirm-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--color-mirage-900);
-}
-
-.confirm-message {
-    margin: 0;
-    font-size: 14px;
-    color: var(--color-mirage-600);
-    line-height: 1.55;
-}
-
-.confirm-actions {
-    display: flex;
-    gap: var(--space-200);
-    justify-content: flex-end;
-    margin-top: var(--space-100);
-}
-
-.confirm-btn {
-    padding: 10px 22px;
-    border-radius: 12px;
-    border: 2px solid var(--color-mirage-800);
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.confirm-btn--cancel {
-    background: var(--color-wild-200);
-    color: var(--color-mirage-700);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-}
-
-.confirm-btn--cancel:hover {
-    transform: translateY(-1px);
-    box-shadow: 3px 4px 0 var(--color-shadow);
-}
-
-.confirm-btn--confirm {
-    background: var(--color-deep-100);
-    color: var(--color-mirage-800);
-    border-color: var(--color-deep-600);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-}
-
-.confirm-btn--confirm:hover {
-    transform: translateY(-1px);
-    box-shadow: 3px 4px 0 var(--color-shadow);
-    background: var(--color-deep-200, var(--color-deep-100));
-}
-
-.confirm-btn:active {
-    transform: translate(1px, 1px);
-    box-shadow: none;
-}
-
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-    transition: opacity 0.2s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-    opacity: 0;
 }
 
 @media (max-width: 720px) {
@@ -1765,13 +1044,7 @@ onBeforeRouteLeave(() => {
     animation: fire-lost 0.55s ease;
 }
 
-.stat-delta--streak {
-    background: var(--color-pumpkin-100, #fff0e0);
-    border-color: var(--color-pumpkin-500, #f07c00);
-    color: var(--color-pumpkin-700, #a34d00);
-}
-
 .chip-value--wrong {
-    color: #b13b3b;
+    color: var(--color-pumpkin-700);
 }
 </style>

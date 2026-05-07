@@ -191,26 +191,26 @@ const emit = defineEmits<{ select: [value: string] }>()
 }
 
 .option.wrong .option-panel {
-  background: #f7c4c4;
-  border-color: #b13b3b;
+  background: var(--color-pumpkin-100);
+  border-color: var(--color-pumpkin-500);
   animation: option-wrong 0.4s ease;
 }
 
 .option.wrong .letter-face {
-  background: #fbe1e1;
-  border-color: #b13b3b;
+  background: var(--color-pumpkin-200, var(--color-pumpkin-100));
+  border-color: var(--color-pumpkin-500);
 }
 
 .option.wrong .letter-shadow {
-  background: #b13b3b;
+  background: var(--color-pumpkin-500);
 }
 
 .option.wrong .letter-text {
-  color: #7a1f1f;
+  color: var(--color-pumpkin-800, var(--color-pumpkin-700));
 }
 
 .option.wrong .option-text {
-  color: #7a1f1f;
+  color: var(--color-pumpkin-800, var(--color-pumpkin-700));
 }
 
 .option.locked {

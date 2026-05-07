@@ -11,7 +11,7 @@ import UiRadio from '@/components/ui/UiRadio.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import { PencilIcon, TrashIcon, PlusIcon } from '@heroicons/vue/24/outline'
 
-type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+type ExerciseType = 'multiple-choice' | 'true-false'
 
 type GeneratedExercise = {
     localId: string
@@ -182,39 +182,6 @@ const canSave = computed(() => {
                                     || 'Sem justificacao.' }}</p>
                             </template>
 
-                            <template v-else-if="exercise.exerciseType === 'fill-blanks'">
-                                <p><strong>Frase:</strong> {{ exercise.questionText }}</p>
-                                <div class="options">
-                                    <p><strong>Opcoes</strong></p>
-                                    <ul>
-                                        <li v-for="option in exercise.content.opcoes" :key="option"
-                                            :class="{ correct: normalizeAnswers(exercise.content.respostas_corretas).includes(String(option)) }">
-                                            <strong>{{ option }}</strong>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <p><strong>Respostas corretas:</strong> {{ getFillBlankAnswers(exercise) }}</p>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
-                                    || 'Sem justificacao.' }}</p>
-                            </template>
-
-                            <template v-else>
-                                <div class="ordering">
-                                    <div>
-                                        <p><strong>Itens desordenados</strong></p>
-                                        <ol>
-                                            <li v-for="item in exercise.content.itens_desordenados" :key="item">{{ item
-                                                }}</li>
-                                        </ol>
-                                    </div>
-                                    <div>
-                                        <p><strong>Ordem correta</strong></p>
-                                        <p>{{ exercise.content.ordem_correta?.join(', ') || 'Sem ordem' }}</p>
-                                    </div>
-                                </div>
-                                <p><strong>Justificação da resposta pela IA:</strong> {{ exercise.content.justificacao
-                                    || 'Sem justificacao.' }}</p>
-                            </template>
                         </div>
 
                         <footer>
@@ -412,11 +379,6 @@ footer {
     gap: 6px;
 }
 
-.ordering {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
 
 .approve {
     padding: 10px 16px;
@@ -561,8 +523,5 @@ footer {
         align-items: stretch;
     }
 
-    .ordering {
-        grid-template-columns: 1fr;
-    }
 }
 </style>

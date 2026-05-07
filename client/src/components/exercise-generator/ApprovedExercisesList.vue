@@ -7,7 +7,7 @@ import UiIconButton from '@/components/ui/UiIconButton.vue'
 import type { DailyExercise, Exercise } from '@/types'
 import { TrashIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
-type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+type ExerciseType = 'multiple-choice' | 'true-false'
 type AnyExercise = Exercise | DailyExercise
 
 type Props = {
@@ -215,23 +215,6 @@ const getAnswer = (exercise: AnyExercise) => {
                         </p>
                     </template>
 
-                    <template v-else-if="pendingExercise.type === 'fill-blanks'">
-                        <div class="options-list">
-                            <p><strong>Opções:</strong></p>
-                            <ul>
-                                <li v-for="option in (pendingExercise.content as any)?.opcoes" :key="option"
-                                    :class="{ correct: normalizeAnswers((pendingExercise.content as any)?.respostas_corretas).includes(String(option)) }">
-                                    <strong>{{ option }}</strong>
-                                </li>
-                            </ul>
-                        </div>
-                        <p class="answer-text"><strong>Respostas corretas:</strong> {{
-                            getFillBlankAnswers(pendingExercise) }}</p>
-                        <p v-if="(pendingExercise.content as any)?.justificacao" class="justification-text">
-                            <strong>Justificação da resposta pela IA:</strong> {{ (pendingExercise.content as
-                            any).justificacao }}
-                        </p>
-                    </template>
                 </div>
 
                 <div class="confirm-actions">

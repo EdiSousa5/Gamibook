@@ -20,9 +20,9 @@ import {
 } from '../services/books'
 import {
   fetchApprovedExerciseCountsByModule,
-  fetchUserExerciseCountsByModule,
+  fetchUserExercisesByModule,
 } from '../services/exercises'
-import { fetchUserBook, tierForPct } from '../services/badges'
+import { fetchUserBook, tierForPct, TIER_ORDER } from '../services/badges'
 import type { BadgeTierOrDefault } from '../services/badges'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import type { Book, Module, UserBook } from '@/types'
@@ -86,7 +86,7 @@ const overallPercent = computed(() => {
   return Math.round((correct / total) * 100)
 })
 
-const quizUnlocked = computed(() => quizCompleted.value || overallPercent.value >= 100)
+const quizUnlocked = computed(() => overallPercent.value >= 100 && !quizCompleted.value)
 
 const badgeSteps = [
   { id: 'default', label: 'Sem badge', threshold: 0, tier: 'default' },
@@ -97,12 +97,10 @@ const badgeSteps = [
   { id: 'galaxy', label: 'Galaxy', threshold: 100, tier: 'galaxy', extra: true },
 ] as const
 
-const badgeOrder: BadgeTierOrDefault[] = ['default', 'bronze', 'silver', 'gold', 'diamond', 'galaxy']
-
-const currentTierRank = computed(() => badgeOrder.indexOf(currentTier.value))
+const currentTierRank = computed(() => TIER_ORDER.indexOf(currentTier.value))
 
 const isBadgeAchieved = (tier: BadgeTierOrDefault) =>
-  badgeOrder.indexOf(tier) <= currentTierRank.value
+  TIER_ORDER.indexOf(tier) <= currentTierRank.value
 
 
 const nextBadge = computed(() => {
@@ -211,9 +209,13 @@ watch(
       if (userId && approvedModules.value.length) {
         const entries = await Promise.all(
           approvedModules.value.map(async (m) => {
-            const total = await fetchApprovedExerciseCountsByModule(m.modules_id)
-            const answered = await fetchUserExerciseCountsByModule(userId, m.modules_id)
-            const correct = await fetchUserExerciseCountsByModule(userId, m.modules_id, true)
+            const [total, allAttempted, correctItems] = await Promise.all([
+              fetchApprovedExerciseCountsByModule(m.modules_id),
+              fetchUserExercisesByModule(userId, m.modules_id),
+              fetchUserExercisesByModule(userId, m.modules_id, true),
+            ])
+            const answered = allAttempted.length
+            const correct = correctItems.length
             const wrong = Math.max(0, answered - correct)
             return [
               m.modules_id,
@@ -317,7 +319,7 @@ watch(
 
       <div class="galaxy-unlock" :class="{
         'galaxy-unlock--done': quizCompleted,
-        'galaxy-unlock--ready': quizUnlocked && !quizCompleted,
+        'galaxy-unlock--ready': quizUnlocked,
       }">
         <div class="galaxy-unlock__badge">
           <BookBadge tier="galaxy" :size="isBadgeAchieved('galaxy') ? 'sm' : 'xs'" />
@@ -597,7 +599,7 @@ watch(
           </p>
         </div>
 
-        <div v-if="quizUnlocked && !quizCompleted" class="quiz-card__action">
+        <div v-if="quizUnlocked" class="quiz-card__action">
           <RouterLink :to="`/book/${bookId}/final-quiz`">
             <UiButton variant="primary" size="sm">Iniciar Quiz</UiButton>
           </RouterLink>
@@ -1305,7 +1307,7 @@ watch(
 }
 
 .state-msg.error {
-  color: #b13b3b;
+  color: var(--color-pumpkin-700);
 }
 
 /* ── QUIZ SECTION ───────────────────────────────── */

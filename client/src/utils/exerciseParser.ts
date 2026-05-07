@@ -1,4 +1,4 @@
-export type ExerciseType = 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+export type ExerciseType = 'multiple-choice' | 'true-false'
 
 export const normalizeExerciseList = (payload: any) => {
     if (Array.isArray(payload)) return payload
@@ -85,7 +85,8 @@ export const resolveModuleId = (result: Record<string, any>, item: Record<string
     return null
 }
 
-export const resolveModuleTitle = (moduleId: number | null, lookupById: Map<number, string>) => {
-    if (!moduleId) return null
-    return lookupById.get(moduleId) || null
+export const resolveModuleTitle = (moduleId: number | null | undefined, lookupById: Map<number, string>) => {
+    if (moduleId == null) return null
+    return lookupById.get(moduleId) ?? null
 }
+

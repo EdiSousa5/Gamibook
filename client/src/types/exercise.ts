@@ -5,7 +5,7 @@ export type Exercise = {
   exercise_id?: number
   id_module?: number | null
   status?: 'draft' | 'approved' | 'unapproved'
-  type?: 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+  type?: 'multiple-choice' | 'true-false'
   content?: Record<string, unknown>
   points?: number | null
   date_created?: string | null
@@ -15,7 +15,7 @@ export type Exercise = {
 export type DailyExercise = {
   daily_exercise_id?: number
   book_id?: number | null
-  type?: 'multiple-choice' | 'true-false' | 'fill-blanks' | 'ordering'
+  type?: 'multiple-choice' | 'true-false'
   content?: Record<string, unknown>
   date_created?: string | null
   created_by?: string | null

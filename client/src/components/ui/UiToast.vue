@@ -78,8 +78,8 @@ const iconFor = (type: ToastType) => {
   background: var(--color-wild-100);
 }
 
-.toast--error .toast-face   { background: #fef2f2; border-color: #b13b3b; }
-.toast--error .toast-shadow { background: #b13b3b; }
+.toast--error .toast-face   { background: var(--color-pumpkin-50, var(--color-pumpkin-100)); border-color: var(--color-pumpkin-500); }
+.toast--error .toast-shadow { background: var(--color-pumpkin-700); }
 .toast--success .toast-face  { background: var(--color-deep-100); border-color: var(--color-deep-600); }
 .toast--success .toast-shadow { background: var(--color-deep-700); }
 .toast--info .toast-face    { background: var(--color-wild-100); }
@@ -92,7 +92,7 @@ const iconFor = (type: ToastType) => {
   color: var(--color-mirage-600);
 }
 
-.toast--error .toast-icon   { color: #b13b3b; }
+.toast--error .toast-icon   { color: var(--color-pumpkin-700); }
 .toast--success .toast-icon { color: var(--color-deep-600); }
 
 .toast-msg {
