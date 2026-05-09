@@ -9,6 +9,56 @@ import {
 import { authFetch } from './client'
 import { shuffleArray } from '@/utils/exerciseUtils'
 
+export const buildFinalQuizQuestions = async (bookId: number, count = 10): Promise<Exercise[]> => {
+  const modules = await fetchModulesByBook(bookId)
+  const approvedModules = modules.filter((m) => m.status !== 'unapproved' && isMainChapter(m))
+  if (!approvedModules.length) return []
+
+  // Fetch all exercises per module in parallel
+  const pairs = await Promise.all(
+    approvedModules.map(async (m) => {
+      const exs = await fetchExercisesByModule(m.modules_id)
+      return [m.modules_id, exs] as const
+    }),
+  )
+  const exercisesByModule = new Map(pairs.filter(([, exs]) => exs.length > 0))
+  if (!exercisesByModule.size) return []
+
+  // Shuffle module IDs; if more chapters than needed, pick a random subset
+  const moduleIds = shuffleArray([...exercisesByModule.keys()])
+  const primaryIds = moduleIds.slice(0, Math.min(moduleIds.length, count))
+
+  // 1 random exercise per selected module (client-side random)
+  const selected: Exercise[] = []
+  const usedIds = new Set<number>()
+  for (const moduleId of primaryIds) {
+    const exs = exercisesByModule.get(moduleId) ?? []
+    if (!exs.length) continue
+    const ex = exs[Math.floor(Math.random() * exs.length)]
+    if (!ex) continue
+    selected.push(ex)
+    if (ex.exercise_id != null) usedIds.add(ex.exercise_id)
+  }
+
+  // Fill remaining slots from all modules when fewer chapters than count
+  if (selected.length < count) {
+    const pool: Exercise[] = []
+    for (const exs of exercisesByModule.values()) {
+      for (const ex of exs) {
+        if (ex.exercise_id != null && !usedIds.has(ex.exercise_id)) pool.push(ex)
+      }
+    }
+    const extra = shuffleArray(pool)
+    for (const ex of extra) {
+      if (selected.length >= count) break
+      selected.push(ex)
+      if (ex.exercise_id != null) usedIds.add(ex.exercise_id)
+    }
+  }
+
+  return shuffleArray(selected).slice(0, count)
+}
+
 export type BadgeTierOrDefault = BookBadgeTier | 'default'
 
 export const TIER_ORDER: BadgeTierOrDefault[] = [
@@ -120,52 +170,3 @@ export const checkAndUpdateBadge = async (
   }
 }
 
-export const fetchExercisesForBook = async (bookId: number): Promise<Map<number, Exercise[]>> => {
-  const modules = await fetchModulesByBook(bookId)
-  const approvedModules = modules.filter((m) => m.status !== 'unapproved' && isMainChapter(m))
-
-  const pairs = await Promise.all(
-    approvedModules.map(async (m) => {
-      const exercises = await fetchExercisesByModule(m.modules_id)
-      const filtered = exercises
-      return [m.modules_id, filtered] as const
-    }),
-  )
-
-  return new Map(pairs.filter(([, exs]) => exs.length > 0))
-}
-
-export const selectFinalQuizQuestions = (
-  exercisesByModule: Map<number, Exercise[]>,
-  count = 10,
-): Exercise[] => {
-  if (!exercisesByModule.size) return []
-
-  const selected: Exercise[] = []
-  const usedIds = new Set<number>()
-
-  for (const exercises of exercisesByModule.values()) {
-    if (!exercises.length) continue
-    const ex = exercises[Math.floor(Math.random() * exercises.length)]
-    if (!ex) continue
-    selected.push(ex)
-    if (ex.exercise_id != null) usedIds.add(ex.exercise_id)
-  }
-
-  const remaining: Exercise[] = []
-  for (const exercises of exercisesByModule.values()) {
-    for (const ex of exercises) {
-      if (ex.exercise_id != null && !usedIds.has(ex.exercise_id)) {
-        remaining.push(ex)
-      }
-    }
-  }
-
-  const shuffled = shuffleArray(remaining)
-  for (const ex of shuffled) {
-    if (selected.length >= count) break
-    selected.push(ex)
-  }
-
-  return shuffleArray(selected)
-}

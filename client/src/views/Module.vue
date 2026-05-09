@@ -5,7 +5,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
 import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
-import { BoltIcon, FireIcon, InboxStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { BoltIcon, FireIcon, ListBulletIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
@@ -301,9 +301,9 @@ onBeforeRouteLeave(() => {
                 <UiButton v-else-if="exerciseCounts.remaining > 0 && sessionMode === 'normal'" variant="primary" @click="startSession('normal')">
                     Continuar
                 </UiButton>
-                <UiButton v-if="exerciseCounts.correct === exerciseCounts.total && exerciseCounts.total > 0 && sessionMode !== 'review'"
+                <UiButton v-if="exerciseCounts.correct > 0 && sessionMode !== 'review'"
                     variant="outline" @click="startSession('review')">
-                    Rever tudo
+                    Rever
                 </UiButton>
                 <RouterLink :to="`/book/${bookId}`">
                     <UiButton variant="outline">Continua</UiButton>
@@ -335,7 +335,7 @@ onBeforeRouteLeave(() => {
                     </UiStatCard>
                 </template>
                 <UiStatCard label="Pergunta" :value="currentIndex + 1">
-                    <template #icon><InboxStackIcon class="stat-icon" aria-hidden="true" /></template>
+                    <template #icon><ListBulletIcon class="stat-icon" aria-hidden="true" /></template>
                     <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
                 </UiStatCard>
             </div>
@@ -485,7 +485,7 @@ onBeforeRouteLeave(() => {
 }
 
 .state.error {
-    color: var(--color-pumpkin-700);
+    color: var(--color-error-strong);
 }
 
 .runner {
@@ -538,6 +538,7 @@ onBeforeRouteLeave(() => {
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-300);
+    margin-top: var(--space-400); /* Afasta o conteúdo do relógio */
 }
 
 .question-tags {
@@ -560,9 +561,9 @@ onBeforeRouteLeave(() => {
 }
 
 .status-pill.warn {
-    background: var(--color-pumpkin-100);
-    border-color: var(--color-pumpkin-500);
-    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
+    background: var(--color-error-muted);
+    border-color: var(--color-red-500);
+    color: var(--color-error-strong);
 }
 
 .status-pill.done {
@@ -794,7 +795,7 @@ onBeforeRouteLeave(() => {
 
 .summary-chip--correct { background: var(--color-deep-100); }
 
-.summary-chip--wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
+.summary-chip--wrong { background: var(--color-error-muted); border-color: var(--color-red-500); }
 
 .summary-chip--pending { background: var(--color-wild-200); }
 
@@ -805,7 +806,7 @@ onBeforeRouteLeave(() => {
     line-height: 1;
 }
 
-.summary-chip--wrong .summary-chip__value { color: var(--color-pumpkin-700); }
+.summary-chip--wrong .summary-chip__value { color: var(--color-error-strong); }
 
 .summary-chip__label {
     font-size: 11px;
@@ -836,7 +837,7 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-item.correct { background: var(--color-deep-100); }
-.summary-item.wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
+.summary-item.wrong { background: var(--color-error-muted); border-color: var(--color-red-500); }
 .summary-item.pending { background: var(--color-wild-200); opacity: 0.65; }
 
 .summary-item__left {
@@ -872,7 +873,7 @@ onBeforeRouteLeave(() => {
     white-space: nowrap;
 }
 
-.summary-item.wrong .summary-item__question { color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
+.summary-item.wrong .summary-item__question { color: var(--color-error-strong); }
 
 .summary-item__tags {
     display: flex;
@@ -916,9 +917,9 @@ onBeforeRouteLeave(() => {
 }
 
 .summary-item__status-badge.wrong {
-    background: var(--color-pumpkin-100);
-    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
-    border-color: var(--color-pumpkin-500);
+    background: var(--color-error-muted);
+    color: var(--color-error-strong);
+    border-color: var(--color-red-500);
 }
 
 .summary-item__pts {
@@ -972,6 +973,7 @@ onBeforeRouteLeave(() => {
 
     .question-title {
         font-size: 22px;
+        justify-content: center;
     }
 
     .question-text {
@@ -1017,8 +1019,8 @@ onBeforeRouteLeave(() => {
 
 @keyframes fire-up {
     0% { transform: scale(1) rotate(0deg); }
-    40% { transform: scale(1.5) rotate(-12deg); color: #ff6b00; }
-    70% { transform: scale(1.2) rotate(6deg); }
+    40% { transform: scale(1.6) rotate(-12deg); color: var(--color-amber-500); filter: drop-shadow(0 0 10px rgba(255, 138, 80, 0.8)); }
+    70% { transform: scale(1.2) rotate(6deg); color: var(--color-pumpkin-500); }
     100% { transform: scale(1) rotate(0deg); }
 }
 
@@ -1045,6 +1047,6 @@ onBeforeRouteLeave(() => {
 }
 
 .chip-value--wrong {
-    color: var(--color-pumpkin-700);
+    color: var(--color-error-strong);
 }
 </style>

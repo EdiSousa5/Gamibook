@@ -41,18 +41,32 @@ const confetti = generateConfetti()
             <BookBadge :tier="tier" size="lg" />
           </div>
 
-          <p class="up-label">BADGE DESBLOQUEADO!</p>
+          <p class="up-label" :class="tier === 'galaxy' ? 'up-label--galaxy' : tier === 'diamond' ? 'up-label--diamond' : ''">
+            {{ tier === 'galaxy' ? 'MISSÃO COMPLETA!' : tier === 'diamond' ? 'INCRÍVEL!' : 'BADGE DESBLOQUEADO!' }}
+          </p>
 
           <h2 class="badge-title">{{ tierLabel[tier] }}</h2>
 
           <p class="badge-desc">
-            Conquistaste o badge <strong>{{ tierLabel[tier] }}</strong>
-            <template v-if="bookTitle"> em <em>{{ bookTitle }}</em></template>.
-            Continua assim!
+            <template v-if="tier === 'galaxy'">
+              Completaste todos os exercícios e passaste o quiz final
+              <template v-if="bookTitle"> de <em>{{ bookTitle }}</em></template>!
+              Atingiste o patamar máximo. És incrível!
+            </template>
+            <template v-else-if="tier === 'diamond'">
+              Completaste 100% dos exercícios
+              <template v-if="bookTitle"> de <em>{{ bookTitle }}</em></template>!
+              O quiz final está desbloqueado — podes agora conquistar o Galaxy!
+            </template>
+            <template v-else>
+              Conquistaste o badge <strong>{{ tierLabel[tier] }}</strong>
+              <template v-if="bookTitle"> em <em>{{ bookTitle }}</em></template>.
+              Continua assim!
+            </template>
           </p>
 
           <UiButton variant="primary" style="width: 100%; display: flex;" @click="$emit('close')">
-            Continuar
+            {{ tier === 'galaxy' ? 'Fantástico!' : 'Continuar' }}
           </UiButton>
 
         </div>
@@ -124,6 +138,16 @@ const confetti = generateConfetti()
   text-transform: uppercase;
   letter-spacing: 3px;
   color: var(--color-deep-600);
+}
+
+.up-label--galaxy {
+  font-size: 14px;
+  letter-spacing: 4px;
+  color: var(--color-deep-700);
+}
+
+.up-label--diamond {
+  color: var(--color-teal-600);
 }
 
 .badge-title {

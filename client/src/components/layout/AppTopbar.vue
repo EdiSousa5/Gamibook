@@ -757,7 +757,7 @@ watch(
 }
 
 .result-icon--owned { background: var(--color-deep-100); }
-.result-icon--error { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); }
+.result-icon--error { background: var(--color-error-muted); border-color: var(--color-red-500); }
 .result-icon--warn  { background: var(--color-amber-100); border-color: #92400e; }
 
 .result-icon-svg {
@@ -767,7 +767,7 @@ watch(
   stroke-width: 1.5;
 }
 
-.result-icon--error .result-icon-svg { color: var(--color-pumpkin-700); }
+.result-icon--error .result-icon-svg { color: var(--color-error-strong); }
 .result-icon--warn  .result-icon-svg { color: #92400e; }
 
 .result-title {

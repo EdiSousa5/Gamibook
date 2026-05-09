@@ -1083,22 +1083,22 @@ h2 {
 }
 
 .exercise-option.is-wrong .exercise-option-panel {
-  background: var(--color-pumpkin-100);
-  border-color: var(--color-pumpkin-500);
+  background: var(--color-error-muted);
+  border-color: var(--color-red-500);
 }
 
 .exercise-option.is-wrong .exercise-letter-face {
-  background: var(--color-pumpkin-100);
-  border-color: var(--color-pumpkin-500);
+  background: var(--color-red-200);
+  border-color: var(--color-red-500);
 }
 
 .exercise-option.is-wrong .exercise-letter-shadow {
-  background: var(--color-pumpkin-700);
+  background: var(--color-red-500);
 }
 
 .exercise-option.is-wrong .exercise-letter-text,
 .exercise-option.is-wrong .exercise-option-text {
-  color: var(--color-pumpkin-800, var(--color-pumpkin-700));
+  color: var(--color-error-strong);
 }
 
 .exercise-option.is-selected .exercise-option-text {

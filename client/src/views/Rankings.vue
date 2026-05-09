@@ -242,7 +242,7 @@ watch(timeFilter, () => {
 }
 
 .error {
-  color: var(--color-pumpkin-700);
+  color: var(--color-error-strong);
 }
 
 .podium-state {
