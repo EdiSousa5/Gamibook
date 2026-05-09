@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { Book, Exercise, Module, UserExercise } from '@/types'
 import { shuffleArray, buildOptions, getQuestionText } from '@/utils/exerciseUtils'
-import { fetchBook, fetchModule } from '@/services/books'
+import { fetchBook, fetchModule, fetchModulesByBook } from '@/services/books'
 import {
   createUserExercise,
   fetchExercisesByModule,
@@ -10,9 +10,11 @@ import {
   fetchUserPointsFromHistory,
   createUserPointsHistory,
   updateUserExercise,
+  fetchApprovedExerciseCountsByModule,
 } from '@/services/exercises'
+import { useToast } from '@/composables/useToast'
 import { getStoredUserId } from '@/services/client'
-import { fetchUserBook, TIER_ORDER } from '@/services/badges'
+import { fetchUserBook, TIER_ORDER, tierForPct, updateUserBookBadge } from '@/services/badges'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
 import { useAuthStore } from '@/stores/auth'
@@ -94,7 +96,9 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   const canStartMode = (mode: SessionMode) => {
     if (mode === 'normal') return modeCounts.value.normal > 0
     if (mode === 'retry') return modeCounts.value.retry > 0
-    return exerciseCounts.value.correct === exerciseCounts.value.total && modeCounts.value.review > 0
+    return (
+      exerciseCounts.value.correct === exerciseCounts.value.total && modeCounts.value.review > 0
+    )
   }
 
   const recommendedMode = computed<SessionMode>(() => {
@@ -119,8 +123,12 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   const summary = computed(() => {
     const answered = pendingResults.value.length
     const correct = pendingResults.value.filter((item) => item.isCorrect).length
-    const previouslyCorrect = pendingResults.value.filter((item) => item.previousStatus === 'correct').length
-    const previouslyWrong = pendingResults.value.filter((item) => item.previousStatus === 'wrong').length
+    const previouslyCorrect = pendingResults.value.filter(
+      (item) => item.previousStatus === 'correct',
+    ).length
+    const previouslyWrong = pendingResults.value.filter(
+      (item) => item.previousStatus === 'wrong',
+    ).length
     const points = pendingResults.value.reduce((sum, item) => sum + item.pointsEarned, 0)
     const timeSpent = pendingResults.value.reduce((sum, item) => sum + item.timeSpent, 0)
     return {
@@ -170,10 +178,14 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   watch(correctStreak, (newVal, oldVal) => {
     if (newVal > oldVal && newVal > 0) {
       streakAnimState.value = 'up'
-      window.setTimeout(() => { streakAnimState.value = 'idle' }, 700)
+      window.setTimeout(() => {
+        streakAnimState.value = 'idle'
+      }, 700)
     } else if (newVal === 0 && oldVal > 0) {
       streakAnimState.value = 'lost'
-      window.setTimeout(() => { streakAnimState.value = 'idle' }, 600)
+      window.setTimeout(() => {
+        streakAnimState.value = 'idle'
+      }, 600)
     }
   })
 
@@ -184,11 +196,15 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
     if (basePoints > 0) {
       xpDelta.value = basePoints
       xpPulse.value += 1
-      window.setTimeout(() => { xpDelta.value = 0 }, FEEDBACK_DELAY_MS)
+      window.setTimeout(() => {
+        xpDelta.value = 0
+      }, FEEDBACK_DELAY_MS)
     }
     if (bonusPoints > 0) {
       streakDelta.value = bonusPoints
-      window.setTimeout(() => { streakDelta.value = 0 }, FEEDBACK_DELAY_MS)
+      window.setTimeout(() => {
+        streakDelta.value = 0
+      }, FEEDBACK_DELAY_MS)
     }
   }
 
@@ -212,7 +228,12 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
     }
   }
 
-  const recordResult = (isCorrect: boolean, attempts: number, points: number, timeSpent: number) => {
+  const recordResult = (
+    isCorrect: boolean,
+    attempts: number,
+    points: number,
+    timeSpent: number,
+  ) => {
     if (!currentExercise.value?.exercise_id) return
     const exerciseId = currentExercise.value.exercise_id
     const previousStatus = getPreviousStatus(exerciseId)
@@ -355,6 +376,60 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
             .map((item) => [Number(item.exercise_id), item] as const)
             .filter((entry) => Number.isFinite(entry[0])),
         )
+
+        // Mecanismo de Segurança: Recalcular a percentagem do livro e atualizar badge se for necessário
+        if (userBookInfo?.user_book_id) {
+          const modulesForBook = await fetchModulesByBook(currentBookId)
+          let totalBookExercises = 0
+          let correctBookExercises = 0
+
+          const statsPromises = modulesForBook
+            .filter((m) => {
+              if (m.status === 'unapproved') return false
+              if (m.order_number == null) return true
+              const n = Number(m.order_number)
+              return Number.isFinite(n) && Number.isInteger(n)
+            })
+            .map(async (m) => {
+              const [total, correctItems] = await Promise.all([
+                fetchApprovedExerciseCountsByModule(m.modules_id),
+                fetchUserExercisesByModule(storedId, m.modules_id, true),
+              ])
+              return { total, correct: correctItems.length }
+            })
+
+          const stats = await Promise.all(statsPromises)
+          stats.forEach((s) => {
+            totalBookExercises += s.total
+            correctBookExercises += s.correct
+          })
+
+          const currentPct =
+            totalBookExercises === 0
+              ? 0
+              : Math.round((correctBookExercises / totalBookExercises) * 100)
+          let expectedTier = tierForPct(currentPct)
+
+          const currentBadge = userBookInfo.current_badge || 'default'
+
+          if (currentBadge === 'galaxy' && currentPct >= 100) expectedTier = 'galaxy' // Impede a perda do badge galaxy se a percentagem continuar a 100%
+
+          if (currentBadge !== expectedTier) {
+            const oldRank = TIER_ORDER.indexOf(currentBadge as any)
+            const newRank = TIER_ORDER.indexOf(expectedTier as any)
+            
+            await updateUserBookBadge(userBookInfo.user_book_id, expectedTier)
+            userBookInfo.current_badge = expectedTier
+            initialBadge.value = expectedTier // Ajusta na sessão atual para que a animação das vitórias funcione a partir do nível real
+            
+            const toast = useToast()
+            if (newRank < oldRank) {
+              toast.error(`Atenção: O teu progresso foi recalculado e desceste para o badge ${expectedTier}.`)
+            } else if (newRank > oldRank) {
+              toast.success(`Progresso sincronizado! Subiste para o badge ${expectedTier}.`)
+            }
+          }
+        }
       } else {
         userPoints.value = 0
         auth.setPoints(0)
@@ -377,17 +452,50 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
 
   // Re-expose TIER_ORDER so useBadgeQueue can access initialBadge-based logic
   return {
-    book, moduleData, exercises, allExercises, error, isLoading,
-    currentIndex, isCompleted, isSaving, correctStreak, userId,
-    userPoints, sessionPoints, xpDelta, xpPulse, streakDelta, streakAnimState,
-    feedback, existingRecords, shuffledOptionsByExercise,
-    viewState, selectedMode, sessionMode, isLevelUpQueued, pendingResults, initialBadge,
-    currentExercise, isReviewMode,
-    exerciseCounts, modeCounts, modeLabel,
-    canStartMode, recommendedMode, currentExerciseStatus,
-    summary, completionStats, exerciseResults,
-    isPointsEligible, awardXp, recordResult, showFeedback,
-    resetSessionState, startSession, persistResults,
+    book,
+    moduleData,
+    exercises,
+    allExercises,
+    error,
+    isLoading,
+    currentIndex,
+    isCompleted,
+    isSaving,
+    correctStreak,
+    userId,
+    userPoints,
+    sessionPoints,
+    xpDelta,
+    xpPulse,
+    streakDelta,
+    streakAnimState,
+    feedback,
+    existingRecords,
+    shuffledOptionsByExercise,
+    viewState,
+    selectedMode,
+    sessionMode,
+    isLevelUpQueued,
+    pendingResults,
+    initialBadge,
+    currentExercise,
+    isReviewMode,
+    exerciseCounts,
+    modeCounts,
+    modeLabel,
+    canStartMode,
+    recommendedMode,
+    currentExerciseStatus,
+    summary,
+    completionStats,
+    exerciseResults,
+    isPointsEligible,
+    awardXp,
+    recordResult,
+    showFeedback,
+    resetSessionState,
+    startSession,
+    persistResults,
     loadData,
   }
 }

@@ -4,24 +4,37 @@ import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
+import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
 import { buildOptions, isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
-import { LockClosedIcon, TrophyIcon } from '@heroicons/vue/24/outline'
-import { fetchBook } from '../services/books'
+import {
+  LockClosedIcon,
+  TrophyIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+} from '@heroicons/vue/24/outline'
+import { fetchBook, fetchModulesByBook } from '../services/books'
 import {
   fetchUserBook,
   updateUserBookBadge,
-  fetchExercisesForBook,
-  selectFinalQuizQuestions,
+  buildFinalQuizQuestions,
+  tierForPct,
+  TIER_ORDER,
 } from '../services/badges'
+import { fetchApprovedExerciseCountsByModule, fetchUserExercisesByModule } from '../services/exercises'
+import { useToast } from '@/composables/useToast'
 import { getStoredUserId } from '../services/client'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
-import type { Book, Exercise, UserBook } from '@/types'
+import {
+  fetchFinalQuizAttempts,
+  createFinalQuizAttempt,
+} from '../services/finalQuiz'
+import type { Book, Exercise, UserBook, FinalQuizAttempt } from '@/types'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
 
-type QuizState = 'loading' | 'locked' | 'done' | 'quiz' | 'result'
+type QuizState = 'loading' | 'locked' | 'done' | 'quiz' | 'result' | 'history'
 
 const state = ref<QuizState>('loading')
 const book = ref<Book | null>(null)
@@ -31,12 +44,16 @@ const currentIndex = ref(0)
 const answers = ref<boolean[]>([])
 const error = ref('')
 
-const QUESTION_TIME = 45
+const QUESTION_TIME = 30
 const isSaving = ref(false)
 const feedback = ref<null | { type: 'correct' | 'wrong' }>(null)
 const feedbackTimer = ref<number | null>(null)
 
 const userId = ref<string | null>(null)
+const cooldownUntil = ref<Date | null>(null)
+const historyFrom = ref<QuizState>('locked')
+const quizHistory = ref<FinalQuizAttempt[]>([])
+const showGalaxyModal = ref(false)
 
 const currentExercise = computed(() => questions.value[currentIndex.value] ?? null)
 
@@ -53,7 +70,10 @@ const score = computed(() => {
   return { correct, total, pct }
 })
 
-const passed = computed(() => score.value.pct >= 75)
+const answeredCorrect = computed(() => answers.value.filter(Boolean).length)
+const answeredWrong = computed(() => answers.value.filter((a) => a === false).length)
+
+const passed = computed(() => score.value.correct >= 8)
 
 const shuffledOptionsByIndex = ref<Record<number, string[]>>({})
 
@@ -68,6 +88,16 @@ const currentQuestionText = computed(() =>
   currentExercise.value ? getQuestionText(currentExercise.value) : '',
 )
 
+const cooldownLabel = computed(() => {
+  if (!cooldownUntil.value) return ''
+  const diff = cooldownUntil.value.getTime() - Date.now()
+  if (diff <= 0) return 'já podes tentar'
+  const h = Math.floor(diff / 3_600_000)
+  const m = Math.floor((diff % 3_600_000) / 60_000)
+  if (h > 0) return `em ${h}h ${m}m`
+  return `em ${m}m`
+})
+
 const showFeedback = (type: 'correct' | 'wrong') => {
   feedback.value = { type }
   if (feedbackTimer.value) window.clearTimeout(feedbackTimer.value)
@@ -81,6 +111,7 @@ const goNext = () => {
   if (currentIndex.value + 1 >= questions.value.length) {
     stopTimer()
     state.value = 'result'
+    submitResult()
     return
   }
   currentIndex.value += 1
@@ -124,12 +155,32 @@ const handleSelect = (option: string) => {
 }
 
 const submitResult = async () => {
-  if (!userBook.value?.user_book_id) return
+  if (!userBook.value?.user_book_id || !userId.value) return
   isSaving.value = true
   try {
+    const correctCount = score.value.correct
+    const status: 'pass' | 'fail' = passed.value ? 'pass' : 'fail'
+
+    await createFinalQuizAttempt({
+      user_id: userId.value,
+      book_id: bookId.value,
+      score: correctCount,
+      status,
+      content: {
+        questions: questions.value.map((q, i) => ({
+          exercise_id: q.exercise_id ?? 0,
+          question_text: getQuestionText(q),
+          is_correct: answers.value[i] === true,
+        })),
+      },
+    })
+
     if (passed.value) {
       await updateUserBookBadge(userBook.value.user_book_id, 'galaxy')
       userBook.value = { ...userBook.value, current_badge: 'galaxy' }
+      window.setTimeout(() => { showGalaxyModal.value = true }, 800)
+    } else {
+      cooldownUntil.value = new Date(Date.now() + 24 * 60 * 60 * 1000)
     }
   } catch (err) {
     console.error('[FinalQuiz] submitResult failed', err)
@@ -138,11 +189,26 @@ const submitResult = async () => {
   }
 }
 
-const startQuiz = () => {
-  currentIndex.value = 0
-  answers.value = []
-  feedback.value = null
-  state.value = 'quiz'
+const openHistory = async (from: QuizState) => {
+  historyFrom.value = from
+  if (!userId.value) return
+  quizHistory.value = await fetchFinalQuizAttempts(userId.value, bookId.value)
+  state.value = 'history'
+}
+
+const closeHistory = () => {
+  state.value = historyFrom.value
+}
+
+const formatAttemptDate = (dateStr?: string): string => {
+  if (!dateStr) return ''
+  return new Intl.DateTimeFormat('pt-PT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateStr))
 }
 
 watch(
@@ -150,6 +216,7 @@ watch(
   async (id) => {
     state.value = 'loading'
     error.value = ''
+    cooldownUntil.value = null
     try {
       const storedId = getStoredUserId()
       userId.value = storedId
@@ -166,18 +233,65 @@ watch(
         return
       }
 
+      // Mecanismo de segurança e sincronização de badge
+      const modulesForBook = await fetchModulesByBook(id)
+      let totalBookExercises = 0
+      let correctBookExercises = 0
+
+      const statsPromises = modulesForBook
+        .filter((m) => {
+          if (m.status === 'unapproved') return false
+          if (m.order_number == null) return true
+          const n = Number(m.order_number)
+          return Number.isFinite(n) && Number.isInteger(n)
+        })
+        .map(async (m) => {
+          const [total, correctItems] = await Promise.all([
+            fetchApprovedExerciseCountsByModule(m.modules_id),
+            fetchUserExercisesByModule(storedId, m.modules_id, true),
+          ])
+          return { total, correct: correctItems.length }
+        })
+
+      const stats = await Promise.all(statsPromises)
+      stats.forEach((s) => {
+        totalBookExercises += s.total
+        correctBookExercises += s.correct
+      })
+
+      const currentPct = totalBookExercises === 0 ? 0 : Math.round((correctBookExercises / totalBookExercises) * 100)
+      let expectedTier = tierForPct(currentPct)
+      const currentBadge = userBookData.current_badge || 'default'
+
+      if (currentBadge === 'galaxy' && currentPct >= 100) expectedTier = 'galaxy'
+
+      if (currentBadge !== expectedTier) {
+        const oldRank = TIER_ORDER.indexOf(currentBadge as any)
+        const newRank = TIER_ORDER.indexOf(expectedTier as any)
+
+        await updateUserBookBadge(userBookData.user_book_id, expectedTier)
+        userBookData.current_badge = expectedTier
+
+        const toast = useToast()
+        if (newRank < oldRank) {
+          toast.error(`Atenção: O teu progresso foi recalculado e desceste para o badge ${expectedTier}.`)
+        } else if (newRank > oldRank) {
+          toast.success(`Progresso sincronizado! Subiste para o badge ${expectedTier}.`)
+        }
+      }
+
       if (userBookData.current_badge === 'galaxy') {
         state.value = 'done'
         return
       }
 
-      if (!userBookData.final_quiz_unlocked) {
+      if (currentPct < 100 || !userBookData.final_quiz_unlocked) {
+        error.value = 'Conclui 100% dos exercícios do livro para desbloquear o quiz final.'
         state.value = 'locked'
         return
       }
 
-      const exercisesByModule = await fetchExercisesForBook(id)
-      const selected = selectFinalQuizQuestions(exercisesByModule, 10)
+      const selected = await buildFinalQuizQuestions(id, 10)
 
       if (!selected.length) {
         error.value = 'Não há exercícios disponíveis para o quiz.'
@@ -201,13 +315,6 @@ watch(
 watch(currentIndex, () => {
   if (state.value === 'quiz') resetQuestionState()
 })
-
-watch(
-  () => state.value === 'result',
-  (isResult) => {
-    if (isResult) submitResult()
-  },
-)
 
 
 </script>
@@ -248,9 +355,12 @@ watch(
         <p>Já completaste o quiz final e conquistaste o badge Galaxy.</p>
         <BookBadge tier="galaxy" size="md" />
       </div>
-      <RouterLink :to="`/book/${bookId}`">
-        <UiButton variant="outline">Voltar ao livro</UiButton>
-      </RouterLink>
+      <div class="info-card__actions">
+        <UiButton variant="outline" @click="openHistory('done')">Ver histórico</UiButton>
+        <RouterLink :to="`/book/${bookId}`">
+          <UiButton variant="outline">Voltar ao livro</UiButton>
+        </RouterLink>
+      </div>
     </div>
 
     <!-- Result -->
@@ -258,7 +368,11 @@ watch(
       <div class="complete-header">
         <div>
           <h2>Resultado do Quiz Final</h2>
-          <p>{{ passed ? 'Parabéns! Passaste no quiz.' : 'Não chegaste aos 75%. Podes tentar novamente.' }}</p>
+          <p v-if="passed">Parabéns! Obtiveste {{ score.correct }}/10 e passaste no quiz.</p>
+          <p v-else>
+            Obtiveste {{ score.correct }}/10. Precisas de pelo menos 8 certas.
+            <template v-if="cooldownUntil"> Podes tentar novamente {{ cooldownLabel }}.</template>
+          </p>
         </div>
         <div class="summary-score" :class="passed ? 'summary-score--pass' : 'summary-score--fail'">
           <span>Resultado</span>
@@ -276,9 +390,41 @@ watch(
         <RouterLink :to="`/book/${bookId}`">
           <UiButton variant="outline">Voltar ao livro</UiButton>
         </RouterLink>
-        <UiButton v-if="!passed" variant="primary" :disabled="isSaving" @click="startQuiz">
-          Tentar novamente
+        <UiButton variant="outline" :disabled="isSaving" @click="openHistory('result')">
+          Ver histórico
         </UiButton>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div v-else-if="state === 'history'" class="history-panel">
+      <div class="history-header">
+        <h2>Histórico do Quiz Final</h2>
+        <UiButton variant="outline" @click="closeHistory">Voltar</UiButton>
+      </div>
+
+      <p v-if="!quizHistory.length" class="state-msg">Ainda não fizeste nenhuma tentativa.</p>
+
+      <div v-for="attempt in quizHistory" :key="attempt.final_quiz_attempts_id" class="attempt-card">
+        <div class="attempt-header">
+          <div class="attempt-meta">
+            <span class="attempt-date">{{ formatAttemptDate(attempt.date_created) }}</span>
+            <span class="attempt-status"
+              :class="attempt.status === 'pass' ? 'attempt-status--pass' : 'attempt-status--fail'">
+              {{ attempt.status === 'pass' ? 'Passou' : 'Falhou' }}
+            </span>
+          </div>
+          <span class="attempt-score">{{ attempt.score }}/10 certas</span>
+        </div>
+
+        <div v-if="attempt.content?.questions" class="attempt-questions">
+          <div v-for="(q, i) in attempt.content.questions" :key="i" class="attempt-question"
+            :class="q.is_correct ? 'attempt-question--correct' : 'attempt-question--wrong'">
+            <CheckCircleIcon v-if="q.is_correct" class="q-icon q-icon--correct" aria-hidden="true" />
+            <XCircleIcon v-else class="q-icon q-icon--wrong" aria-hidden="true" />
+            <p class="q-text">{{ q.question_text }}</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -291,6 +437,17 @@ watch(
         <span class="prog-label">{{ currentIndex + 1 }} / {{ questions.length }}</span>
       </div>
 
+      <div class="quiz-stats">
+        <div class="quiz-stat quiz-stat--correct">
+          <CheckCircleIcon class="stat-icon" aria-hidden="true" />
+          <span>{{ answeredCorrect }} certa{{ answeredCorrect !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="quiz-stat quiz-stat--wrong">
+          <XCircleIcon class="stat-icon" aria-hidden="true" />
+          <span>{{ answeredWrong }} errada{{ answeredWrong !== 1 ? 's' : '' }}</span>
+        </div>
+      </div>
+
       <div class="runner">
         <div class="question-card">
           <div class="question-card__shadow"></div>
@@ -298,8 +455,7 @@ watch(
             <div class="question-timer">
               <svg class="timer-ring" viewBox="0 0 72 72" aria-hidden="true">
                 <circle class="timer-ring__track" cx="36" cy="36" r="26" />
-                <circle class="timer-ring__progress" cx="36" cy="36" r="26"
-                  :style="{ strokeDasharray: timerDash }" />
+                <circle class="timer-ring__progress" cx="36" cy="36" r="26" :style="{ strokeDasharray: timerDash }" />
               </svg>
               <span class="timer-value">{{ String(timeLeft).padStart(2, '0') }}</span>
             </div>
@@ -311,7 +467,7 @@ watch(
                 <span>{{ feedback.type === 'correct' ? 'Certo!' : 'Errado' }}</span>
               </div>
               <div v-else-if="!isTrueFalse" class="attempts-pill">
-                {{ isTrueFalse ? '1 tentativa' : `${Math.max(0, maxAttempts - attemptedOptions.length)} tentativas` }}
+                {{ `${Math.max(0, maxAttempts - attemptedOptions.length)} tentativas` }}
               </div>
             </div>
             <div class="question-divider"></div>
@@ -320,22 +476,18 @@ watch(
         </div>
 
         <div class="options options-grid-2">
-          <ExerciseOption
-            v-for="(option, index) in options"
-            :key="option"
-            :value="option"
-            :index="index"
-            :selected="selectedOption === option"
-            :attempted="attemptedOptions.includes(option)"
+          <ExerciseOption v-for="(option, index) in options" :key="option" :value="option" :index="index"
+            :selected="selectedOption === option" :attempted="attemptedOptions.includes(option)"
             :correct="selectedOption === option && isOptionCorrect(option)"
             :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
-            :locked="isLocked"
-            @select="handleSelect"
-          />
+            :locked="isLocked" @select="handleSelect" />
         </div>
       </div>
     </template>
   </section>
+
+  <BadgeUnlockModal :visible="showGalaxyModal" tier="galaxy" :book-title="book?.title"
+    @close="showGalaxyModal = false" />
 </template>
 
 <style scoped>
@@ -367,7 +519,7 @@ watch(
   color: var(--color-mirage-600);
 }
 
-/* ── INFO CARDS (locked / done) ─────────────────── */
+/* ── INFO CARDS (locked / done) ────────────────────── */
 .info-card {
   display: grid;
   grid-template-columns: 80px 1fr auto;
@@ -395,7 +547,9 @@ watch(
   background: var(--color-mirage-800);
 }
 
-.info-card__icon--done { background: var(--color-deep-500); }
+.info-card__icon--done {
+  background: var(--color-deep-500);
+}
 
 .info-icon {
   width: 36px;
@@ -418,6 +572,12 @@ watch(
   margin: 0;
   font-size: 14px;
   color: var(--color-mirage-500);
+}
+
+.info-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
 }
 
 /* ── PROGRESS BAR ───────────────────────────────── */
@@ -468,8 +628,17 @@ watch(
   flex-wrap: wrap;
 }
 
-.complete-header h2 { margin: 0; font-size: 22px; font-weight: 800; }
-.complete-header p { margin: 0; font-size: 14px; color: var(--color-mirage-500); }
+.complete-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.complete-header p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-500);
+}
 
 .summary-score {
   display: grid;
@@ -484,8 +653,8 @@ watch(
 }
 
 .summary-score--fail {
-  background: var(--color-pumpkin-100);
-  border-color: var(--color-pumpkin-500);
+  background: var(--color-error-muted);
+  border-color: var(--color-red-500);
 }
 
 .summary-score span {
@@ -531,6 +700,157 @@ watch(
   display: flex;
   gap: var(--space-300);
   flex-wrap: wrap;
+}
+
+/* ── HISTORY ────────────────────────────────────── */
+.history-panel {
+  display: grid;
+  gap: var(--space-400);
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-300);
+}
+
+.history-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.attempt-card {
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 14px;
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.attempt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  gap: var(--space-300);
+}
+
+.attempt-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+}
+
+.attempt-date {
+  font-size: 14px;
+  color: var(--color-mirage-600);
+}
+
+.attempt-status {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid currentColor;
+}
+
+.attempt-status--pass {
+  color: var(--color-deep-600);
+  background: var(--color-deep-100);
+}
+
+.attempt-status--fail {
+  color: var(--color-error-strong);
+  background: var(--color-error-muted);
+}
+
+.attempt-score {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-mirage-700);
+  white-space: nowrap;
+}
+
+/* ── LIVE QUIZ STATS ─────────────────────────────── */
+.quiz-stats {
+  display: flex;
+  gap: var(--space-300);
+}
+
+.quiz-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.quiz-stat--correct {
+  background: var(--color-deep-100);
+  color: var(--color-deep-700, var(--color-deep-600));
+}
+
+.quiz-stat--wrong {
+  background: var(--color-error-muted);
+  color: var(--color-error-strong);
+}
+
+.stat-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.attempt-questions {
+  border-top: 2px solid var(--color-mirage-200, var(--color-wild-300));
+  padding: 12px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.attempt-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-mirage-800);
+}
+
+.attempt-question--correct {
+  background: var(--color-deep-100);
+}
+
+.attempt-question--wrong {
+  background: var(--color-error-muted);
+}
+
+.q-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.q-icon--correct {
+  color: var(--color-deep-600);
+}
+
+.q-icon--wrong {
+  color: var(--color-error-strong);
+}
+
+.q-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-800);
+  line-height: 1.4;
 }
 
 /* ── QUESTION RUNNER (reused from Module.vue) ───── */
@@ -616,6 +936,8 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: var(--space-300);
+  margin-top: var(--space-400);
+  /* Afasta o conteúdo do relógio */
 }
 
 .question-title {
@@ -624,7 +946,9 @@ watch(
   color: var(--color-mirage-800);
 }
 
-.question-title span { color: var(--color-teal-600); }
+.question-title span {
+  color: var(--color-teal-600);
+}
 
 .attempts-pill {
   padding: 6px 12px;
@@ -649,8 +973,15 @@ watch(
   box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-.result-pill.correct { background: var(--color-deep-100); }
-.result-pill.wrong { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-500); color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
+.result-pill.correct {
+  background: var(--color-deep-100);
+}
+
+.result-pill.wrong {
+  background: var(--color-error-muted);
+  border-color: var(--color-red-500);
+  color: var(--color-error-strong);
+}
 
 .question-divider {
   height: 1px;
@@ -675,7 +1006,6 @@ watch(
 .options-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
 
 @media (max-width: 720px) {
   .info-card {

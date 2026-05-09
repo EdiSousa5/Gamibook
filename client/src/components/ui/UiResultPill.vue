@@ -30,8 +30,8 @@ defineProps<{
 .result-pill.correct { background: var(--color-deep-100); }
 
 .result-pill.wrong {
-  background: var(--color-pumpkin-100);
-  border-color: var(--color-pumpkin-500);
+  background: var(--color-error-muted);
+  border-color: var(--color-red-500);
 }
 
 .result-pill__label {
@@ -39,14 +39,14 @@ defineProps<{
   color: var(--color-mirage-800);
 }
 
-.result-pill.wrong .result-pill__label { color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
+.result-pill.wrong .result-pill__label { color: var(--color-error-strong); }
 
 .result-pill__xp {
   font-size: 12px;
   color: var(--color-deep-700);
 }
 
-.result-pill.wrong .result-pill__xp { color: var(--color-pumpkin-800, var(--color-pumpkin-700)); }
+.result-pill.wrong .result-pill__xp { color: var(--color-error-strong); }
 
 @keyframes feedback-pop {
   0%   { transform: translateY(-6px) scale(0.95); opacity: 0; }

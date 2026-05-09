@@ -147,7 +147,7 @@ form {
 }
 
 .error {
-  color: var(--color-pumpkin-700);
+  color: var(--color-error-strong);
   font-weight: 600;
 }
 </style>

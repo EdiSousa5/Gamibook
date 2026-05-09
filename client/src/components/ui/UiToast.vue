@@ -1,135 +1,146 @@
 <script setup lang="ts">
 import {
   CheckCircleIcon,
+  XCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  XMarkIcon,
+  XMarkIcon
 } from '@heroicons/vue/24/outline'
-import { useToast, type ToastType } from '@/composables/useToast'
 
-const { toasts, dismiss } = useToast()
+export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
-const iconFor = (type: ToastType) => {
-  if (type === 'error') return ExclamationTriangleIcon
-  if (type === 'success') return CheckCircleIcon
-  return InformationCircleIcon
-}
+defineProps<{
+  type?: ToastType
+  title?: string
+  message: string
+}>()
+
+defineEmits<{
+  (e: 'close'): void
+}>()
 </script>
 
 <template>
-  <Teleport to="body">
-    <div class="toast-stack" aria-live="polite" aria-atomic="false">
-      <TransitionGroup name="toast">
-        <div
-          v-for="toast in toasts"
-          :key="toast.id"
-          class="toast"
-          :class="`toast--${toast.type}`"
-          role="alert"
-        >
-          <div class="toast-shadow" />
-          <div class="toast-face">
-            <component :is="iconFor(toast.type)" class="toast-icon" aria-hidden="true" />
-            <span class="toast-msg">{{ toast.message }}</span>
-            <button class="toast-close" type="button" @click="dismiss(toast.id)" aria-label="Fechar">
-              <XMarkIcon class="close-icon" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      </TransitionGroup>
+  <div class="toast-card" :class="`toast--${type || 'info'}`" role="alert">
+    <div class="toast-icon-wrap">
+      <CheckCircleIcon v-if="type === 'success'" class="toast-icon" aria-hidden="true" />
+      <XCircleIcon v-else-if="type === 'error'" class="toast-icon" aria-hidden="true" />
+      <ExclamationTriangleIcon v-else-if="type === 'warning'" class="toast-icon" aria-hidden="true" />
+      <InformationCircleIcon v-else class="toast-icon" aria-hidden="true" />
     </div>
-  </Teleport>
+
+    <div class="toast-body">
+      <strong v-if="title" class="toast-title">{{ title }}</strong>
+      <span class="toast-message">{{ message }}</span>
+    </div>
+
+    <button type="button" class="toast-close" @click="$emit('close')" aria-label="Fechar mensagem">
+      <XMarkIcon class="close-icon" aria-hidden="true" />
+    </button>
+  </div>
 </template>
 
 <style scoped>
-.toast-stack {
-  position: fixed;
-  bottom: var(--space-500);
-  right: var(--space-500);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
+.toast-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   gap: var(--space-300);
-  max-width: 380px;
-  pointer-events: none;
-}
-
-.toast {
-  position: relative;
-  pointer-events: all;
-}
-
-.toast-shadow {
-  position: absolute;
-  inset: 0;
-  border-radius: 14px;
-  transform: translate(4px, 4px);
-  background: var(--color-mirage-800);
-}
-
-.toast-face {
-  position: relative;
-  display: flex;
   align-items: center;
-  gap: var(--space-300);
   padding: var(--space-300) var(--space-400);
   border-radius: 14px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  min-width: 300px;
+  max-width: 400px;
+  pointer-events: auto;
 }
 
-.toast--error .toast-face   { background: var(--color-pumpkin-50, var(--color-pumpkin-100)); border-color: var(--color-pumpkin-500); }
-.toast--error .toast-shadow { background: var(--color-pumpkin-700); }
-.toast--success .toast-face  { background: var(--color-deep-100); border-color: var(--color-deep-600); }
-.toast--success .toast-shadow { background: var(--color-deep-700); }
-.toast--info .toast-face    { background: var(--color-wild-100); }
+/* VARIAÇÕES DE ESTILO (Cores baseadas no teu UiKit) */
+.toast--info {
+  background: var(--color-wild-200);
+  border-color: var(--color-mirage-800);
+}
+
+.toast--success {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+}
+
+.toast--warning {
+  background: var(--color-amber-100);
+  border-color: var(--color-amber-600);
+}
+
+.toast--error {
+  background: var(--color-error-muted);
+  border-color: var(--color-red-500);
+}
+
+/* ÍCONES */
+.toast-icon-wrap {
+  display: grid;
+  place-items: center;
+}
 
 .toast-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  stroke-width: 2;
-  color: var(--color-mirage-600);
+  width: 24px;
+  height: 24px;
 }
 
-.toast--error .toast-icon   { color: var(--color-pumpkin-700); }
-.toast--success .toast-icon { color: var(--color-deep-600); }
-
-.toast-msg {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
+.toast--info .toast-icon {
   color: var(--color-mirage-800);
+}
+
+.toast--success .toast-icon {
+  color: var(--color-deep-700);
+}
+
+.toast--warning .toast-icon {
+  color: var(--color-amber-600);
+}
+
+.toast--error .toast-icon {
+  color: var(--color-error-strong);
+}
+
+/* TEXTOS */
+.toast-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.toast-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+}
+
+.toast-message {
+  font-size: 13px;
+  color: var(--color-mirage-700);
   line-height: 1.4;
 }
 
+/* BOTÃO FECHAR */
 .toast-close {
-  background: none;
+  background: transparent;
   border: none;
-  padding: 2px;
+  padding: 4px;
   cursor: pointer;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
+  color: var(--color-mirage-500);
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toast-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-mirage-900);
 }
 
 .close-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-mirage-500);
-}
-
-/* TransitionGroup animations */
-.toast-enter-active { transition: all 0.25s ease; }
-.toast-leave-active { transition: all 0.2s ease; }
-.toast-enter-from { opacity: 0; transform: translateX(24px); }
-.toast-leave-to  { opacity: 0; transform: translateX(24px); }
-
-@media (max-width: 480px) {
-  .toast-stack {
-    left: var(--space-400);
-    right: var(--space-400);
-    max-width: 100%;
-  }
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
 }
 </style>

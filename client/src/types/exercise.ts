@@ -54,3 +54,23 @@ export type UserPointsHistory = {
   reference_id?: number | null
   date_created?: string | null
 }
+
+export type FinalQuizAttemptQuestion = {
+  exercise_id: number
+  question_text: string
+  is_correct: boolean
+}
+
+export type FinalQuizAttemptContent = {
+  questions: FinalQuizAttemptQuestion[]
+}
+
+export type FinalQuizAttempt = {
+  final_quiz_attempts_id?: number
+  date_created?: string
+  user_id?: string
+  book_id?: number
+  score?: number
+  status?: 'fail' | 'pass'
+  content?: FinalQuizAttemptContent
+}

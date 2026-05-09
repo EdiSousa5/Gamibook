@@ -9,6 +9,7 @@ import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   BookOpenIcon,
   CheckIcon,
+  ClockIcon,
   InformationCircleIcon,
   LockClosedIcon,
   SparklesIcon,
@@ -22,9 +23,11 @@ import {
   fetchApprovedExerciseCountsByModule,
   fetchUserExercisesByModule,
 } from '../services/exercises'
-import { fetchUserBook, tierForPct, TIER_ORDER } from '../services/badges'
+import { fetchUserBook, tierForPct, TIER_ORDER, updateUserBookBadge } from '../services/badges'
 import type { BadgeTierOrDefault } from '../services/badges'
+import { fetchLatestFinalQuizAttempt, getCooldownUntil } from '../services/finalQuiz'
 import { getAssetUrl, getStoredUserId } from '../services/client'
+import { useToast } from '@/composables/useToast'
 import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
@@ -46,6 +49,21 @@ const badgeInfoOpen = ref(false)
 const modeModalOpen = ref(false)
 const selectedModuleId = ref<number | null>(null)
 const selectedMode = ref<SessionMode>('normal')
+
+const quizCooldownUntil = ref<Date | null>(null)
+
+const quizInCooldown = computed(
+  () => quizCooldownUntil.value !== null && quizCooldownUntil.value.getTime() > Date.now(),
+)
+
+const quizCooldownLabel = computed(() => {
+  if (!quizCooldownUntil.value) return ''
+  const diff = quizCooldownUntil.value.getTime() - Date.now()
+  if (diff <= 0) return 'já podes tentar'
+  const h = Math.floor(diff / 3_600_000)
+  const m = Math.floor((diff % 3_600_000) / 60_000)
+  return h > 0 ? `em ${h}h ${m}m` : `em ${m}m`
+})
 
 const currentBadge = computed<BookBadgeTier | null>(() => {
   const b = userBook.value?.current_badge
@@ -149,7 +167,7 @@ const modeCounts = computed(() => {
   return {
     normal: stats.remaining + stats.wrong,
     retry: stats.wrong,
-    review: stats.total,
+    review: stats.correct,
   }
 })
 
@@ -158,7 +176,7 @@ const canStartMode = (mode: SessionMode) => {
   if (!stats) return false
   if (mode === 'normal') return modeCounts.value.normal > 0
   if (mode === 'retry') return modeCounts.value.retry > 0
-  return stats.total > 0 && stats.correct >= stats.total
+  return stats.total > 0 && stats.correct > 0
 }
 
 const recommendedMode = computed<SessionMode>(() => {
@@ -194,13 +212,15 @@ watch(
     isLoading.value = true
     try {
       const userId = getStoredUserId()
-      const [bookData, moduleList, userBookData] = await Promise.all([
+      const [bookData, moduleList, userBookData, latestAttempt] = await Promise.all([
         fetchBook(id),
         fetchModulesByBook(id),
         userId ? fetchUserBook(userId, id) : Promise.resolve(null),
+        userId ? fetchLatestFinalQuizAttempt(userId, id) : Promise.resolve(null),
       ])
       book.value = bookData
       userBook.value = userBookData
+      quizCooldownUntil.value = latestAttempt ? getCooldownUntil(latestAttempt) : null
       approvedModules.value = moduleList
         .filter(isMainChapter)
         .filter((m) => m.status !== 'unapproved')
@@ -224,6 +244,30 @@ watch(
           }),
         )
         moduleStats.value = Object.fromEntries(entries)
+
+        // Mecanismo de segurança e sincronização de badge
+        if (userBookData?.user_book_id) {
+          const currentPct = overallPercent.value
+          let expectedTier = tierForPct(currentPct)
+          const currentBadge = userBookData.current_badge || 'default'
+
+          if (currentBadge === 'galaxy' && currentPct >= 100) expectedTier = 'galaxy'
+
+          if (currentBadge !== expectedTier) {
+            const oldRank = TIER_ORDER.indexOf(currentBadge as BadgeTierOrDefault)
+            const newRank = TIER_ORDER.indexOf(expectedTier as BadgeTierOrDefault)
+
+            await updateUserBookBadge(userBookData.user_book_id, expectedTier)
+            userBookData.current_badge = expectedTier
+
+            const toast = useToast()
+            if (newRank < oldRank) {
+              toast.error(`Atenção: O teu progresso foi recalculado e desceste para o badge ${expectedTier}.`)
+            } else if (newRank > oldRank) {
+              toast.success(`Progresso sincronizado! Subiste para o badge ${expectedTier}.`)
+            }
+          }
+        }
       } else {
         moduleStats.value = {}
       }
@@ -293,10 +337,8 @@ watch(
 
       <div class="roadmap-bar-outer">
         <div class="roadmap-milestones">
-          <div v-for="step in badgeSteps.filter(s => s.tier !== 'galaxy')" :key="step.id"
-            class="roadmap-milestone"
-            :class="{ achieved: isBadgeAchieved(step.tier) }"
-            :style="{
+          <div v-for="step in badgeSteps.filter(s => s.tier !== 'galaxy')" :key="step.id" class="roadmap-milestone"
+            :class="{ achieved: isBadgeAchieved(step.tier) }" :style="{
               left: step.threshold === 0 ? '0%' : step.threshold === 100 ? '100%' : `${step.threshold}%`,
               transform: step.threshold === 0 ? 'translateX(0)' : step.threshold === 100 ? 'translateX(-100%)' : 'translateX(-50%)',
             }">
@@ -488,7 +530,7 @@ watch(
               <UiButton variant="primary" :disabled="!canStartMode(selectedMode)" @click="startSelectedModule">
                 Começar
               </UiButton>
-              
+
             </div>
           </div>
         </div>
@@ -519,35 +561,45 @@ watch(
                 </div>
               </div>
               <div class="badge-modal__item">
-                <div class="badge-modal__badge"><BookBadge tier="bronze" size="xs" /></div>
+                <div class="badge-modal__badge">
+                  <BookBadge tier="bronze" size="xs" />
+                </div>
                 <div class="badge-modal__text">
                   <strong>Bronze</strong>
                   <span>25% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <div class="badge-modal__badge"><BookBadge tier="silver" size="xs" /></div>
+                <div class="badge-modal__badge">
+                  <BookBadge tier="silver" size="xs" />
+                </div>
                 <div class="badge-modal__text">
                   <strong>Prata</strong>
                   <span>50% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <div class="badge-modal__badge"><BookBadge tier="gold" size="xs" /></div>
+                <div class="badge-modal__badge">
+                  <BookBadge tier="gold" size="xs" />
+                </div>
                 <div class="badge-modal__text">
                   <strong>Ouro</strong>
                   <span>75% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <div class="badge-modal__badge"><BookBadge tier="diamond" size="xs" /></div>
+                <div class="badge-modal__badge">
+                  <BookBadge tier="diamond" size="xs" />
+                </div>
                 <div class="badge-modal__text">
                   <strong>Diamante</strong>
                   <span>100% de exercicios certos.</span>
                 </div>
               </div>
               <div class="badge-modal__item">
-                <div class="badge-modal__badge"><BookBadge tier="galaxy" size="xs" /></div>
+                <div class="badge-modal__badge">
+                  <BookBadge tier="galaxy" size="xs" />
+                </div>
                 <div class="badge-modal__text">
                   <strong>Galaxy</strong>
                   <span>100% + quiz final com 75% de sucesso.</span>
@@ -569,9 +621,10 @@ watch(
       </div>
 
       <article class="quiz-card"
-        :class="quizCompleted ? 'quiz-card--done' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'">
+        :class="quizCompleted ? 'quiz-card--done' : quizInCooldown ? 'quiz-card--cooldown' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'">
         <div class="quiz-card__icon">
           <TrophyIcon v-if="quizCompleted" class="quiz-icon" aria-hidden="true" />
+          <ClockIcon v-else-if="quizInCooldown" class="quiz-icon" aria-hidden="true" />
           <SparklesIcon v-else-if="quizUnlocked" class="quiz-icon" aria-hidden="true" />
           <LockClosedIcon v-else class="quiz-icon" aria-hidden="true" />
         </div>
@@ -579,9 +632,11 @@ watch(
         <div class="quiz-card__body">
           <div class="quiz-card__title-row">
             <h3 class="quiz-card__title">
-              {{ quizCompleted ? 'Quiz Completo' : quizUnlocked ? 'Quiz Disponível' : 'Quiz Bloqueado' }}
+              {{ quizCompleted ? 'Quiz Completo' : quizInCooldown ? 'Quiz em Pausa' : quizUnlocked ? 'Quiz Disponível' :
+              'Quiz Bloqueado' }}
             </h3>
             <BookBadge v-if="quizCompleted" tier="galaxy" size="xs" />
+            <UiChip v-else-if="quizInCooldown" label="Em espera" variant="outline" />
             <UiChip v-else-if="quizUnlocked" label="Desbloqueado" variant="filled" />
             <UiChip v-else label="Bloqueado" variant="outline" />
           </div>
@@ -589,8 +644,11 @@ watch(
             <template v-if="quizCompleted">
               Conquistaste o badge Galaxy. O quiz foi concluído com sucesso.
             </template>
+            <template v-else-if="quizInCooldown">
+              Falhaste o quiz. Podes tentar novamente {{ quizCooldownLabel }}.
+            </template>
             <template v-else-if="quizUnlocked">
-              Completa 10 perguntas aleatórias de todos os módulos. Precisas de 75% de respostas certas para ganhar o
+              Completa 10 perguntas aleatórias de todos os módulos. Precisas de 8 em 10 respostas certas para ganhar o
               badge Galaxy.
             </template>
             <template v-else>
@@ -599,7 +657,7 @@ watch(
           </p>
         </div>
 
-        <div v-if="quizUnlocked" class="quiz-card__action">
+        <div v-if="quizUnlocked && !quizInCooldown" class="quiz-card__action">
           <RouterLink :to="`/book/${bookId}/final-quiz`">
             <UiButton variant="primary" size="sm">Iniciar Quiz</UiButton>
           </RouterLink>
@@ -1340,6 +1398,10 @@ watch(
   background: var(--color-amber-100, #fffbeb);
 }
 
+.quiz-card--cooldown {
+  background: var(--color-pumpkin-100);
+}
+
 .quiz-card__icon {
   width: 80px;
   height: 80px;
@@ -1358,6 +1420,10 @@ watch(
 
 .quiz-card--ready .quiz-card__icon {
   background: var(--color-amber-500);
+}
+
+.quiz-card--cooldown .quiz-card__icon {
+  background: var(--color-pumpkin-500, #f97316);
 }
 
 .quiz-icon {

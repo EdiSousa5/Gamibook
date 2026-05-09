@@ -66,6 +66,14 @@ const formatCooldown = computed(() => {
 
 const currentStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 
+const isStreakAnimating = ref(false)
+watch(currentStreak, (newVal, oldVal) => {
+    if (newVal > oldVal) {
+        isStreakAnimating.value = true
+        window.setTimeout(() => { isStreakAnimating.value = false }, 800)
+    }
+})
+
 const isOptionCorrect = (option: string): boolean =>
     exercise.value ? checkOptionCorrect(exercise.value, option) : false
 
@@ -247,7 +255,7 @@ onUnmounted(() => {
                 <h1>Exercício Diário</h1>
                 <p class="meta">Uma pergunta por dia para manter o teu streak!</p>
             </div>
-            <div class="streak-badge" :class="{ active: currentStreak >= 2 }">
+            <div class="streak-badge" :class="{ active: currentStreak >= 2, 'streak-animate-fire': isStreakAnimating }">
                 <FireIcon class="fire-icon" aria-hidden="true" />
                 <strong>{{ currentStreak }}</strong>
                 <span>Streak</span>
@@ -344,7 +352,9 @@ onUnmounted(() => {
                         <span class="timer-value">{{ String(timeLeft).padStart(2, '0') }}</span>
                     </div>
                     <div class="question-top">
-                        <div class="question-title">Exercício Diário</div>
+                        <div class="question-title">
+                            Exercício Diário
+                        </div>
                         <UiResultPill v-if="result" :result="result" :points="pointsEarned" />
                         <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
@@ -432,7 +442,7 @@ onUnmounted(() => {
 }
 
 .state.error {
-    color: var(--color-pumpkin-700);
+    color: var(--color-error-strong);
 }
 
 .info-card {
@@ -550,8 +560,8 @@ onUnmounted(() => {
 }
 
 .done-recap__yours {
-    background: var(--color-pumpkin-100);
-    border-color: var(--color-pumpkin-500);
+    background: var(--color-error-muted);
+    border-color: var(--color-red-500);
 }
 
 .done-recap__answer-label {
@@ -571,7 +581,7 @@ onUnmounted(() => {
 .done-recap__yours-text {
     font-size: 16px;
     font-weight: 800;
-    color: var(--color-pumpkin-800, var(--color-pumpkin-700));
+    color: var(--color-error-strong);
 }
 
 /* Done card */
@@ -593,8 +603,8 @@ onUnmounted(() => {
 }
 
 .done-wrong {
-    border-color: var(--color-pumpkin-500);
-    background: var(--color-pumpkin-50, var(--color-pumpkin-100));
+    border-color: var(--color-red-500);
+    background: var(--color-error-muted);
 }
 
 .done-result-header {
@@ -619,8 +629,8 @@ onUnmounted(() => {
 }
 
 .done-icon--wrong {
-    background: var(--color-pumpkin-100);
-    border-color: var(--color-pumpkin-500);
+    background: var(--color-error-muted);
+    border-color: var(--color-red-500);
 }
 
 .done-icon-svg {
@@ -631,7 +641,7 @@ onUnmounted(() => {
 }
 
 .done-icon--wrong .done-icon-svg {
-    color: var(--color-pumpkin-700);
+    color: var(--color-error-strong);
 }
 
 .done-verdict {
@@ -818,6 +828,7 @@ onUnmounted(() => {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-300);
+    margin-top: var(--space-400); /* Afasta o conteúdo do relógio */
 }
 
 .question-title {
@@ -858,6 +869,25 @@ onUnmounted(() => {
 
 .options-grid-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Animações dinâmicas para a streak e o fogo */
+@keyframes badge-fire-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255, 138, 80, 0.6)); border-color: var(--color-pumpkin-500); }
+    100% { transform: scale(1); }
+}
+@keyframes icon-fire-pop {
+    0% { transform: scale(1) rotate(0deg); }
+    40% { transform: scale(1.5) rotate(-15deg); color: var(--color-amber-500); }
+    70% { transform: scale(1.2) rotate(10deg); color: var(--color-pumpkin-500); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+.streak-animate-fire {
+    animation: badge-fire-pop 0.6s ease;
+}
+.streak-animate-fire .fire-icon {
+    animation: icon-fire-pop 0.6s ease;
 }
 
 @media (max-width: 860px) {
