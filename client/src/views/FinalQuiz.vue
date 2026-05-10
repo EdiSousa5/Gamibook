@@ -248,7 +248,7 @@ watch(
         .map(async (m) => {
           const [total, correctItems] = await Promise.all([
             fetchApprovedExerciseCountsByModule(m.modules_id),
-            fetchUserExercisesByModule(storedId, m.modules_id, true),
+            fetchUserExercisesByModule(storedId!, m.modules_id, true),
           ])
           return { total, correct: correctItems.length }
         })
@@ -269,7 +269,7 @@ watch(
         const oldRank = TIER_ORDER.indexOf(currentBadge as any)
         const newRank = TIER_ORDER.indexOf(expectedTier as any)
 
-        await updateUserBookBadge(userBookData.user_book_id, expectedTier)
+        await updateUserBookBadge(userBookData.user_book_id!, expectedTier)
         userBookData.current_badge = expectedTier
 
         const toast = useToast()

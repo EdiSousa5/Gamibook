@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import HelpFaq from '@/components/help/HelpFaq.vue'
 import {
   BookOpenIcon,
@@ -112,6 +114,10 @@ const faqCategories = [
         q: 'Como funciona o ranking e quem aparece?',
         a: 'O ranking ordena todos os utilizadores da plataforma por XP total acumulado. Podes ver o pódio dos três primeiros e a tua posição na tabela completa. O ranking atualiza em tempo real à medida que respondes a exercícios.',
       },
+      {
+        q: 'O que acontece se perder um dia de Exercício Diário?',
+        a: 'A tua streak (sequência) diária volta a zero. Tenta responder todos os dias para manteres o bónus extra de streak!',
+      }
     ]
   },
   {
@@ -129,6 +135,10 @@ const faqCategories = [
         q: 'Os módulos têm uma ordem obrigatória?',
         a: 'Sim, os módulos de cada livro seguem uma ordem definida pelo conteúdo. Deves completar os exercícios de um módulo antes de avançar para o seguinte. O número mínimo de exercícios aprovados por módulo é definido pelo administrador do livro.',
       },
+      {
+        q: 'Posso remover um livro da minha coleção?',
+        a: 'Atualmente, os livros adicionados permanecem na tua coleção para manteres em segurança o histórico do teu progresso e pontuações.',
+      }
     ]
   },
   {
@@ -150,6 +160,10 @@ const faqCategories = [
         q: 'Posso ver o meu histórico de exercícios?',
         a: 'No dashboard podes ver o teu progresso geral, XP total acumulado e nível atual. Em cada módulo, o estado de cada exercício (correto, tentativas, pontos ganhos) é mostrado na lista de exercícios aprovados.',
       },
+      {
+        q: 'Posso repetir um módulo já concluído?',
+        a: 'Sim! Podes usar o modo "Rever" para praticar exercícios que já acertaste, sem alterar a tua pontuação original ou prejudicar as tuas estatísticas.',
+      }
     ]
   },
   {
@@ -159,9 +173,32 @@ const faqCategories = [
         q: 'Posso alterar o meu perfil, avatar e nome?',
         a: 'Sim. Acede a Definições > Dados de utilizador para atualizar o teu nome, fotografia de perfil e outras informações. As alterações ficam visíveis de imediato na barra superior, no ranking e no dashboard.',
       },
+      {
+        q: 'Como funcionam as notificações?',
+        a: 'O ícone de sino no topo da plataforma avisa-te de novos eventos, como a conquista de uma nova badge, subida de nível ou a adição de um livro novo à tua coleção.',
+      },
+      {
+        q: 'Esqueci-me da minha palavra-passe, o que devo fazer?',
+        a: 'Contacta o administrador da tua instituição. Eles têm acesso a um painel de gestão onde podem rapidamente efetuar a reposição da tua password.',
+      }
     ]
   }
 ]
+
+const selectedCategory = ref<string>('Todos')
+
+const categoryOptions = computed(() => [
+  { label: 'Todos', value: 'Todos' },
+  ...faqCategories.map(c => ({
+    label: c.title,
+    value: c.title
+  }))
+])
+
+const filteredFaqCategories = computed(() => {
+  if (selectedCategory.value === 'Todos') return faqCategories
+  return faqCategories.filter(c => c.title === selectedCategory.value)
+})
 </script>
 
 <template>
@@ -248,9 +285,15 @@ const faqCategories = [
         <p class="section-sub">Respostas às dúvidas mais comuns sobre a plataforma.</p>
       </div>
 
+      <!-- Filtros de Categorias -->
+      <div class="faq-filters">
+        <UiSegmented :model-value="selectedCategory" :options="categoryOptions" @update="selectedCategory = $event as string" />
+      </div>
+
       <div class="faq-categories">
-        <div v-for="category in faqCategories" :key="category.title" class="faq-category">
-          <h3 class="category-title">{{ category.title }}</h3>
+        <div v-for="category in filteredFaqCategories" :key="category.title" class="faq-category">
+          <!-- Apenas mostrar o título da secção se não houver um filtro selecionado em específico -->
+          <h3 class="category-title" v-if="selectedCategory === 'Todos'">{{ category.title }}</h3>
           <HelpFaq :faqs="category.faqs" />
         </div>
       </div>
@@ -597,6 +640,14 @@ const faqCategories = [
   color: var(--color-mirage-900);
   border-bottom: 2px dashed var(--color-mirage-200);
   padding-bottom: var(--space-200);
+}
+
+/* ── FAQ Filters ── */
+.faq-filters {
+  display: flex;
+  gap: var(--space-200);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-200);
 }
 
 /* ── Responsive ── */

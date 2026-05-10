@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
@@ -67,7 +67,7 @@ const formatCooldown = computed(() => {
 const currentStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 
 const isStreakAnimating = ref(false)
-watch(currentStreak, (newVal, oldVal) => {
+watch(currentStreak, (newVal: number, oldVal: number) => {
     if (newVal > oldVal) {
         isStreakAnimating.value = true
         window.setTimeout(() => { isStreakAnimating.value = false }, 800)
