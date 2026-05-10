@@ -21,7 +21,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="toast-card" :class="`toast--${type || 'info'}`" role="alert">
+  <div v-if="message" class="toast-card" :class="`toast--${type || 'info'}`" role="alert">
     <div class="toast-icon-wrap">
       <CheckCircleIcon v-if="type === 'success'" class="toast-icon" aria-hidden="true" />
       <XCircleIcon v-else-if="type === 'error'" class="toast-icon" aria-hidden="true" />
@@ -53,7 +53,8 @@ defineEmits<{
   box-shadow: 4px 4px 0 var(--color-shadow);
   min-width: 300px;
   max-width: 400px;
-  pointer-events: auto;
+  pointer-events: all;
+  z-index: 10000;
 }
 
 /* VARIAÇÕES DE ESTILO (Cores baseadas no teu UiKit) */

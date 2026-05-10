@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+
 type Option = { label: string; value: string }
 
 type Props = {
@@ -12,10 +14,46 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 defineEmits<{ update: [string] }>()
+
+const containerRef = ref<HTMLElement | null>(null)
+const indicatorStyle = ref({ left: '4px', width: '0px' })
+
+const updateIndicator = () => {
+  if (!containerRef.value) return
+  const activeBtn = containerRef.value.querySelector('button.active') as HTMLElement
+  if (activeBtn) {
+    indicatorStyle.value = {
+      left: `${activeBtn.offsetLeft}px`,
+      width: `${activeBtn.offsetWidth}px`
+    }
+  }
+}
+
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  // Atualiza imediatamente e também observa redimensionamentos
+  setTimeout(updateIndicator, 50)
+  if (containerRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      updateIndicator()
+    })
+    resizeObserver.observe(containerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+})
+
+watch(() => props.modelValue, () => {
+  nextTick(updateIndicator)
+})
 </script>
 
 <template>
-  <div class="ui-segmented">
+  <div class="ui-segmented" ref="containerRef">
+    <div class="segmented-indicator" :style="indicatorStyle" aria-hidden="true"></div>
     <button v-for="option in options" :key="option.value" type="button" :class="{ active: option.value === modelValue }"
       @click="$emit('update', option.value)">
       {{ option.label }}
@@ -25,28 +63,52 @@ defineEmits<{ update: [string] }>()
 
 <style scoped>
 .ui-segmented {
+  position: relative;
   display: inline-flex;
   background: var(--color-wild-100);
-  border-radius: 12px;
+  border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
-  padding: var(--space-050);
-  gap: var(--space-050);
+  padding: 6px 12px;
   box-shadow: 4px 4px 0 var(--color-shadow);
+  z-index: 1;
+}
+
+.segmented-indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  border-radius: 999px;
+  background: var(--color-teal-500);
+  transition: all 0.3s ease-out;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  z-index: -1;
 }
 
 .ui-segmented button {
-  border: 2px solid transparent;
+  position: relative;
+  border: none;
   background: transparent;
-  padding: var(--space-150) var(--space-300);
-  border-radius: 10px;
+  padding: 10px 20px;
+  border-radius: 999px;
   cursor: pointer;
-  font-weight: 600;
-  color: var(--color-mirage-800);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-mirage-600);
+  transition: color 0.3s ease;
+  z-index: 2;
+  outline: none;
 }
 
 .ui-segmented button.active {
-  background: var(--color-deep-200);
-  border-color: var(--color-mirage-800);
-  color: var(--color-mirage-800);
+  color: var(--color-wild-100);
+}
+
+.ui-segmented button:hover:not(.active) {
+  color: var(--color-teal-600);
+}
+
+.ui-segmented button:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-teal-500);
 }
 </style>
