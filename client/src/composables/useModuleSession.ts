@@ -273,7 +273,10 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
         return Number.isFinite(id) && getPreviousStatus(id) === 'wrong'
       })
     }
-    return [...allExercises.value]
+    return allExercises.value.filter((exercise) => {
+      const id = Number(exercise.exercise_id)
+      return Number.isFinite(id) && getPreviousStatus(id) === 'correct'
+    })
   }
 
   const setSessionExercises = (list: Exercise[]) => {

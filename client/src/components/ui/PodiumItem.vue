@@ -71,6 +71,10 @@ const isFirst = computed(() => props.position === 1)
     box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
+.avatar-wrap :deep(.ui-avatar) {
+    box-shadow: none;
+}
+
 .place-badge {
     position: absolute;
     top: -10px;
@@ -169,17 +173,6 @@ const isFirst = computed(() => props.position === 1)
     background: var(--color-deep-400);
 }
 
-.place-1 .avatar-wrap {
-    box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.place-2 .avatar-wrap {
-    box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.place-3 .avatar-wrap {
-    box-shadow: 4px 4px 0 var(--color-shadow);
-}
 
 .place-1 .place-badge,
 .place-2 .place-badge,

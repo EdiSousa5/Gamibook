@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import PodiumItem from '@/components/ui/PodiumItem.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -39,7 +39,10 @@ const TIME_FILTERS: Array<{ value: TimeFilter; label: string }> = [
 const topGlobal = ref<LeaderboardEntry[]>([])
 const error = ref('')
 const isLoading = ref(false)
+const isInitialLoad = ref(true)
 const timeFilter = ref<TimeFilter>('all')
+
+onMounted(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }))
 const displayUserName = (entry?: User | null) => {
   if (!entry) return '—'
   const name = [entry.first_name, entry.last_name].filter(Boolean).join(' ').trim()
@@ -131,10 +134,12 @@ const loadRankings = async () => {
         return { ...user, totalPoints, level, badgeCounts }
       })
       .sort((a, b) => b.totalPoints - a.totalPoints)
+      .slice(0, 50)
   } catch {
     error.value = 'Não foi possível carregar os rankings.'
   } finally {
     isLoading.value = false
+    isInitialLoad.value = false
   }
 }
 
@@ -146,15 +151,14 @@ watch(timeFilter, () => {
 <template>
   <section class="rankings">
     <div class="filters-wrapper">
-      <span class="filters-label">Filtrar por Período:</span>
       <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS" @update="timeFilter = $event as TimeFilter" />
     </div>
 
-    <p v-if="isLoading" class="state podium-state">A carregar rankings...</p>
+    <p v-if="isLoading && isInitialLoad" class="state podium-state">A carregar rankings...</p>
     <p v-else-if="error" class="state error podium-state">{{ error }}</p>
 
     <template v-else-if="topGlobal.length">
-      <section class="podium">
+      <section class="podium" :class="{ 'content-refreshing': isLoading }">
         <!-- 2º Lugar -->
         <div class="podium-col place-2-col">
           <PodiumItem v-if="podiumUsers[1]" :position="2" :points="podiumUsers[1].totalPoints"
@@ -180,7 +184,7 @@ watch(timeFilter, () => {
         </div>
       </section>
 
-      <div class="list-container">
+      <div class="list-container" :class="{ 'content-refreshing': isLoading }">
         <UiCard v-if="remainingUsersList.length" class="list-card">
           <ul class="user-list">
             <RankingListItem v-for="(user, index) in remainingUsersList" :key="user.id || user.email || user.name"
@@ -203,7 +207,6 @@ watch(timeFilter, () => {
 <style scoped>
 .rankings {
   padding: 32px 16px;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -212,26 +215,16 @@ watch(timeFilter, () => {
 
 .filters-wrapper {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   margin-bottom: 32px;
   z-index: 10;
-  background: var(--color-wild-100);
-  padding: 16px 24px;
-  border-radius: var(--radius-400);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  width: 100%;
-  max-width: 600px;
 }
 
-.filters-label {
-  font-size: 14px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-mirage-600);
+.content-refreshing {
+  opacity: 0.45;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
 }
 
 .state {
