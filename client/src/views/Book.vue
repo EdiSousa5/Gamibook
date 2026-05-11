@@ -28,6 +28,7 @@ import type { BadgeTierOrDefault } from '../services/badges'
 import { fetchLatestFinalQuizAttempt, getCooldownUntil } from '../services/finalQuiz'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { useToast } from '@/composables/useToast'
+import ModeCard from '@/components/ui/ModeCard.vue'
 import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
@@ -188,6 +189,15 @@ const recommendedMode = computed<SessionMode>(() => {
 })
 
 const openModeModal = (moduleId: number) => {
+  const status = moduleStatus(moduleId)
+  if (status === 'done') {
+    router.push(`/book/${bookId.value}/module/${moduleId}?mode=review`)
+    return
+  }
+  if (status === 'fresh') {
+    router.push(`/book/${bookId.value}/module/${moduleId}?mode=normal`)
+    return
+  }
   selectedModuleId.value = moduleId
   selectedMode.value = recommendedMode.value
   modeModalOpen.value = true
@@ -496,33 +506,30 @@ watch(
             </div>
 
             <div class="mode-grid">
-              <button type="button" class="mode-card"
-                :class="{ active: selectedMode === 'normal', disabled: !canStartMode('normal') }"
-                :disabled="!canStartMode('normal')" @click="selectedMode = 'normal'">
-                <div class="mode-card__top">
-                  <span class="mode-title">Normal</span>
-                  <span class="mode-count">{{ modeCounts.normal }}</span>
-                </div>
-                <p>Inclui exercicios novos e aqueles que erraste.</p>
-              </button>
-              <button type="button" class="mode-card"
-                :class="{ active: selectedMode === 'retry', disabled: !canStartMode('retry') }"
-                :disabled="!canStartMode('retry')" @click="selectedMode = 'retry'">
-                <div class="mode-card__top">
-                  <span class="mode-title">Repetir errados</span>
-                  <span class="mode-count">{{ modeCounts.retry }}</span>
-                </div>
-                <p>Foca-te apenas nos exercicios onde falhaste. Sem XP neste modo.</p>
-              </button>
-              <button type="button" class="mode-card"
-                :class="{ active: selectedMode === 'review', disabled: !canStartMode('review') }"
-                :disabled="!canStartMode('review')" @click="selectedMode = 'review'">
-                <div class="mode-card__top">
-                  <span class="mode-title">Rever</span>
-                  <span class="mode-count">{{ modeCounts.review }}</span>
-                </div>
-                <p>Rever tudo quando ja tens 100% corretos.</p>
-              </button>
+              <ModeCard
+                title="Normal"
+                description="Inclui exercicios novos e aqueles que erraste."
+                :count="modeCounts.normal"
+                :active="selectedMode === 'normal'"
+                :disabled="!canStartMode('normal')"
+                @select="selectedMode = 'normal'"
+              />
+              <ModeCard
+                title="Repetir errados"
+                description="Foca-te apenas nos exercicios onde falhaste. Sem XP neste modo."
+                :count="modeCounts.retry"
+                :active="selectedMode === 'retry'"
+                :disabled="!canStartMode('retry')"
+                @select="selectedMode = 'retry'"
+              />
+              <ModeCard
+                title="Rever"
+                description="Rever os exercicios que ja tens corretos."
+                :count="modeCounts.review"
+                :active="selectedMode === 'review'"
+                :disabled="!canStartMode('review')"
+                @select="selectedMode = 'review'"
+              />
             </div>
 
             <div class="mode-actions">
@@ -1054,64 +1061,9 @@ watch(
 
 .mode-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
   gap: var(--space-300);
-}
-
-.mode-card {
-  padding: 16px;
-  border-radius: 14px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  text-align: left;
-  display: grid;
-  gap: 10px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.mode-card:hover {
-  transform: translateY(-2px);
-}
-
-.mode-card.active {
-  background: var(--color-deep-100);
-}
-
-.mode-card.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.mode-card__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mode-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-mirage-800);
-}
-
-.mode-count {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-mirage-600);
-}
-
-.mode-card p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-mirage-600);
-  line-height: 1.4;
 }
 
 .mode-actions {

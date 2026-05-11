@@ -5,7 +5,9 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
 import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
-import { BoltIcon, FireIcon, ListBulletIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { BoltIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { FireIcon } from '@heroicons/vue/24/solid'
+import QuestionCard from '@/components/ui/QuestionCard.vue'
 import { isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
@@ -27,7 +29,7 @@ const {
     feedback, shuffledOptionsByExercise,
     viewState, selectedMode, sessionMode, isLevelUpQueued, pendingResults, initialBadge,
     currentExercise, isReviewMode,
-    exerciseCounts, modeLabel,
+    modeLabel,
     canStartMode, recommendedMode, currentExerciseStatus,
     summary, completionStats, exerciseResults,
     isPointsEligible, awardXp, recordResult, showFeedback,
@@ -295,18 +297,8 @@ onBeforeRouteLeave(() => {
             </ul>
 
             <div class="summary-actions">
-                <UiButton v-if="exerciseCounts.wrong > 0 && sessionMode !== 'retry'" variant="primary" @click="startSession('retry')">
-                    Repetir errados
-                </UiButton>
-                <UiButton v-else-if="exerciseCounts.remaining > 0 && sessionMode === 'normal'" variant="primary" @click="startSession('normal')">
-                    Continuar
-                </UiButton>
-                <UiButton v-if="exerciseCounts.correct > 0 && sessionMode !== 'review'"
-                    variant="outline" @click="startSession('review')">
-                    Rever
-                </UiButton>
                 <RouterLink :to="`/book/${bookId}`">
-                    <UiButton variant="outline">Continua</UiButton>
+                    <UiButton variant="primary">Continuar</UiButton>
                 </RouterLink>
             </div>
         </div>
@@ -335,40 +327,26 @@ onBeforeRouteLeave(() => {
                     </UiStatCard>
                 </template>
                 <UiStatCard label="Pergunta" :value="currentIndex + 1">
-                    <template #icon><ListBulletIcon class="stat-icon" aria-hidden="true" /></template>
                     <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
                 </UiStatCard>
             </div>
 
-            <div class="question-card">
-                <div class="question-card__shadow"></div>
-                <div class="question-card__panel">
-                    <div class="question-timer">
-                        <svg class="timer-ring" viewBox="0 0 72 72" aria-hidden="true">
-                            <circle class="timer-ring__track" cx="36" cy="36" r="26" />
-                            <circle class="timer-ring__progress" cx="36" cy="36" r="26"
-                                :style="{ strokeDasharray: timerDash }" />
-                        </svg>
-                        <span class="timer-value">{{ String(timeLeft).padStart(2, '0') }}</span>
+            <QuestionCard :question-text="currentQuestionText" :time-left="timeLeft" :timer-dash="timerDash">
+                <template #label>
+                    Pergunta <span class="question-num">{{ String(currentIndex + 1).padStart(2, '0') }}</span>
+                </template>
+                <template #actions>
+                    <div class="question-tags">
+                        <span v-if="!isReviewMode && currentExerciseStatus === 'correct'"
+                            class="status-pill done">Ja respondido</span>
+                        <span v-else-if="!isReviewMode && currentExerciseStatus === 'wrong'"
+                            class="status-pill warn">Falhou antes</span>
+                        <span v-if="isReviewMode" class="status-pill review">Revisao</span>
+                        <UiResultPill v-if="feedback" :result="feedback.type" :points="feedback.points" />
+                        <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
-                    <div class="question-top">
-                        <div class="question-title">
-                            Pergunta <span>{{ String(currentIndex + 1).padStart(2, '0') }}</span>
-                        </div>
-                        <div class="question-tags">
-                            <span v-if="!isReviewMode && currentExerciseStatus === 'correct'"
-                                class="status-pill done">Ja respondido</span>
-                            <span v-else-if="!isReviewMode && currentExerciseStatus === 'wrong'"
-                                class="status-pill warn">Falhou antes</span>
-                            <span v-if="isReviewMode" class="status-pill review">Revisao</span>
-                            <UiResultPill v-if="feedback" :result="feedback.type" :points="feedback.points" />
-                            <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
-                        </div>
-                    </div>
-                    <div class="question-divider"></div>
-                    <p class="question-text">{{ currentQuestionText }}</p>
-                </div>
-            </div>
+                </template>
+            </QuestionCard>
 
             <div class="options options-grid-2">
                 <ExerciseOption v-for="(option, index) in options" :key="option" :value="option" :index="index"
@@ -458,7 +436,7 @@ onBeforeRouteLeave(() => {
 }
 
 .runner-stat--pulse {
-    animation: xp-pulse 0.7s ease;
+    animation: streak-up 0.4s ease-out;
 }
 
 .stat-icon {
@@ -495,52 +473,6 @@ onBeforeRouteLeave(() => {
     border-top: 2px solid var(--color-wild-400);
 }
 
-.question-card {
-    position: relative;
-    width: min(960px, 100%);
-    margin: 0 auto;
-}
-
-.question-card__shadow {
-    position: absolute;
-    inset: 12px 0 0;
-    background: var(--color-deep-600);
-    border-radius: 16px;
-    z-index: 0;
-}
-
-.question-card__panel {
-    position: relative;
-    z-index: 1;
-    padding: 40px 32px 32px;
-    border-radius: 16px;
-    border: 2px solid var(--color-mirage-800);
-    background: var(--color-wild-100);
-    box-shadow: 8px 8px 0 rgba(46, 127, 123, 0.35);
-}
-
-@keyframes xp-pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
-.question-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-300);
-    margin-top: var(--space-400); /* Afasta o conteúdo do relógio */
-}
-
 .question-tags {
     display: grid;
     gap: 6px;
@@ -574,63 +506,9 @@ onBeforeRouteLeave(() => {
     background: var(--color-teal-100);
 }
 
-.question-timer {
-    position: absolute;
-    top: -32px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 70px;
-    height: 70px;
-    border-radius: 999px;
-    background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-800);
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    color: var(--color-mirage-800);
-    box-shadow: 0 6px 0 rgba(46, 127, 123, 0.35);
-}
-
-.timer-ring {
-    width: 64px;
-    height: 64px;
-    transform: rotate(-90deg);
-}
-
-.timer-ring__track {
-    fill: none;
-    stroke: rgba(46, 127, 123, 0.2);
-    stroke-width: 6;
-}
-
-.timer-ring__progress {
-    fill: none;
-    stroke: var(--color-deep-500);
-    stroke-width: 6;
-    stroke-linecap: round;
-    transition: stroke-dasharray 0.9s ease-in-out;
-}
-
-.timer-value {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    font-size: 16px;
-}
-
-.question-title {
-    text-align: left;
-    font-size: 28px;
-    font-weight: 600;
-    color: var(--color-mirage-800);
-}
-
-.question-title span {
+.question-num {
     color: var(--color-teal-600);
 }
-
 
 .attempts-pill {
     padding: 6px 12px;
@@ -639,19 +517,6 @@ onBeforeRouteLeave(() => {
     background: var(--color-teal-100);
     font-weight: 700;
     font-size: 12px;
-    color: var(--color-mirage-800);
-}
-
-.question-divider {
-    height: 1px;
-    background: var(--color-mirage-800);
-    margin: 18px 0;
-}
-
-.question-text {
-    margin: 0;
-    font-size: 22px;
-    line-height: 30px;
     color: var(--color-mirage-800);
 }
 
@@ -959,25 +824,9 @@ onBeforeRouteLeave(() => {
 }
 
 @media (max-width: 720px) {
-    .question-top {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: var(--space-200);
-    }
-
     .question-tags {
         justify-items: center;
         text-align: center;
-    }
-
-    .question-title {
-        font-size: 22px;
-        justify-content: center;
-    }
-
-    .question-text {
-        font-size: 18px;
     }
 
     .option-content {
@@ -1004,46 +853,42 @@ onBeforeRouteLeave(() => {
 /* Streak animations */
 @keyframes streak-up {
     0% { transform: scale(1); }
-    35% { transform: scale(1.1); }
-    65% { transform: scale(0.95); }
+    40% { transform: scale(1.04); }
     100% { transform: scale(1); }
 }
 
 @keyframes streak-lost {
     0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-5px); }
-    40% { transform: translateX(5px); }
-    60% { transform: translateX(-4px); }
-    80% { transform: translateX(4px); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
 }
 
 @keyframes fire-up {
-    0% { transform: scale(1) rotate(0deg); }
-    40% { transform: scale(1.6) rotate(-12deg); color: var(--color-amber-500); filter: drop-shadow(0 0 10px rgba(255, 138, 80, 0.8)); }
-    70% { transform: scale(1.2) rotate(6deg); color: var(--color-pumpkin-500); }
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25) rotate(-6deg); color: var(--color-amber-500); }
     100% { transform: scale(1) rotate(0deg); }
 }
 
 @keyframes fire-lost {
     0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 0.5; transform: scale(0.9); }
     100% { opacity: 1; transform: scale(1); }
 }
 
 .runner-stat--streak.streak--up {
-    animation: streak-up 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: streak-up 0.4s ease-out;
 }
 
 .runner-stat--streak.streak--lost {
-    animation: streak-lost 0.55s ease;
+    animation: streak-lost 0.4s ease;
 }
 
 .runner-stat--streak.streak--up .stat-icon--fire {
-    animation: fire-up 0.65s ease;
+    animation: fire-up 0.4s ease-out;
 }
 
 .runner-stat--streak.streak--lost .stat-icon--fire {
-    animation: fire-lost 0.55s ease;
+    animation: fire-lost 0.4s ease;
 }
 
 .chip-value--wrong {
