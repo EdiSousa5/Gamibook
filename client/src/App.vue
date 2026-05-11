@@ -8,6 +8,7 @@ import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import LevelUpModal from './components/ui/LevelUpModal.vue'
 import BookUnlockModal from './components/ui/BookUnlockModal.vue'
 import UiToast from './components/ui/UiToast.vue'
+import { useToast } from './composables/useToast'
 import { useAuthStore } from './stores/auth'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
@@ -16,6 +17,7 @@ import { setUnauthorizedHandler } from './services/client'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const { toasts, dismiss } = useToast()
 const { isAuthed, displayName, isAdmin, avatarUrl, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
 
 const showLanding = computed(() => route.meta.layout === 'landing')
@@ -86,7 +88,19 @@ watch(
 <template>
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
-  <UiToast />
+
+  <Teleport to="body">
+    <div class="toast-container">
+      <UiToast
+        v-for="t in toasts"
+        :key="t.id"
+        :type="t.type"
+        :title="t.title"
+        :message="t.message"
+        @close="dismiss(t.id)"
+      />
+    </div>
+  </Teleport>
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
       <AppSidebar :items="navItems" :username="displayName" :avatar-url="avatarUrl" @action="onNavClick" />
@@ -112,6 +126,19 @@ watch(
     </template>
   </div>
 </template>
+
+<style>
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+</style>
 
 <style scoped>
 .app {

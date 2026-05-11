@@ -28,15 +28,6 @@ const confetti = generateConfetti()
   <UiModal :visible="visible && !!tier" aria-label="Novo badge desbloqueado!">
     <div v-if="tier" class="badge-card">
 
-          <div class="confetti-wrap" aria-hidden="true">
-            <span
-              v-for="p in confetti"
-              :key="p.id"
-              class="cp"
-              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
-            />
-          </div>
-
           <div class="badge-icon-wrap" aria-hidden="true">
             <BookBadge :tier="tier" size="lg" />
           </div>
@@ -68,6 +59,15 @@ const confetti = generateConfetti()
           <UiButton variant="primary" style="width: 100%; display: flex;" @click="$emit('close')">
             {{ tier === 'galaxy' ? 'Fantástico!' : 'Continuar' }}
           </UiButton>
+
+          <div class="confetti-wrap" aria-hidden="true">
+            <span
+              v-for="p in confetti"
+              :key="p.id"
+              class="cp"
+              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
+            />
+          </div>
 
         </div>
   </UiModal>

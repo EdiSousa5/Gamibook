@@ -1,5 +1,5 @@
 import type { Book, Module, UserBook } from '@/types'
-import { authFetch } from './client'
+import { authFetch, publicFetch } from './client'
 
 const BOOK_FIELDS = [
   'book_id',
@@ -28,6 +28,18 @@ export const fetchBooks = async (onlyApproved = false) => {
 }
 
 export const fetchApprovedBooks = () => fetchBooks(true)
+
+export const fetchPublicApprovedBooks = async (): Promise<Pick<Book, 'book_id' | 'title' | 'cover_img'>[]> => {
+  const params = new URLSearchParams({
+    fields: 'book_id,title,cover_img',
+    sort: '-date_created',
+    'filter[is_approved][_eq]': 'true',
+  })
+  const response = await publicFetch(`/items/books?${params.toString()}`)
+  if (!response.ok) return []
+  const data = await response.json().catch(() => null)
+  return data?.data ?? []
+}
 
 export const fetchBook = async (id: number | string) => {
   const params = new URLSearchParams({ fields: BOOK_FIELDS.join(',') })

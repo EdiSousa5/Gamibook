@@ -43,15 +43,6 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
       <div v-if="visible" class="unlock-overlay" role="dialog" aria-modal="true" aria-label="Livro desbloqueado!">
         <div class="unlock-card">
 
-          <div class="confetti-wrap" aria-hidden="true">
-            <span
-              v-for="p in confetti"
-              :key="p.id"
-              class="cp"
-              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
-            />
-          </div>
-
           <p class="up-label">Livro Desbloqueado!</p>
 
           <div class="cover-wrap" aria-hidden="true">
@@ -68,6 +59,15 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
 
           <div class="actions">
             <UiButton variant="primary" class="btn-primary" @click="goToBook">Ver livro</UiButton>
+          </div>
+
+          <div class="confetti-wrap" aria-hidden="true">
+            <span
+              v-for="p in confetti"
+              :key="p.id"
+              class="cp"
+              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
+            />
           </div>
 
         </div>

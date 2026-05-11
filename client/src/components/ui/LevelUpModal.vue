@@ -66,15 +66,6 @@ const confetti = generateConfetti()
   <UiModal :visible="visible" aria-label="Subiste de nível!">
     <div class="levelup-card">
 
-          <div class="confetti-wrap" aria-hidden="true">
-            <span
-              v-for="p in confetti"
-              :key="p.id"
-              class="cp"
-              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
-            />
-          </div>
-
           <div class="trophy-wrap" aria-hidden="true">
             <TrophyIcon class="trophy-icon" />
           </div>
@@ -112,6 +103,15 @@ const confetti = generateConfetti()
           <UiButton variant="primary" style="width: 100%; display: flex;" @click="emit('close')">
             Continuar
           </UiButton>
+
+          <div class="confetti-wrap" aria-hidden="true">
+            <span
+              v-for="p in confetti"
+              :key="p.id"
+              class="cp"
+              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
+            />
+          </div>
 
         </div>
   </UiModal>

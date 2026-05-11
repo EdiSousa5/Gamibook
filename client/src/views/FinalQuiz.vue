@@ -306,7 +306,9 @@ watch(
       shuffledOptionsByIndex.value = Object.fromEntries(
         selected.map((ex, i) => [i, buildOptions(ex)] as const),
       )
+      currentIndex.value = 0
       state.value = 'quiz'
+      resetQuestionState()
     } catch {
       error.value = 'Não foi possível carregar o quiz.'
       state.value = 'locked'

@@ -61,6 +61,13 @@ export const setUnauthorizedHandler = (handler: () => void) => {
   _onUnauthorized = handler
 }
 
+export const publicFetch = async (path: string, options: RequestInit = {}) => {
+  if (!normalizedDirectusUrl) {
+    throw new Error('VITE_DIRECTUS_URL is not set.')
+  }
+  return fetch(`${normalizedDirectusUrl}${path}`, options)
+}
+
 export const authFetch = async (path: string, options: RequestInit = {}) => {
   if (!normalizedDirectusUrl) {
     throw new Error('VITE_DIRECTUS_URL is not set. Directus requests will fail.')
