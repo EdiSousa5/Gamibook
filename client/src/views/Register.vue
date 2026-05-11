@@ -70,7 +70,7 @@ const submit = async () => {
 </script>
 
 <template>
-  <section class="auth">
+  <section class="auth-layout">
     <UiCard class="card">
       <h1>Registo</h1>
       <p class="hint">Cria a tua conta e desbloqueia a aventura.</p>
@@ -81,6 +81,7 @@ const submit = async () => {
           @update="email = String($event)" />
         <UiInput label="Password" type="password" placeholder="Mínimo 8 caracteres" :model-value="password"
           @update="password = String($event)" />
+
         <label class="file">
           Avatar
           <input type="file" accept="image/*" @change="onAvatarChange" />
@@ -94,18 +95,33 @@ const submit = async () => {
 
         <UiButton class="cta" type="submit">Criar conta</UiButton>
       </form>
+
+      <p class="alt">
+        Já tens conta?
+        <RouterLink to="/login">Entra aqui</RouterLink>
+      </p>
     </UiCard>
   </section>
 </template>
 
 <style scoped>
-.auth {
+.auth-layout {
+  min-height: calc(100vh - 140px);
   display: grid;
   place-items: center;
+  padding: var(--space-400);
 }
 
 .card {
   width: min(440px, 100%);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.hint {
+  color: var(--color-mirage-600);
 }
 
 form {
@@ -149,5 +165,17 @@ form {
 .error {
   color: var(--color-error-strong);
   font-weight: 600;
+}
+
+.alt {
+  margin-top: 16px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.alt a {
+  color: var(--color-primary-strong);
+  font-weight: 600;
+  text-decoration: none;
 }
 </style>

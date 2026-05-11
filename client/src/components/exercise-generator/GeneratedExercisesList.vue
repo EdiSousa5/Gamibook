@@ -200,8 +200,7 @@ const canSave = computed(() => {
 
                         <!-- MODAL DE EDIÇÃO -->
                         <Teleport to="body">
-                            <div v-if="editingId === exercise.localId && editDraft" class="edit-overlay"
-                                @click.self="closeEdit">
+                            <div v-if="editingId === exercise.localId && editDraft" class="edit-overlay">
                                 <div class="edit-modal">
                                     <h3>Editar Exercício</h3>
 

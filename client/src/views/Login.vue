@@ -55,10 +55,10 @@ const submit = async () => {
 </script>
 
 <template>
-  <section class="auth">
+  <section class="auth-layout">
     <UiCard class="card">
       <h1>Login</h1>
-      <p class="hint">Entra para continuar a tua missão.</p>
+      <p class="hint">Bem-vindo de volta! Entra para continuares a tua missão.</p>
 
       <form @submit.prevent="submit">
         <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
@@ -81,13 +81,23 @@ const submit = async () => {
 </template>
 
 <style scoped>
-.auth {
+.auth-layout {
+  min-height: calc(100vh - 140px);
   display: grid;
   place-items: center;
+  padding: var(--space-400);
 }
 
 .card {
   width: min(420px, 100%);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+.hint {
+  color: var(--color-mirage-600);
 }
 
 form {

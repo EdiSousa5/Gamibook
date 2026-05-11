@@ -180,14 +180,6 @@ const canStartMode = (mode: SessionMode) => {
   return stats.total > 0 && stats.correct > 0
 }
 
-const recommendedMode = computed<SessionMode>(() => {
-  const stats = selectedModuleStats.value
-  if (!stats || stats.total === 0) return 'normal'
-  if (stats.correct >= stats.total) return 'review'
-  if (stats.wrong > 0) return 'retry'
-  return 'normal'
-})
-
 const openModeModal = (moduleId: number) => {
   const status = moduleStatus(moduleId)
   if (status === 'done') {
@@ -199,7 +191,7 @@ const openModeModal = (moduleId: number) => {
     return
   }
   selectedModuleId.value = moduleId
-  selectedMode.value = recommendedMode.value
+  selectedMode.value = 'normal'
   modeModalOpen.value = true
 }
 

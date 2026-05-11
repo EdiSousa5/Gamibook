@@ -33,11 +33,12 @@ defineProps<{
   position: relative;
   width: min(960px, 100%);
   margin: 0 auto;
+  padding-top: 40px;
 }
 
 .question-card__shadow {
   position: absolute;
-  inset: 12px 0 0;
+  inset: 52px 0 0;
   background: var(--color-deep-600);
   border-radius: 16px;
   z-index: 0;
