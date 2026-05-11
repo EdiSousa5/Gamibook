@@ -20,7 +20,7 @@ services:
     ports:
       - "8055:8055"
     volumes:
-      - ./uploads:/directus/uploads
+      - ./directus/uploads:/directus/uploads
     environment:
       KEY: "gamibook-vue-2026-supersecret"
       SECRET: "gamibook-directus-vue-project2026"
