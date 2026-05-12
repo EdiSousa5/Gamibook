@@ -15,7 +15,7 @@ services:
 
   # 2. Serviço de Backend e Gestão de Conteúdos
   directus:
-    image: directus/directus:11.5.1
+    image: directus/directus:10.13.3
     container_name: gamibook-directus
     ports:
       - "8055:8055"
