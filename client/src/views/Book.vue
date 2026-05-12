@@ -472,9 +472,9 @@ watch(
           <div class="mode-modal" role="dialog" aria-modal="true" aria-label="Escolher modo">
             <header class="mode-modal__header">
               <div class="mode-modal__text">
-                <p class="mode-modal__eyebrow">Exercicios do modulo</p>
+                <p class="mode-modal__eyebrow">Exercícios do módulo</p>
                 <h2>Escolhe o modo</h2>
-                <p>So ganhas XP nos exercicios que ainda nao estao corretos.</p>
+                <p>Só ganhas XP nos exercícios que ainda não estão correctos.</p>
               </div>
             </header>
 

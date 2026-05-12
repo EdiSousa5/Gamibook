@@ -9,7 +9,7 @@ const weeklySummary = ref(false)
 <template>
     <div class="settings-section">
         <div class="section-header">
-            <h2>Notificacoes</h2>
+            <h2>Notificações</h2>
             <p class="meta">Controla alertas e resumos.</p>
         </div>
 

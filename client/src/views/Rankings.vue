@@ -37,6 +37,7 @@ const TIME_FILTERS: Array<{ value: TimeFilter; label: string }> = [
 ]
 
 const topGlobal = ref<LeaderboardEntry[]>([])
+const currentUserEntry = ref<(LeaderboardEntry & { globalRank: number }) | null>(null)
 const error = ref('')
 const isLoading = ref(false)
 const isInitialLoad = ref(true)
@@ -85,7 +86,8 @@ const getRangeStartDate = (filter: TimeFilter) => {
 const podiumUsers = computed(() => topGlobal.value.slice(0, 3))
 const remainingUsersList = computed(() => topGlobal.value.slice(3))
 
-const isUserInList = computed(() => topGlobal.value.some(u => String(u.id) === String(currentUserId)))
+const isUserInTop = computed(() => topGlobal.value.some(u => String(u.id) === String(currentUserId)))
+const showUserBelowList = computed(() => !isUserInTop.value && currentUserEntry.value !== null)
 
 const scrollToMe = () => {
   if (!currentUserId) return
@@ -125,7 +127,7 @@ const loadRankings = async () => {
       }
     }
 
-    topGlobal.value = users
+    const sorted = users
       .map((user) => {
         const userId = String(user.id ?? '')
         const totalPoints = pointsMap.get(userId) ?? 0
@@ -134,7 +136,13 @@ const loadRankings = async () => {
         return { ...user, totalPoints, level, badgeCounts }
       })
       .sort((a, b) => b.totalPoints - a.totalPoints)
-      .slice(0, 50)
+
+    const userIdx = sorted.findIndex(u => String(u.id) === String(currentUserId))
+    currentUserEntry.value = userIdx >= 0
+      ? { ...sorted[userIdx]!, globalRank: userIdx + 1 }
+      : null
+
+    topGlobal.value = sorted.slice(0, 50)
   } catch {
     error.value = 'Não foi possível carregar os rankings.'
   } finally {
@@ -185,20 +193,38 @@ watch(timeFilter, () => {
       </section>
 
       <div class="list-container" :class="{ 'content-refreshing': isLoading }">
-        <UiCard v-if="remainingUsersList.length" class="list-card">
+        <UiCard v-if="remainingUsersList.length || showUserBelowList" class="list-card">
           <ul class="user-list">
             <RankingListItem v-for="(user, index) in remainingUsersList" :key="user.id || user.email || user.name"
               :id="`user-${user.id}`" :position="index + 4" :points="user.totalPoints" :level="user.level"
               :badgeCounts="user.badgeCounts" :isCurrentUser="String(user.id) === String(currentUserId)"
               :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)" />
           </ul>
+
+          <template v-if="showUserBelowList && currentUserEntry">
+            <div class="out-of-top-divider">
+              <span>. . .</span>
+            </div>
+            <ul class="user-list">
+              <RankingListItem
+                :id="`user-${currentUserEntry.id}`"
+                :position="currentUserEntry.globalRank"
+                :points="currentUserEntry.totalPoints"
+                :level="currentUserEntry.level"
+                :badgeCounts="currentUserEntry.badgeCounts"
+                :isCurrentUser="true"
+                :avatarUrl="getAvatarUrl(currentUserEntry)"
+                :displayName="displayUserName(currentUserEntry)"
+              />
+            </ul>
+          </template>
         </UiCard>
       </div>
     </template>
 
     <p v-else-if="!isLoading && !error" class="state">Sem utilizadores disponíveis.</p>
 
-    <div v-if="isUserInList" class="fab-container">
+    <div v-if="isUserInTop" class="fab-container">
       <UiButton variant="primary" class="fab-button" @click="scrollToMe">O Meu Lugar</UiButton>
     </div>
   </section>
@@ -298,6 +324,17 @@ watch(timeFilter, () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.out-of-top-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-200) 0;
+  color: var(--color-mirage-400);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 4px;
 }
 
 /* --- Botão Flutuante (FAB) --- */

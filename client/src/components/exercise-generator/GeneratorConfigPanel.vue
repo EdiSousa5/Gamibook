@@ -23,7 +23,7 @@ defineEmits<{
 </script>
 
 <template>
-    <UiCard class="config-panel sticky">
+    <UiCard class="config-panel">
         <div class="config-header">
             <div class="step-indicator">{{ generationMode === 'module' ? '4' : '3' }}</div>
             <h2>Configuração</h2>
@@ -76,11 +76,6 @@ defineEmits<{
 </template>
 
 <style scoped>
-.sticky {
-    position: sticky;
-    top: calc(var(--space-400));
-}
-
 .config-panel {
     background: var(--color-wild-100);
     border: 2px solid var(--color-mirage-900);

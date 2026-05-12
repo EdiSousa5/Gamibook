@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAdminUser } from '@/services/auth'
-import { getStoredUserId, getAccessToken } from '@/services/client'
+import { getStoredUserId, getAccessToken } from '@/services/storage'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({

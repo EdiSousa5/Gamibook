@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import AvatarFrameSelector from '@/components/AvatarFrameSelector.vue'
+import type { AvatarFrame } from '@/types/avatar'
+import { AVATAR_FRAMES } from '@/types/avatar'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
@@ -35,9 +38,9 @@ const searchValue = ref('')
 const modalOpen = ref(false)
 
 const selectOptions = [
-  { label: 'Nivel 1', value: 'level-1' },
-  { label: 'Nivel 2', value: 'level-2' },
-  { label: 'Nivel 3', value: 'level-3' },
+  { label: 'Nível 1', value: 'level-1' },
+  { label: 'Nível 2', value: 'level-2' },
+  { label: 'Nível 3', value: 'level-3' },
 ]
 
 const segmentedOptions = [
@@ -45,13 +48,11 @@ const segmentedOptions = [
   { label: 'Lista', value: 'list' },
 ]
 
-const dummyUsers = [
-  { id: '1', first_name: 'Ana', last_name: 'Silva', points: 1500 },
-  { id: '2', first_name: 'Bruno', last_name: 'Costa', points: 1200 },
-  { id: '3', first_name: 'Carlos', last_name: 'Santos', points: 1000 },
-  { id: '4', first_name: 'Diana', last_name: 'Martins', points: 800 },
-  { id: '5', first_name: 'Eduardo', last_name: 'Ferreira', points: 600 },
-]
+const selectedFrame = ref<AvatarFrame>('essence')
+const previewLevel = ref(5)
+const unlockedFrames = Object.keys(AVATAR_FRAMES).filter(
+  (id) => AVATAR_FRAMES[id as AvatarFrame].requiredLevel <= previewLevel.value,
+) as AvatarFrame[]
 </script>
 
 <template>
@@ -59,12 +60,12 @@ const dummyUsers = [
     <header class="hero">
       <p class="kicker">Sistema visual</p>
       <h1>Ui Kit Preview</h1>
-      <p class="subtitle">Componentes base com estados principais e combinacoes de estilo.</p>
+      <p class="subtitle">Componentes base com estados principais e combinações de estilo.</p>
     </header>
 
     <div class="grid">
       <UiCard class="card-wide">
-        <h2>Botoes</h2>
+        <h2>Botões</h2>
         <div class="button-group">
           <span class="tag">Variantes</span>
           <div class="button-grid">
@@ -83,7 +84,7 @@ const dummyUsers = [
           </div>
         </div>
         <div class="button-group">
-          <span class="tag">Icones</span>
+          <span class="tag">Ícones</span>
           <div class="row">
             <UiIconButton size="sm" aria-label="Adicionar">+</UiIconButton>
             <UiIconButton size="md" aria-label="Adicionar">+</UiIconButton>
@@ -106,7 +107,7 @@ const dummyUsers = [
         <h2>Inputs</h2>
         <div class="column">
           <UiInput label="Nome" placeholder="O teu nome" :model-value="inputValue" @update="inputValue = $event" />
-          <UiTextarea label="Descricao" placeholder="Escreve um resumo curto" :model-value="textareaValue"
+          <UiTextarea label="Descrição" placeholder="Escreve um resumo curto" :model-value="textareaValue"
             @update="textareaValue = $event" />
           <UiSelect label="Nivel" :options="selectOptions" :model-value="selectValue" @update="selectValue = $event" />
           <label class="file-field">
@@ -126,13 +127,13 @@ const dummyUsers = [
         <div class="column">
           <UiCheckbox label="Aceito os termos" :model-value="checkboxValue" @update="checkboxValue = $event" />
           <UiCheckbox tone="accent" label="Newsletter" :model-value="checkboxValue" @update="checkboxValue = $event" />
-          <UiRadio name="demo" label="Opcao A" value="a" :model-value="radioValue" @update="radioValue = $event" />
-          <UiRadio name="demo" label="Opcao B" value="b" :model-value="radioValue" @update="radioValue = $event" />
-          <UiRadio name="demo" label="Opcao C" value="c" tone="accent" :model-value="radioValue"
+          <UiRadio name="demo" label="Opção A" value="a" :model-value="radioValue" @update="radioValue = $event" />
+          <UiRadio name="demo" label="Opção B" value="b" :model-value="radioValue" @update="radioValue = $event" />
+          <UiRadio name="demo" label="Opção C" value="c" tone="accent" :model-value="radioValue"
             @update="radioValue = $event" />
           <div class="row">
             <UiSwitch :model-value="switchValue" @update="switchValue = $event" />
-            <span class="helper">Notificacoes ativas</span>
+            <span class="helper">Notificações activas</span>
           </div>
           <div class="row">
             <UiSwitch size="sm" tone="accent" :model-value="switchValueAlt" @update="switchValueAlt = $event" />
@@ -177,56 +178,34 @@ const dummyUsers = [
       </UiCard>
 
       <UiCard class="card-wide">
-        <h2>Avatar Frames (Customizacoes desbloqueadas por nivel)</h2>
-        <div class="frame-section">
-          <div class="frame-category">
-            <span class="tag">Basicos (Nivel 1+)</span>
-            <div class="frame-row">
-              <div class="frame-item">
-                <UiAvatar alt="E" :size="80" frame="essence" />
-                <span class="frame-level">Essence</span>
-                <span class="frame-desc">Elegância pura</span>
-              </div>
-              <div class="frame-item">
-                <UiAvatar alt="B" :size="80" frame="bloom" />
-                <span class="frame-level">Bloom</span>
-                <span class="frame-desc">Flores desabrocham</span>
-              </div>
-            </div>
+        <h2>Seletor de Frame de Avatar</h2>
+        <p class="frame-preview-hint">
+          Simulação com nível {{ previewLevel }} — frames desbloqueados até ao nível atual aparecem activos.
+        </p>
+        <div class="frame-level-picker">
+          <span class="tag">Nível de pré-visualização</span>
+          <div class="frame-level-options">
+            <button v-for="lvl in [1, 3, 5, 7, 11, 15]" :key="lvl"
+              class="frame-lvl-btn" :class="{ active: previewLevel === lvl }"
+              @click="previewLevel = lvl">
+              Nível {{ lvl }}
+            </button>
           </div>
-          <div class="frame-category">
-            <span class="tag">Premium (Nivel 5+)</span>
-            <div class="frame-row">
-              <div class="frame-item">
-                <UiAvatar alt="Em" :size="80" frame="ember" />
-                <span class="frame-level">Ember</span>
-                <span class="frame-desc">Chamas dançantes</span>
-              </div>
-              <div class="frame-item">
-                <UiAvatar alt="Au" :size="80" frame="aurora" />
-                <span class="frame-level">Aurora</span>
-                <span class="frame-desc">Aurora boreal</span>
-              </div>
-            </div>
-          </div>
-          <div class="frame-category">
-            <span class="tag">Epicos (Nivel 9+)</span>
-            <div class="frame-row">
-              <div class="frame-item">
-                <UiAvatar alt="N" :size="80" frame="nebula" />
-                <span class="frame-level">Nebula</span>
-                <span class="frame-desc">Nebulosa cósmica</span>
-              </div>
-              <div class="frame-item">
-                <UiAvatar alt="Et" :size="80" frame="ethereal" />
-                <span class="frame-level">Ethereal</span>
-                <span class="frame-desc">Aura etérea</span>
-              </div>
-              <div class="frame-item">
-                <UiAvatar alt="V" :size="80" frame="void" />
-                <span class="frame-level">Void</span>
-                <span class="frame-desc">O abismo infinito</span>
-              </div>
+        </div>
+        <AvatarFrameSelector
+          :model-value="selectedFrame"
+          :unlocked-frames="unlockedFrames"
+          :user-level="previewLevel"
+          alt="G"
+          @update="selectedFrame = $event"
+        />
+        <div class="frame-selected-preview">
+          <span class="tag">Frame seleccionado</span>
+          <div class="frame-selected-row">
+            <UiAvatar alt="G" :size="80" :frame="selectedFrame" />
+            <div class="frame-selected-info">
+              <strong>{{ AVATAR_FRAMES[selectedFrame].name }}</strong>
+              <span>{{ AVATAR_FRAMES[selectedFrame].description }}</span>
             </div>
           </div>
         </div>
@@ -256,8 +235,8 @@ const dummyUsers = [
             <span class="badge-label">Diamante — 100%</span>
           </div>
           <div class="badge-book-item">
-            <BookMockup title="Galaxia" badge="galaxy" />
-            <span class="badge-label">Galaxia — Quiz</span>
+            <BookMockup title="Galáxia" badge="galaxy" />
+            <span class="badge-label">Galáxia — Quiz</span>
           </div>
         </div>
         <div class="badge-standalone-row">
@@ -279,13 +258,13 @@ const dummyUsers = [
           </div>
           <div class="badge-standalone-item">
             <BookBadge tier="galaxy" />
-            <span class="badge-label">Galaxia</span>
+            <span class="badge-label">Galáxia</span>
           </div>
         </div>
       </UiCard>
 
       <UiCard>
-        <h2>Notificacoes</h2>
+        <h2>Notificações</h2>
         <div class="notification-list">
           <div class="notification info">
             <BellAlertIcon class="notification-icon" aria-hidden="true" />
@@ -319,7 +298,7 @@ const dummyUsers = [
             <p>Resumo curto com pontos chave e estado.</p>
             <div class="row">
               <UiChip label="Novidade" />
-              <UiChip label="Nivel 2" variant="filled" />
+              <UiChip label="Nível 2" variant="filled" />
             </div>
           </article>
           <article class="sample-card alt">
@@ -331,7 +310,7 @@ const dummyUsers = [
       </UiCard>
 
       <UiCard class="card-wide">
-        <h2>Exercicios</h2>
+        <h2>Exercícios</h2>
         <div class="exercise-preview">
           <div class="exercise-question">
             <div class="exercise-question-shadow"></div>
@@ -407,7 +386,7 @@ const dummyUsers = [
       </UiCard>
 
       <UiCard>
-        <h2>Modais</h2>
+        <h2>Modais e Diálogos</h2>
         <div class="row">
           <UiPillButton variant="primary" @click="modalOpen = true">Abrir modal</UiPillButton>
         </div>
@@ -1144,25 +1123,74 @@ h2 {
   text-align: center;
 }
 
-.frame-item {
-  display: grid;
-  gap: var(--space-150);
-  justify-items: center;
+.frame-preview-hint {
+  margin: 0 0 var(--space-300);
+  font-size: 13px;
+  color: var(--color-mirage-500);
 }
 
-.frame-level {
+.frame-level-picker {
+  display: grid;
+  gap: var(--space-200);
+  margin-bottom: var(--space-400);
+}
+
+.frame-level-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-200);
+}
+
+.frame-lvl-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-mirage-600);
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.frame-desc {
-  font-size: 10px;
+.frame-lvl-btn:hover {
+  background: var(--color-wild-200);
+  transform: translateY(-1px);
+}
+
+.frame-lvl-btn.active {
+  background: var(--color-teal-500);
+  color: var(--color-wild-100);
+  border-color: var(--color-teal-700);
+}
+
+.frame-selected-preview {
+  display: grid;
+  gap: var(--space-300);
+  margin-top: var(--space-400);
+  padding-top: var(--space-400);
+  border-top: 2px dashed var(--color-mirage-200);
+}
+
+.frame-selected-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-400);
+}
+
+.frame-selected-info {
+  display: grid;
+  gap: 4px;
+}
+
+.frame-selected-info strong {
+  font-size: 16px;
+  color: var(--color-mirage-800);
+}
+
+.frame-selected-info span {
+  font-size: 13px;
   color: var(--color-mirage-500);
-  text-align: center;
 }
 
 @media (max-width: 720px) {

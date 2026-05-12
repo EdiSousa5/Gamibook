@@ -22,7 +22,7 @@ const loadUser = async () => {
     try {
         user.value = await fetchUserById(storedId)
     } catch {
-        error.value = 'Nao foi possivel carregar os dados do utilizador.'
+        error.value = 'Não foi possível carregar os dados do utilizador.'
     }
 }
 

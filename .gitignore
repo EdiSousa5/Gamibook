@@ -40,3 +40,6 @@ __screenshots__/
 
 # Directus uploaded files
 directus/uploads/
+
+# Flowise dados gerados automaticamente
+docker/flowise_data/

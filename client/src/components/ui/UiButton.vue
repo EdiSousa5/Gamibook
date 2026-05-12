@@ -7,6 +7,7 @@ type Props = {
   size?: Size
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
+  loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -14,21 +15,25 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   type: 'button',
   disabled: false,
+  loading: false,
 })
 </script>
 
 <template>
-  <button :type="props.type" class="ui-button" :class="[variant, size]" :disabled="disabled">
+  <button :type="props.type" class="ui-button" :class="[variant, size, { loading }]" :disabled="disabled || loading">
     <span class="ui-button-rect" aria-hidden="true">
       <span class="ui-button-shadow"></span>
       <span class="ui-button-surface"></span>
     </span>
     <span class="ui-button-content">
-      <slot name="icon-left"></slot>
+      <span v-if="loading" class="ui-button-spinner" aria-hidden="true"></span>
+      <template v-else>
+        <slot name="icon-left"></slot>
+      </template>
       <span class="ui-button-label">
         <slot />
       </span>
-      <slot name="icon-right"></slot>
+      <slot v-if="!loading" name="icon-right"></slot>
     </span>
   </button>
 </template>
@@ -192,5 +197,19 @@ const props = withDefaults(defineProps<Props>(), {
 
 .ui-button:disabled .ui-button-surface {
   background: var(--color-wild-600);
+}
+
+.ui-button-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ui-btn-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ui-btn-spin {
+  to { transform: rotate(360deg); }
 }
 </style>
