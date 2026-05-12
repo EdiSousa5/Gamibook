@@ -21,7 +21,7 @@ const isFirst = computed(() => props.position === 1)
                 <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
                     :size="isFirst ? 190 : (position === 2 ? 160 : 140)" />
                 <div class="place-badge">#{{ position }}</div>
-                <div class="level-pill">Nivel {{ level }}</div>
+                <div class="level-pill">Nível {{ level }}</div>
             </div>
             <p class="name">{{ displayName }}</p>
             <div class="points-pill">

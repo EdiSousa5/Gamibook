@@ -12,14 +12,16 @@ import {
 } from '../../services/auth'
 import { getAssetUrl } from '../../services/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import type { User } from '@/types'
 
 const auth = useAuthStore()
+const { error: toastError, success: toastSuccess } = useToast()
 
 const user = ref<User | null>(null)
 const name = ref('')
-const error = ref('')
 const isLoading = ref(false)
+const isSaving = ref(false)
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
 const fileName = ref('Nenhum ficheiro escolhido')
@@ -49,39 +51,49 @@ const loadProfile = async () => {
         return
     }
 
-    error.value = ''
     isLoading.value = true
     try {
         const me = await fetchUserById(storedId)
         user.value = me
         name.value = [me.first_name, me.last_name].filter(Boolean).join(' ').trim() || ''
     } catch {
-        error.value = 'Nao foi possivel carregar o perfil.'
+        toastError('Não foi possível carregar o perfil.')
     } finally {
         isLoading.value = false
     }
 }
 
 const saveProfile = async () => {
-    error.value = ''
     if (!user.value?.id) return
     const trimmedName = name.value.trim()
     const [firstName, ...rest] = trimmedName.split(' ').filter(Boolean)
     const lastName = rest.join(' ') || undefined
+
+    isSaving.value = true
     try {
         user.value = await updateUser(user.value.id, {
             first_name: firstName || undefined,
             last_name: lastName,
         })
         if (avatarFile.value) {
-            const avatarId = await uploadUserAvatar(String(user.value.id), avatarFile.value)
-            user.value = { ...user.value, avatar: avatarId }
-            avatarFile.value = null
-            avatarPreview.value = ''
+            try {
+                const avatarId = await uploadUserAvatar(String(user.value.id), avatarFile.value)
+                user.value = { ...user.value, avatar: avatarId }
+                avatarFile.value = null
+                avatarPreview.value = ''
+                fileName.value = 'Nenhum ficheiro escolhido'
+            } catch {
+                toastError('Perfil guardado, mas não foi possível carregar o avatar.')
+                await auth.loadUser()
+                return
+            }
         }
         await auth.loadUser()
+        toastSuccess('Perfil guardado com sucesso.')
     } catch {
-        error.value = 'Nao foi possivel guardar o perfil.'
+        toastError('Não foi possível guardar o perfil.')
+    } finally {
+        isSaving.value = false
     }
 }
 
@@ -110,8 +122,7 @@ onMounted(loadProfile)
                 <UiAvatar :src="avatar" alt="Avatar" :size="96" />
             </div>
             <p v-if="isLoading" class="state">A carregar perfil...</p>
-            <p v-else-if="error" class="state error">{{ error }}</p>
-            <UiButton type="button" class="cta" @click="saveProfile">Guardar</UiButton>
+            <UiButton type="button" class="cta" :loading="isSaving" @click="saveProfile">Guardar</UiButton>
         </div>
     </div>
 </template>
@@ -211,9 +222,5 @@ onMounted(loadProfile)
 .state {
     font-weight: 600;
     color: var(--color-mirage-500);
-}
-
-.error {
-    color: var(--color-error-strong);
 }
 </style>

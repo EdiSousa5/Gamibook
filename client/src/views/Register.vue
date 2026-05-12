@@ -6,15 +6,18 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { loginUser, registerUser, uploadUserAvatar } from '../services/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { error: toastError, success: toastSuccess } = useToast()
 const name = ref('')
 const email = ref('')
 const password = ref('')
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
 const error = ref('')
+const isLoading = ref(false)
 
 const onAvatarChange = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -43,28 +46,48 @@ const submit = async () => {
   if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
   if (!cleanPassword || cleanPassword.length < 8) { error.value = 'Password demasiado curta (mínimo 8 caracteres).'; return }
 
+  isLoading.value = true
   try {
     await registerUser({ name: cleanName, email: cleanEmail, password: cleanPassword })
+
     let loggedUser = null
     try {
       loggedUser = await loginUser(cleanEmail, cleanPassword)
-    } catch (loginError) {
-      console.warn('[register] login after registration failed', loginError)
+    } catch {
+      // O Directus pode demorar um momento a activar a conta — tenta uma vez mais
+      await new Promise((r) => setTimeout(r, 1500))
+      try {
+        loggedUser = await loginUser(cleanEmail, cleanPassword)
+      } catch {
+        // Sem sucesso após retry — redireciona para login com aviso
+      }
     }
 
     if (!loggedUser?.id) {
+      toastSuccess('Conta criada com sucesso! Por favor, entra com as tuas credenciais.')
       await router.push({ path: '/login', query: { registered: '1' } })
       return
     }
 
     if (avatarFile.value) {
-      await uploadUserAvatar(String(loggedUser.id), avatarFile.value)
+      try {
+        await uploadUserAvatar(String(loggedUser.id), avatarFile.value)
+      } catch {
+        toastError('Conta criada, mas não foi possível carregar o avatar.')
+      }
     }
+
     await auth.loadUser()
     await router.push('/app')
   } catch (err) {
-    console.error('[register] failed', err)
-    error.value = 'Não foi possível criar conta.'
+    const msg = err instanceof Error ? err.message : ''
+    if (msg.toLowerCase().includes('already')) {
+      error.value = 'Já existe uma conta com este email.'
+    } else {
+      error.value = 'Não foi possível criar conta.'
+    }
+  } finally {
+    isLoading.value = false
   }
 }
 </script>
@@ -93,7 +116,7 @@ const submit = async () => {
 
         <p v-if="error" class="error">{{ error }}</p>
 
-        <UiButton class="cta" type="submit">Criar conta</UiButton>
+        <UiButton class="cta" type="submit" :loading="isLoading">Criar conta</UiButton>
       </form>
 
       <p class="alt">

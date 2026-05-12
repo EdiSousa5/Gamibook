@@ -216,7 +216,7 @@ onMounted(async () => {
     allBooks.value = isAdminUser(me) ? await fetchBooks() : await fetchApprovedBooks()
     selectedBookId.value = ownedBooks.value[0]?.book_id ?? null
   } catch {
-    error.value = 'Nao foi possivel carregar a tua colecao.'
+    error.value = 'Não foi possível carregar a tua coleção.'
   } finally {
     isLoading.value = false
   }
@@ -233,7 +233,7 @@ onUnmounted(() => {
     <div class="header">
       <div>
         <h1>Catalogo de Livros</h1>
-        <p class="meta">O teu livro principal, os livros que tens e os que ainda nao tens.</p>
+        <p class="meta">O teu livro principal, os livros que tens e os que ainda não tens.</p>
       </div>
     </div>
 

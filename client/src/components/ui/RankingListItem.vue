@@ -25,7 +25,7 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
                 <div class="user-text">
                     <span class="name">{{ displayName }}</span>
                     <div class="meta-row">
-                        <span class="level">Nivel {{ level }}</span>
+                        <span class="level">Nível {{ level }}</span>
                     </div>
                 </div>
             </div>

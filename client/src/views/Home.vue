@@ -53,7 +53,14 @@ onMounted(async () => {
   try {
     const books = await fetchPublicApprovedBooks()
     if (!books.length) return
-    bookList.value = [...books].sort(() => 0.5 - Math.random()).map(b => ({
+    const shuffled = [...books]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const tmp = shuffled[i]!
+      shuffled[i] = shuffled[j]!
+      shuffled[j] = tmp
+    }
+    bookList.value = shuffled.map(b => ({
       title: b.title ?? '',
       coverUrl: b.cover_img ? getAssetUrl(b.cover_img) : null,
     }))

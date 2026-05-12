@@ -19,9 +19,9 @@ defineEmits<{
 
 const framesByCategory = computed(() => {
   const categories = {
-    basic: { frames: [] as AvatarFrame[], label: 'Basicos (Nivel 1+)' },
-    premium: { frames: [] as AvatarFrame[], label: 'Premium (Nivel 5+)' },
-    epic: { frames: [] as AvatarFrame[], label: 'Epicos (Nivel 10+)' },
+    basic: { frames: [] as AvatarFrame[], label: 'Básicos (Nível 1+)' },
+    premium: { frames: [] as AvatarFrame[], label: 'Premium (Nível 5+)' },
+    epic: { frames: [] as AvatarFrame[], label: 'Épicos (Nível 10+)' },
   }
 
   const frames = Object.keys(AVATAR_FRAMES) as AvatarFrame[]
@@ -52,7 +52,7 @@ const isFrameLocked = (frameId: AvatarFrame): boolean => {
             <div class="frame-info">
               <span class="frame-name">{{ AVATAR_FRAMES[frameId].name }}</span>
               <span v-if="isFrameLocked(frameId)" class="frame-status locked">
-                Bloqueado - Nivel {{ AVATAR_FRAMES[frameId].requiredLevel }}
+                Bloqueado — Nível {{ AVATAR_FRAMES[frameId].requiredLevel }}
               </span>
               <span v-else class="frame-status unlocked">Desbloqueado</span>
             </div>

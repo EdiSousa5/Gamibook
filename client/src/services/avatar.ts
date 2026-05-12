@@ -27,7 +27,7 @@ export const fetchUserAvatarCustomization = async (
 export const createUserAvatarCustomization = async (
   userId: string,
   unlockedFrames: AvatarFrame[],
-  activeFrame: AvatarFrame = 'classic',
+  activeFrame: AvatarFrame = 'essence',
 ): Promise<UserAvatarCustomization> => {
   const body = {
     userId,

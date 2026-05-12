@@ -29,6 +29,7 @@ import {
 } from '../services/exercises'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { BADGE_TIERS, TIER_LABELS, TIER_DESCS } from '@/utils/badgeTiers'
 import type { Book, DailyExercise, UserBook } from '@/types'
 
 const auth = useAuthStore()
@@ -67,17 +68,7 @@ const progressPct = computed(() =>
     : 0,
 )
 
-const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'galaxy']
-const TIER_LABELS: Record<BookBadgeTier, string> = {
-  bronze: 'Bronze', silver: 'Prata', gold: 'Ouro', diamond: 'Diamante', galaxy: 'Galáxia',
-}
-const TIER_DESCS: Record<BookBadgeTier, string> = {
-  bronze: 'Acerta ≥ 25% dos exercícios',
-  silver: 'Acerta ≥ 50% dos exercícios',
-  gold: 'Acerta ≥ 75% dos exercícios',
-  diamond: 'Acerta 100% dos exercícios',
-  galaxy: 'Completa o Quiz Final',
-}
+
 
 const badgeCounts = computed(() => {
   const counts: Record<BookBadgeTier, number> = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
@@ -187,7 +178,8 @@ const loadRecentBook = async (userId: string) => {
   try {
     const latestEx = await fetchLatestUserExercise(userId).catch(() => null)
     if (latestEx?.module_id) {
-      const modData = await fetchModule(latestEx.module_id).catch(() => null)
+      const moduleId = typeof latestEx.module_id === 'object' ? latestEx.module_id.modules_id : latestEx.module_id
+      const modData = await fetchModule(moduleId).catch(() => null)
       if (modData?.id_book) {
         const ub = userBooks.value.find(b => (b.book_id as any)?.book_id === modData.id_book)
         if (ub) {
@@ -342,6 +334,10 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="dailyStatus === 'ready'" class="daily-body">
+          <div v-if="dailyStreak > 0" class="streak-warning" role="alert">
+            <FireIcon class="streak-warning-icon" aria-hidden="true" />
+            <p>O teu streak de <strong>{{ dailyStreak }} {{ dailyStreak === 1 ? 'dia' : 'dias' }}</strong> expira hoje se não responderes!</p>
+          </div>
           <div class="daily-available">
             <div class="daily-icon-wrap" aria-hidden="true">
               <QuestionMarkCircleIcon class="daily-icon" />
@@ -775,6 +771,29 @@ onUnmounted(() => {
 }
 
 /* Ready state */
+.streak-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  padding: var(--space-250) var(--space-300);
+  border-radius: 12px;
+  border: 2px solid #d97706;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+}
+
+.streak-warning p {
+  margin: 0;
+}
+
+.streak-warning-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #d97706;
+}
+
 .daily-available {
   display: flex;
   align-items: center;

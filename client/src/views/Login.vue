@@ -13,6 +13,7 @@ const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
+const isLoading = ref(false)
 
 const redirectPath = computed(() => {
   const r = route.query.redirect as string | undefined
@@ -40,6 +41,7 @@ const submit = async () => {
   if (!cleanPassword) { error.value = 'Preenche a password.'; return }
   if (cleanPassword.length < 6) { error.value = 'Password demasiado curta.'; return }
 
+  isLoading.value = true
   try {
     const loggedUser = await loginUser(cleanEmail, cleanPassword)
     if (!loggedUser?.id) {
@@ -50,6 +52,8 @@ const submit = async () => {
     await router.push(redirectPath.value)
   } catch {
     error.value = 'Não foi possível iniciar sessão.'
+  } finally {
+    isLoading.value = false
   }
 }
 </script>
@@ -69,7 +73,7 @@ const submit = async () => {
         <p v-if="info" class="info">{{ info }}</p>
         <p v-if="error" class="error">{{ error }}</p>
 
-        <UiButton class="cta" type="submit">Entrar</UiButton>
+        <UiButton class="cta" type="submit" :loading="isLoading">Entrar</UiButton>
       </form>
 
       <p class="alt">

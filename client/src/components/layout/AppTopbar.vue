@@ -241,7 +241,7 @@ watch(
           <UiAvatar :alt="initials" :size="44" :src="avatarUrl" />
           <div v-if="!isAdmin" class="profile-details">
             <div class="level-row">
-              <span>Nivel {{ level ?? '-' }}</span>
+              <span>Nível {{ level ?? '-' }}</span>
               <span>{{ progressLabel }}</span>
             </div>
             <div class="level-bar">
