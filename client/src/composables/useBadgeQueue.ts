@@ -3,6 +3,15 @@ import type { ComputedRef, Ref } from 'vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import { checkAndUpdateBadge, TIER_ORDER } from '@/services/badges'
 import type { BadgeTierOrDefault } from '@/services/badges'
+import { useNotificationsStore } from '@/stores/notifications'
+
+const BADGE_NOTIF: Record<string, { title: string; message: string }> = {
+  bronze:  { title: 'Badge Bronze desbloqueado!',   message: 'Chegaste a 25% dos exercícios certos neste livro.' },
+  silver:  { title: 'Badge Prata desbloqueado!',    message: 'Chegaste a 50% dos exercícios certos neste livro.' },
+  gold:    { title: 'Badge Ouro desbloqueado!',     message: 'Chegaste a 75% dos exercícios certos neste livro.' },
+  diamond: { title: 'Badge Diamante desbloqueado!', message: 'Completaste 100% dos exercícios. Quiz final disponível!' },
+  galaxy:  { title: 'Badge Galaxy conquistado!',    message: 'Passaste o quiz final. Parabéns pelo feito máximo!' },
+}
 
 export function useBadgeQueue(
   userId: Ref<string | null>,
@@ -10,6 +19,7 @@ export function useBadgeQueue(
   isLevelUpQueued: Ref<boolean>,
   initialBadge: Ref<string>,
 ) {
+  const notifStore = useNotificationsStore()
   const badgeQueue = ref<BookBadgeTier[]>([])
   const showBadgeModal = computed(() => badgeQueue.value.length > 0)
   const earnedBadgeTier = computed<BookBadgeTier | null>(() => badgeQueue.value[0] ?? null)
@@ -28,6 +38,19 @@ export function useBadgeQueue(
     if (earned.length > 0) {
       const delay = isLevelUpQueued.value ? 6000 : 1000
       setTimeout(() => { badgeQueue.value = [...badgeQueue.value, ...earned] }, delay)
+
+      if (userId.value) {
+        for (const tier of earned) {
+          const notif = BADGE_NOTIF[tier]
+          if (notif) {
+            notifStore.add({
+              user: userId.value,
+              ...notif,
+              type: 'achievement',
+            })
+          }
+        }
+      }
     }
   }
 

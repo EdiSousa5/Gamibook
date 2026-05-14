@@ -205,6 +205,10 @@ onMounted(async () => {
     userBooks.value = books
     await loadRecentBook(userId)
     await loadDailyStatus(userId, books)
+    if (dailyStatus.value === 'ready' && dailyStreak.value > 0) {
+      const n = dailyStreak.value
+      toast.warning(`O teu streak de ${n} ${n === 1 ? 'dia' : 'dias'} expira hoje se não responderes!`, 6000)
+    }
   } catch {
     toast.error('Não foi possível carregar o dashboard.')
   } finally {
@@ -334,10 +338,6 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="dailyStatus === 'ready'" class="daily-body">
-          <div v-if="dailyStreak > 0" class="streak-warning" role="alert">
-            <FireIcon class="streak-warning-icon" aria-hidden="true" />
-            <p>O teu streak de <strong>{{ dailyStreak }} {{ dailyStreak === 1 ? 'dia' : 'dias' }}</strong> expira hoje se não responderes!</p>
-          </div>
           <div class="daily-available">
             <div class="daily-icon-wrap" aria-hidden="true">
               <QuestionMarkCircleIcon class="daily-icon" />
@@ -771,29 +771,6 @@ onUnmounted(() => {
 }
 
 /* Ready state */
-.streak-warning {
-  display: flex;
-  align-items: center;
-  gap: var(--space-200);
-  padding: var(--space-250) var(--space-300);
-  border-radius: 12px;
-  border: 2px solid #d97706;
-  background: #fffbeb;
-  color: #92400e;
-  font-size: 13px;
-}
-
-.streak-warning p {
-  margin: 0;
-}
-
-.streak-warning-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: #d97706;
-}
-
 .daily-available {
   display: flex;
   align-items: center;

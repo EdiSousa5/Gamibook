@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useNotificationsStore } from '@/stores/notifications'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
@@ -28,7 +29,7 @@ import type { BadgeTierOrDefault } from '../services/badges'
 import { fetchLatestFinalQuizAttempt, getCooldownUntil } from '../services/finalQuiz'
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { useToast } from '@/composables/useToast'
-import ModeCard from '@/components/ui/ModeCard.vue'
+import BookModeModal from '@/components/ui/BookModeModal.vue'
 import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
@@ -52,6 +53,17 @@ const selectedModuleId = ref<number | null>(null)
 const selectedMode = ref<SessionMode>('normal')
 
 const quizCooldownUntil = ref<Date | null>(null)
+const quizSectionRef = ref<HTMLElement | null>(null)
+const notifStore = useNotificationsStore()
+const quizRevealPhase = ref<'idle' | 'reveal' | 'unlocked'>('idle')
+
+const quizCardClass = computed(() => {
+  if (quizCompleted.value) return 'quiz-card--done'
+  if (quizInCooldown.value) return 'quiz-card--cooldown'
+  if (quizRevealPhase.value === 'reveal') return 'quiz-card--reveal'
+  if (quizRevealPhase.value === 'unlocked') return 'quiz-card--unlocked'
+  return 'quiz-card--locked'
+})
 
 const quizInCooldown = computed(
   () => quizCooldownUntil.value !== null && quizCooldownUntil.value.getTime() > Date.now(),
@@ -162,23 +174,6 @@ const selectedModuleStats = computed(() =>
   selectedModuleId.value ? moduleStats.value[selectedModuleId.value] ?? null : null,
 )
 
-const modeCounts = computed(() => {
-  const stats = selectedModuleStats.value
-  if (!stats) return { normal: 0, retry: 0, review: 0 }
-  return {
-    normal: stats.remaining + stats.wrong,
-    retry: stats.wrong,
-    review: stats.correct,
-  }
-})
-
-const canStartMode = (mode: SessionMode) => {
-  const stats = selectedModuleStats.value
-  if (!stats) return false
-  if (mode === 'normal') return modeCounts.value.normal > 0
-  if (mode === 'retry') return modeCounts.value.retry > 0
-  return stats.total > 0 && stats.correct > 0
-}
 
 const openModeModal = (moduleId: number) => {
   const status = moduleStatus(moduleId)
@@ -199,13 +194,42 @@ const closeModeModal = () => {
   modeModalOpen.value = false
 }
 
-const startSelectedModule = () => {
+const startSelectedModule = (mode: SessionMode) => {
   if (!selectedModuleId.value) return
-  if (!canStartMode(selectedMode.value)) return
-  const target = `/book/${bookId.value}/module/${selectedModuleId.value}?mode=${selectedMode.value}`
+  const target = `/book/${bookId.value}/module/${selectedModuleId.value}?mode=${mode}`
   modeModalOpen.value = false
   router.push(target)
 }
+
+watch(isLoading, async (loading) => {
+  if (loading) return
+  if (!quizUnlocked.value) {
+    quizRevealPhase.value = 'idle'
+    return
+  }
+  const seenKey = `galaxy-unlock-seen-${bookId.value}`
+  if (localStorage.getItem(seenKey)) {
+    quizRevealPhase.value = 'unlocked'
+    return
+  }
+  const userId = getStoredUserId()
+  if (userId) {
+    notifStore.add({
+      user: userId,
+      title: 'Quiz Final desbloqueado!',
+      message: 'Completaste 100% dos exercícios. Faz o quiz final para ganhar o badge Galaxy.',
+      type: 'quiz_ready',
+    })
+  }
+
+  await nextTick()
+  quizSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  await new Promise(r => setTimeout(r, 850))
+  quizRevealPhase.value = 'reveal'
+  await new Promise(r => setTimeout(r, 900))
+  quizRevealPhase.value = 'unlocked'
+  localStorage.setItem(seenKey, '1')
+})
 
 watch(
   bookId,
@@ -260,7 +284,7 @@ watch(
             const newRank = TIER_ORDER.indexOf(expectedTier as BadgeTierOrDefault)
 
             await updateUserBookBadge(userBookData.user_book_id, expectedTier)
-            userBookData.current_badge = expectedTier
+            userBook.value!.current_badge = expectedTier
 
             const toast = useToast()
             if (newRank < oldRank) {
@@ -466,75 +490,14 @@ watch(
       </div>
     </section>
 
-    <Teleport to="body">
-      <Transition name="overlay-fade">
-        <div v-if="modeModalOpen" class="mode-overlay" @click.self="closeModeModal">
-          <div class="mode-modal" role="dialog" aria-modal="true" aria-label="Escolher modo">
-            <header class="mode-modal__header">
-              <div class="mode-modal__text">
-                <p class="mode-modal__eyebrow">Exercícios do módulo</p>
-                <h2>Escolhe o modo</h2>
-                <p>Só ganhas XP nos exercícios que ainda não estão correctos.</p>
-              </div>
-            </header>
-
-            <div class="mode-stats">
-              <div class="mode-stat">
-                <span>Total</span>
-                <strong>{{ selectedModuleStats?.total ?? 0 }}</strong>
-              </div>
-              <div class="mode-stat">
-                <span>Certas</span>
-                <strong>{{ selectedModuleStats?.correct ?? 0 }}</strong>
-              </div>
-              <div class="mode-stat">
-                <span>Erradas</span>
-                <strong>{{ selectedModuleStats?.wrong ?? 0 }}</strong>
-              </div>
-              <div class="mode-stat">
-                <span>Por fazer</span>
-                <strong>{{ selectedModuleStats?.remaining ?? 0 }}</strong>
-              </div>
-            </div>
-
-            <div class="mode-grid">
-              <ModeCard
-                title="Normal"
-                description="Inclui exercicios novos e aqueles que erraste."
-                :count="modeCounts.normal"
-                :active="selectedMode === 'normal'"
-                :disabled="!canStartMode('normal')"
-                @select="selectedMode = 'normal'"
-              />
-              <ModeCard
-                title="Repetir errados"
-                description="Foca-te apenas nos exercicios onde falhaste. Sem XP neste modo."
-                :count="modeCounts.retry"
-                :active="selectedMode === 'retry'"
-                :disabled="!canStartMode('retry')"
-                @select="selectedMode = 'retry'"
-              />
-              <ModeCard
-                title="Rever"
-                description="Rever os exercicios que ja tens corretos."
-                :count="modeCounts.review"
-                :active="selectedMode === 'review'"
-                :disabled="!canStartMode('review')"
-                @select="selectedMode = 'review'"
-              />
-            </div>
-
-            <div class="mode-actions">
-              <UiButton variant="outline" @click="closeModeModal">Fechar</UiButton>
-              <UiButton variant="primary" :disabled="!canStartMode(selectedMode)" @click="startSelectedModule">
-                Começar
-              </UiButton>
-
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <BookModeModal
+      :visible="modeModalOpen"
+      :stats="selectedModuleStats"
+      :selected-mode="selectedMode"
+      @close="closeModeModal"
+      @start="startSelectedModule"
+      @update:selectedMode="selectedMode = $event"
+    />
 
     <Teleport to="body">
       <Transition name="overlay-fade">
@@ -614,18 +577,27 @@ watch(
     </Teleport>
 
     <!-- FINAL QUIZ -->
-    <section v-if="userBook && !isLoading" class="quiz-section">
+    <section v-if="userBook && !isLoading" ref="quizSectionRef" class="quiz-section">
       <div class="modules-header">
         <h2>Quiz Final</h2>
       </div>
 
-      <article class="quiz-card"
-        :class="quizCompleted ? 'quiz-card--done' : quizInCooldown ? 'quiz-card--cooldown' : quizUnlocked ? 'quiz-card--ready' : 'quiz-card--locked'">
+      <article class="quiz-card" :class="quizCardClass">
         <div class="quiz-card__icon">
-          <TrophyIcon v-if="quizCompleted" class="quiz-icon" aria-hidden="true" />
-          <ClockIcon v-else-if="quizInCooldown" class="quiz-icon" aria-hidden="true" />
-          <SparklesIcon v-else-if="quizUnlocked" class="quiz-icon" aria-hidden="true" />
-          <LockClosedIcon v-else class="quiz-icon" aria-hidden="true" />
+          <template v-if="quizRevealPhase === 'reveal' || quizRevealPhase === 'unlocked' || quizInCooldown">
+            <span class="qi-nebula" aria-hidden="true" />
+            <span class="qi-star" style="--sx: 20%; --sy: 25%; --sd: 0s"   aria-hidden="true" />
+            <span class="qi-star" style="--sx: 65%; --sy: 18%; --sd: 1.3s" aria-hidden="true" />
+            <span class="qi-star" style="--sx: 75%; --sy: 65%; --sd: 0.7s" aria-hidden="true" />
+            <span class="qi-star" style="--sx: 28%; --sy: 72%; --sd: 2s"   aria-hidden="true" />
+            <span class="qi-star" style="--sx: 52%; --sy: 14%; --sd: 0.4s" aria-hidden="true" />
+          </template>
+          <Transition name="icon-swap" mode="out-in">
+            <TrophyIcon v-if="quizCompleted" key="trophy" class="quiz-icon" aria-hidden="true" />
+            <ClockIcon v-else-if="quizInCooldown" key="clock" class="quiz-icon" aria-hidden="true" />
+            <SparklesIcon v-else-if="quizRevealPhase === 'reveal' || quizRevealPhase === 'unlocked'" key="sparkles" class="quiz-icon" aria-hidden="true" />
+            <LockClosedIcon v-else key="lock" class="quiz-icon" aria-hidden="true" />
+          </Transition>
         </div>
 
         <div class="quiz-card__body">
@@ -964,108 +936,6 @@ watch(
   color: var(--color-deep-500);
 }
 
-/* ── MODE MODAL ────────────────────────────────── */
-.mode-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(20, 26, 33, 0.55);
-  backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
-  padding: clamp(16px, 4vw, 32px);
-}
-
-.mode-modal {
-  width: min(900px, 100%);
-  background: var(--color-wild-100);
-  border: 2px solid var(--color-mirage-800);
-  border-radius: 20px;
-  box-shadow: 6px 6px 0 var(--color-shadow);
-  padding: 28px;
-  display: grid;
-  gap: var(--space-300);
-}
-
-.mode-modal__header {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-300);
-  align-items: flex-start;
-}
-
-.mode-modal__text {
-  display: grid;
-  gap: 6px;
-}
-
-.mode-modal__eyebrow {
-  margin: 0;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--color-deep-600);
-  font-weight: 800;
-}
-
-.mode-modal__header h2 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-}
-
-.mode-modal__header p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-mirage-600);
-}
-
-.mode-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-200);
-}
-
-.mode-stat {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  display: grid;
-  gap: 2px;
-  text-align: center;
-}
-
-.mode-stat span {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-mirage-500);
-  font-weight: 700;
-}
-
-.mode-stat strong {
-  font-size: 18px;
-  color: var(--color-mirage-800);
-}
-
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: stretch;
-  gap: var(--space-300);
-}
-
-.mode-actions {
-  display: flex;
-  gap: var(--space-300);
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  margin-top: var(--space-600);
-}
-
 /* ── MODULES SECTION ────────────────────────────── */
 .modules-section {
   display: grid;
@@ -1338,15 +1208,19 @@ watch(
   background: var(--color-deep-100);
 }
 
-.quiz-card--ready {
-  background: var(--color-amber-100, #fffbeb);
-}
-
 .quiz-card--cooldown {
-  background: var(--color-pumpkin-100);
+  background: var(--color-wild-100);
 }
 
+/* ── Reveal: one-time entrance ── */
+.quiz-card--reveal {
+  animation: quiz-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Icon box ── */
 .quiz-card__icon {
+  position: relative;
+  overflow: hidden;
   width: 80px;
   height: 80px;
   flex-shrink: 0;
@@ -1362,12 +1236,70 @@ watch(
   background: var(--color-deep-500);
 }
 
-.quiz-card--ready .quiz-card__icon {
-  background: var(--color-amber-500);
+.quiz-card--reveal .quiz-card__icon,
+.quiz-card--unlocked .quiz-card__icon {
+  background: #0d0020;
+  box-shadow: 4px 4px 0 #0a001a;
 }
 
 .quiz-card--cooldown .quiz-card__icon {
-  background: var(--color-pumpkin-500, #f97316);
+  background: #0d0020;
+  box-shadow: 4px 4px 0 #0a001a;
+  opacity: 0.55;
+}
+
+/* ── Galaxy nebula (same as badge) ── */
+.qi-nebula {
+  position: absolute;
+  inset: -50%;
+  border-radius: 50%;
+  z-index: 1;
+  background: conic-gradient(
+    from 0deg,
+    transparent              0deg,
+    rgba(139, 92,  246, 0.60)  55deg,
+    transparent             115deg,
+    rgba(192, 132, 252, 0.35) 175deg,
+    transparent             235deg,
+    rgba(109,  40, 217, 0.55) 305deg,
+    transparent             360deg
+  );
+  animation: galaxy-spin 9s linear infinite;
+}
+
+.qi-star {
+  position: absolute;
+  left: var(--sx);
+  top:  var(--sy);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff;
+  z-index: 2;
+  animation: star-twinkle 2.6s ease-in-out infinite;
+  animation-delay: var(--sd);
+}
+
+.quiz-card--reveal .quiz-icon,
+.quiz-card--unlocked .quiz-icon,
+.quiz-card--cooldown .quiz-icon {
+  position: relative;
+  z-index: 3;
+  color: #ddb4fe;
+}
+
+@keyframes quiz-reveal {
+  0%   { opacity: 0; transform: translateY(18px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes galaxy-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.85; transform: scale(1);   }
+  50%       { opacity: 0.10; transform: scale(0.3); }
 }
 
 .quiz-icon {
@@ -1375,6 +1307,12 @@ watch(
   height: 36px;
   color: #fff;
 }
+
+/* ── Icon swap transition ── */
+.icon-swap-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.icon-swap-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.icon-swap-enter-from { opacity: 0; transform: scale(0.65) rotate(-20deg); }
+.icon-swap-leave-to  { opacity: 0; transform: scale(1.3) rotate(15deg); }
 
 .quiz-card__body {
   display: grid;

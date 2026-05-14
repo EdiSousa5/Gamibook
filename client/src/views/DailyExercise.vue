@@ -23,9 +23,11 @@ import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outlin
 import UiResultPill from '@/components/ui/UiResultPill.vue'
 import QuestionCard from '@/components/ui/QuestionCard.vue'
 import type { DailyExercise, User } from '@/types'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 
 type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'no-exercises' | 'error'
 
@@ -158,6 +160,15 @@ const saveResult = async (isCorrect: boolean) => {
     auth.setPoints(newPoints)
     if (newLevel > oldLevel) {
         auth.triggerLevelUp(oldLevel, newLevel, newPoints)
+    }
+
+    if (isCorrect) {
+        const streakMsg = newStreak.value > 0
+            ? ` Streak atual: ${newStreak.value} ${newStreak.value === 1 ? 'dia' : 'dias'}.`
+            : ''
+        toast.success(`+${pointsEarned.value} XP ganhos no desafio diário!${streakMsg}`)
+    } else {
+        toast.info('Sem sorte desta vez. Tenta novamente amanhã.')
     }
 }
 

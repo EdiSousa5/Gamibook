@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
 import { loginUser } from '../services/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -12,6 +13,7 @@ const auth = useAuthStore()
 const route = useRoute()
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const isLoading = ref(false)
 
@@ -67,8 +69,21 @@ const submit = async () => {
       <form @submit.prevent="submit">
         <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
           @update="email = String($event)" />
-        <UiInput label="Password" type="password" placeholder="********" :model-value="password"
-          @update="password = String($event)" />
+        <label class="ui-field">
+          <span class="label">Password</span>
+          <div class="password-wrap">
+            <input
+              :type="showPassword ? 'text' : 'password'"
+              :value="password"
+              placeholder="********"
+              @input="password = ($event.target as HTMLInputElement).value"
+            />
+            <button type="button" class="eye-btn" :aria-label="showPassword ? 'Esconder password' : 'Mostrar password'" @click="showPassword = !showPassword">
+              <EyeSlashIcon v-if="showPassword" class="eye-icon" aria-hidden="true" />
+              <EyeIcon v-else class="eye-icon" aria-hidden="true" />
+            </button>
+          </div>
+        </label>
 
         <p v-if="info" class="info">{{ info }}</p>
         <p v-if="error" class="error">{{ error }}</p>
@@ -134,5 +149,64 @@ form {
   color: var(--color-primary-strong);
   font-weight: 600;
   text-decoration: none;
+}
+
+.ui-field {
+  display: grid;
+  gap: var(--space-150);
+  font-weight: 600;
+}
+
+.label {
+  color: var(--color-mirage-600);
+  font-size: 12px;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  width: 100%;
+  padding: var(--space-200) var(--space-300);
+  padding-right: 44px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  box-sizing: border-box;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.password-wrap input:focus {
+  outline: none;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.eye-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--color-mirage-500);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  transition: color 0.15s ease;
+}
+
+.eye-btn:hover {
+  color: var(--color-mirage-800);
+}
+
+.eye-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
 }
 </style>

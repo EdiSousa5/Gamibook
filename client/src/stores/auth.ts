@@ -65,8 +65,19 @@ export const useAuthStore = defineStore('auth', () => {
       const currentLevel = user.value?.level ?? 1
 
       if (newLevel !== currentLevel && user.value) {
+        const oldLevel = currentLevel
         await updateUser(userId, { level: newLevel })
         user.value.level = newLevel
+
+        if (newLevel > oldLevel) {
+          const { useNotificationsStore } = await import('./notifications')
+          useNotificationsStore().add({
+            user: userId,
+            title: `Nível ${newLevel} atingido!`,
+            message: `Subiste do nível ${oldLevel} para o nível ${newLevel}. Continua assim!`,
+            type: 'achievement',
+          })
+        }
       }
     } catch {
       console.error('Failed to sync user level')

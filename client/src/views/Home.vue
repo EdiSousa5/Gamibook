@@ -93,7 +93,7 @@ const onIconLeave = () => {
 
       <div class="content">
         <UiChip label="Plataforma de Leitura Gamificada" variant="outline" class="hero-chip" />
-        <h1>O jeito divertido e eficaz de <span class="highlight">dominar</span> os teus livros.</h1>
+        <h1>A maneira divertida e eficaz de <span class="highlight">dominar</span> os teus livros.</h1>
         <div class="cta">
           <UiButton size="lg" variant="primary" @click="router.push('/register')">Começar a Aventura</UiButton>
           <UiButton size="lg" variant="outline" @click="router.push('/login')">Já tenho conta</UiButton>
@@ -274,11 +274,11 @@ h1 {
 /*
   5 ícones: Galaxy topo-esq | XP topo-dir | Ranking dir-alta | Leitura dir-baixa | Fogo esq-meio
 */
-.bf-1 { left:  3%; top:  5%;  animation: fi 5.3s -2.1s ease-in-out infinite alternate; }
-.oi-1 { left: 64%; top:  1%;  animation: fi 4.7s -1.3s ease-in-out infinite alternate; }
-.oi-3 { left: 89%; top: 22%;  animation: fi 6.2s -0.8s ease-in-out infinite alternate; }
-.oi-4 { left: 83%; top: 52%;  animation: fi 5.0s -3.7s ease-in-out infinite alternate-reverse; }
-.oi-5 { left:  5%; top: 50%;  animation: fi 3.8s -2.4s ease-in-out infinite alternate-reverse; }
+.bf-1 { left:  3%; top: 15%;  animation: fi 5.3s -2.1s ease-in-out infinite alternate; }
+.oi-1 { left: 64%; top: 10%;  animation: fi 4.7s -1.3s ease-in-out infinite alternate; }
+.oi-3 { left: 84%; top: 22%;  animation: fi 6.2s -0.8s ease-in-out infinite alternate; }
+.oi-4 { left: 78%; top: 52%;  animation: fi 5.0s -3.7s ease-in-out infinite alternate-reverse; }
+.oi-5 { left:  9%; top: 50%;  animation: fi 3.8s -2.4s ease-in-out infinite alternate-reverse; }
 
 /* ── Badge float interior ─────────────────────────── */
 .badge-float {
@@ -404,9 +404,9 @@ h1 {
   .oi-4, .oi-5 { display: none; }
 
   /* Mantém 3: Galaxy topo-esq | XP topo-dir | Ranking dir */
-  .bf-1 { left:  4%; top:  5%; }
-  .oi-1 { left: 66%; top:  1%; }
-  .oi-3 { left: 87%; top: 22%; }
+  .bf-1 { left:  4%; top: 15%; }
+  .oi-1 { left: 66%; top: 10%; }
+  .oi-3 { left: 84%; top: 22%; }
 }
 
 /* ── Auto-cycle active state (button press effect) ── */
