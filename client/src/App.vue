@@ -10,6 +10,7 @@ import BookUnlockModal from './components/ui/BookUnlockModal.vue'
 import UiToast from './components/ui/UiToast.vue'
 import { useToast } from './composables/useToast'
 import { useAuthStore } from './stores/auth'
+import { useNotificationsStore } from './stores/notifications'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
 import { setUnauthorizedHandler } from './services/client'
@@ -17,6 +18,7 @@ import { setUnauthorizedHandler } from './services/client'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const notifStore = useNotificationsStore()
 const { toasts, dismiss } = useToast()
 const { isAuthed, displayName, isAdmin, avatarUrl, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
 
@@ -83,6 +85,18 @@ watch(
     updateCanGoBack()
   },
 )
+
+watch(
+  () => auth.user,
+  (user) => {
+    if (user?.id) {
+      notifStore.load(String(user.id))
+    } else {
+      notifStore.reset()
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -91,14 +105,17 @@ watch(
 
   <Teleport to="body">
     <div class="toast-container">
-      <UiToast
-        v-for="t in toasts"
-        :key="t.id"
-        :type="t.type"
-        :title="t.title"
-        :message="t.message"
-        @close="dismiss(t.id)"
-      />
+      <TransitionGroup name="toast" tag="div" class="toast-list">
+        <UiToast
+          v-for="t in toasts"
+          :key="t.id"
+          :type="t.type"
+          :title="t.title"
+          :message="t.message"
+          :duration="t.duration"
+          @close="dismiss(t.id)"
+        />
+      </TransitionGroup>
     </div>
   </Teleport>
   <div class="app" :class="{ 'layout-landing': showLanding }">
@@ -133,10 +150,33 @@ watch(
   bottom: 24px;
   right: 24px;
   z-index: 10000;
+  pointer-events: none;
+}
+
+.toast-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  pointer-events: none;
+  align-items: flex-end;
+}
+
+/* ── Animações de entrada/saída ─── */
+.toast-enter-active {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+}
+.toast-leave-active {
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+.toast-enter-from {
+  transform: translateX(48px);
+  opacity: 0;
+}
+.toast-leave-to {
+  transform: translateX(48px);
+  opacity: 0;
+}
+.toast-move {
+  transition: transform 0.3s ease;
 }
 </style>
 

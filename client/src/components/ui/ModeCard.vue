@@ -50,8 +50,31 @@ defineEmits<{ select: [] }>()
 .mode-card:nth-child(3) { animation-delay: 0.12s; }
 
 .mode-card.disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+  pointer-events: none;
+}
+
+.mode-card.disabled .mode-card__shadow {
+  background: transparent;
+}
+
+.mode-card.disabled .mode-card__surface {
+  background: var(--color-wild-200);
+  border: 2px dashed var(--color-mirage-400);
+}
+
+.mode-card.disabled .mode-title {
+  color: var(--color-mirage-400);
+}
+
+.mode-card.disabled .mode-count {
+  background: transparent;
+  border-color: var(--color-mirage-300);
+  color: var(--color-mirage-400);
+}
+
+.mode-card.disabled .mode-desc {
+  color: var(--color-mirage-400);
 }
 
 /* ── Shadow layer (static) ── */

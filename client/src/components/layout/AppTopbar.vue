@@ -8,6 +8,9 @@ import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
 import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
+import { useNotificationsStore } from '@/stores/notifications'
+import { useAuthStore } from '@/stores/auth'
+import NotificationPanel from '@/components/ui/NotificationPanel.vue'
 import type { Book } from '@/types'
 
 type Props = {
@@ -27,10 +30,15 @@ type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-own
 const props = defineProps<Props>()
 const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book] }>()
 
+const notifStore = useNotificationsStore()
+const authStore = useAuthStore()
+
 const query = ref('')
 const menuOpen = ref(false)
+const bellOpen = ref(false)
 const qrOpen = ref(false)
 const profileRef = ref<HTMLElement | null>(null)
+const bellRef = ref<HTMLElement | null>(null)
 const route = useRoute()
 const router = useRouter()
 
@@ -118,6 +126,12 @@ const processResult = async (rawText: string) => {
     await unlockBook(userId, book.book_id)
     closeQr()
     emit('book-unlocked', book)
+    notifStore.add({
+      user: userId,
+      title: 'Livro desbloqueado!',
+      message: `"${book.title}" foi adicionado à tua coleção.`,
+      type: 'book_unlocked',
+    })
   } catch {
     scanState.value = 'error'
     scanError.value = 'Erro ao verificar o código. Tenta novamente.'
@@ -188,9 +202,12 @@ const retry = () => {
 const toggleMenu = () => { menuOpen.value = !menuOpen.value }
 const closeMenu = () => { menuOpen.value = false }
 
+const toggleBell = () => { bellOpen.value = !bellOpen.value }
+const closeBell = () => { bellOpen.value = false }
+
 const onDocumentClick = (event: MouseEvent) => {
-  if (!profileRef.value) return
-  if (!profileRef.value.contains(event.target as Node)) closeMenu()
+  if (profileRef.value && !profileRef.value.contains(event.target as Node)) closeMenu()
+  if (bellRef.value && !bellRef.value.contains(event.target as Node)) closeBell()
 }
 
 onMounted(() => {
@@ -230,9 +247,15 @@ watch(
       <UiSearch :model-value="query" @update="query = $event" />
     </div>
     <div class="actions">
-      <UiIconButton variant="outline" size="lg" aria-label="Notificações">
-        <BellIcon class="icon" aria-hidden="true" />
-      </UiIconButton>
+      <div class="bell-anchor" ref="bellRef">
+        <UiIconButton variant="outline" size="lg" aria-label="Notificações" @click="toggleBell">
+          <BellIcon class="icon" aria-hidden="true" />
+        </UiIconButton>
+        <span v-if="notifStore.unreadCount > 0" class="bell-badge" aria-live="polite">
+          {{ notifStore.unreadCount > 9 ? '9+' : notifStore.unreadCount }}
+        </span>
+        <NotificationPanel :visible="bellOpen" @close="closeBell" />
+      </div>
       <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
         <QrCodeIcon class="icon" aria-hidden="true" />
       </UiIconButton>
@@ -806,5 +829,30 @@ watch(
   height: 20px;
   color: var(--color-mirage-800);
   stroke-width: var(--icon-stroke);
+}
+
+/* ── Bell / Notification ── */
+.bell-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.bell-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-error-strong, #dc2626);
+  border: 2px solid var(--color-wild-100);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  line-height: 1;
 }
 </style>

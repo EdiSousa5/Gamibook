@@ -186,7 +186,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .book:hover .book-cover-hinge {
-  transform: translateZ(var(--d)) rotateY(-20deg);
+  transform: translateZ(var(--d)) rotateY(-8deg);
 }
 
 /* CAPA FRONTAL (Exterior) */
