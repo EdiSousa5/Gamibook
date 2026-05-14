@@ -41,7 +41,7 @@ const submit = async () => {
   if (!cleanEmail) { error.value = 'Preenche o email.'; return }
   if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
   if (!cleanPassword) { error.value = 'Preenche a password.'; return }
-  if (cleanPassword.length < 6) { error.value = 'Password demasiado curta.'; return }
+  if (cleanPassword.length < 8) { error.value = 'Password demasiado curta (mínimo 8 caracteres).'; return }
 
   isLoading.value = true
   try {

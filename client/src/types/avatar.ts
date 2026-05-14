@@ -1,5 +1,34 @@
 export type AvatarFrame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
+export type AvatarBorder =
+  | 'default'
+  | 'minimal'
+  | 'heavy'
+  | 'ring'
+
+export type AvatarColor =
+  | 'none'
+  | 'teal' | 'teal-dark' | 'teal-light'
+  | 'amber' | 'amber-dark' | 'pumpkin'
+  | 'crimson' | 'crimson-dark'
+  | 'slate' | 'slate-dark' | 'black'
+  | 'galaxy' | 'ocean' | 'inferno' | 'forest'
+
+export type AvatarEffect = 'none' | 'glow' | 'shine' | 'aura' | 'sombra'
+
+export type AvatarShadow = 'none' | 'small' | 'default'
+
+export type AvatarCracha =
+  | 'rank'
+  | 'exercises'
+  | 'streak'
+  | 'level'
+  | 'bronze'
+  | 'silver'
+  | 'gold'
+  | 'diamond'
+  | 'galaxy'
+
 export type AvatarFrameConfig = {
   id: AvatarFrame
   name: string
@@ -19,51 +48,51 @@ export type UserAvatarCustomization = {
 export const AVATAR_FRAMES: Record<AvatarFrame, AvatarFrameConfig> = {
   essence: {
     id: 'essence',
-    name: 'Essence',
+    name: 'Rascunho',
     requiredLevel: 1,
     category: 'basic',
-    description: 'A essência pura, simples e elegante',
+    description: 'O ponto de partida de qualquer leitor',
   },
   bloom: {
     id: 'bloom',
-    name: 'Bloom',
+    name: 'Contorno',
     requiredLevel: 3,
     category: 'basic',
-    description: 'Flores que desabrocham continuamente',
+    description: 'A primeira marca de quem está a traçar o seu caminho',
   },
   ember: {
     id: 'ember',
-    name: 'Ember',
+    name: 'Relevo',
     requiredLevel: 5,
     category: 'premium',
-    description: 'Chamas dançantes de um fogo celestial',
+    description: 'Presença mais forte, como palavras gravadas a fundo',
   },
   aurora: {
     id: 'aurora',
-    name: 'Aurora',
+    name: 'Duplo',
     requiredLevel: 7,
     category: 'premium',
-    description: 'Aurora boreal em tons vibrantes',
+    description: 'Duas camadas, dois mundos — o da história e o teu',
   },
   nebula: {
     id: 'nebula',
-    name: 'Nebula',
+    name: 'Marca',
     requiredLevel: 9,
     category: 'epic',
-    description: 'Uma nebulosa cósmica em rotação',
+    description: 'Deixaste a tua marca na plataforma',
   },
   ethereal: {
     id: 'ethereal',
-    name: 'Ethereal',
+    name: 'Destaque',
     requiredLevel: 11,
     category: 'epic',
-    description: 'Aura etérea e luminosa',
+    description: 'Reconhecido entre os melhores leitores',
   },
   void: {
     id: 'void',
-    name: 'Void',
+    name: 'Lenda',
     requiredLevel: 15,
     category: 'epic',
-    description: 'O abismo infinito com poder cósmico',
+    description: 'O cume — reservado para quem domina a arte da leitura',
   },
 }

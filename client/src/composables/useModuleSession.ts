@@ -98,9 +98,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   const canStartMode = (mode: SessionMode) => {
     if (mode === 'normal') return modeCounts.value.normal > 0
     if (mode === 'retry') return modeCounts.value.retry > 0
-    return (
-      exerciseCounts.value.correct === exerciseCounts.value.total && modeCounts.value.review > 0
-    )
+    return exerciseCounts.value.correct > 0
   }
 
   const recommendedMode = computed<SessionMode>(() => {
@@ -425,7 +423,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
 
           const currentBadge = userBookInfo.current_badge || 'default'
 
-          if (currentBadge === 'galaxy' && currentPct >= 100) expectedTier = 'galaxy' // Impede a perda do badge galaxy se a percentagem continuar a 100%
+          if (currentBadge === 'galaxy') expectedTier = 'galaxy'
 
           if (currentBadge !== expectedTier) {
             const oldRank = TIER_ORDER.indexOf(currentBadge as any)

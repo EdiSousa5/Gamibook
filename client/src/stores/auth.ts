@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthed = computed(() => !!user.value)
   const displayName = computed(() => getUserDisplayName(user.value))
   const isAdmin = computed(() => isAdminUser(user.value))
-  const avatarUrl = computed(() => getAssetUrl(user.value?.avatar ?? user.value?.avatar_img ?? ''))
+  const avatarUrl = computed(() => getAssetUrl(user.value?.avatar ?? ''))
   const progress = computed(() => getLevelProgressFromPoints(points.value))
 
   const loadUser = async () => {

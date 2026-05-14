@@ -44,9 +44,6 @@ const callFlowise = async (
     }),
   )
 
-  console.log('[Flowise] A fazer ligacao', { url: FLOWISE_URL, chatflow: chatflowId })
-
-  // Estrutura com dupla injeção para maximizar compatibilidade com a API do Flowise
   const flowisePayload = {
     question: questionLabel,
     overrideConfig: {
@@ -55,20 +52,14 @@ const callFlowise = async (
     },
   }
 
-  // Log corrigido para mostrar o payload real enviado e não o objeto de entrada
-  console.log('[Flowise] Pedido Raw Flowise (Enviado)', JSON.stringify(flowisePayload, null, 2))
-
   const response = await fetch(`${FLOWISE_URL}/api/v1/prediction/${chatflowId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(flowisePayload),
   })
 
-  console.log('[Flowise] A espera da resposta', { status: response.status })
-
   if (!response.ok) {
     const detail = await response.text()
-    console.log('[Flowise] Erro recebido do Flowise', { status: response.status, detail })
     throw new Error(`Erro ao contactar o Flowise: ${detail}`)
   }
 

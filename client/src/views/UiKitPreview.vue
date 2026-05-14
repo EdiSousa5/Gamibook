@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
@@ -26,6 +26,8 @@ import UiStatCard from '@/components/ui/UiStatCard.vue'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import wintonUrl from '@/assets/images/winton.webp'
+import { AVATAR_FRAMES } from '@/types/avatar'
+import type { AvatarFrame, AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
 import {
   BellAlertIcon,
   CheckCircleIcon,
@@ -36,6 +38,91 @@ import {
   FireIcon,
   ArrowPathIcon,
 } from '@heroicons/vue/24/outline'
+
+const frameCategoryLabels: Record<string, string> = {
+  basic: 'Básico',
+  premium: 'Premium',
+  epic: 'Épico',
+}
+
+const framesByCategory = (() => {
+  const cats: Record<string, AvatarFrame[]> = { basic: [], premium: [], epic: [] }
+  for (const id of Object.keys(AVATAR_FRAMES) as AvatarFrame[]) {
+    cats[AVATAR_FRAMES[id].category]?.push(id)
+  }
+  return cats
+})()
+
+/* ── Avatar customization demo data ────────────────── */
+
+const BORDER_DEMOS: { id: AvatarBorder; label: string }[] = [
+  { id: 'default', label: 'Padrão' },
+  { id: 'minimal', label: 'Mínimo' },
+  { id: 'heavy',   label: 'Pesada' },
+  { id: 'ring',    label: 'Anel' },
+]
+
+const COLOR_DEMOS: { standard: { id: AvatarColor; label: string; hex: string }[]; special: { id: AvatarColor; label: string; hex: string }[] } = {
+  standard: [
+    { id: 'none',         label: 'Sem cor',        hex: 'none'    },
+    { id: 'teal',         label: 'Teal',           hex: '#4e9d98' },
+    { id: 'teal-dark',    label: 'Teal Escuro',    hex: '#075056' },
+    { id: 'teal-light',   label: 'Teal Claro',     hex: '#a7d2cf' },
+    { id: 'amber',        label: 'Âmbar',          hex: '#ff8a50' },
+    { id: 'amber-dark',   label: 'Âmbar Escuro',   hex: '#e8611e' },
+    { id: 'pumpkin',      label: 'Abóbora',        hex: '#ffa74f' },
+    { id: 'crimson',      label: 'Carmesim',       hex: '#d85252' },
+    { id: 'crimson-dark', label: 'Carmesim Esc.',  hex: '#9e2828' },
+    { id: 'slate',        label: 'Ardósia',        hex: '#52656f' },
+    { id: 'slate-dark',   label: 'Ardósia Esc.',   hex: '#22313a' },
+    { id: 'black',        label: 'Preto',          hex: '#111111' },
+  ],
+  special: [
+    { id: 'galaxy',  label: 'Galáxia',  hex: '#4c1d95' },
+    { id: 'ocean',   label: 'Oceano',   hex: '#0369a1' },
+    { id: 'inferno', label: 'Inferno',  hex: '#bd3636' },
+    { id: 'forest',  label: 'Floresta', hex: '#2e7f7b' },
+  ],
+}
+
+const EFFECT_DEMOS: { id: AvatarEffect; label: string; desc: string }[] = [
+  { id: 'none',   label: 'Nenhum', desc: 'Sem efeito' },
+  { id: 'glow',   label: 'Brilho', desc: 'Halo suave' },
+  { id: 'shine',  label: 'Lustro', desc: 'Feixe de luz' },
+  { id: 'aura',   label: 'Aura',   desc: 'Anel expansivo' },
+  { id: 'sombra', label: 'Sombra', desc: 'Vinheta na imagem' },
+]
+
+const SHADOW_DEMOS: { id: AvatarShadow; label: string; desc: string }[] = [
+  { id: 'none',    label: 'Sem sombra', desc: 'Sem offset' },
+  { id: 'small',   label: 'Pequena',   desc: '2px offset' },
+  { id: 'default', label: 'Normal',    desc: '4px offset' },
+]
+
+const CRACHA_DEMOS: { id: AvatarCracha; label: string; value: string }[] = [
+  { id: 'rank',      label: 'Classificação', value: '#12'  },
+  { id: 'exercises', label: 'Exercícios',    value: '127'  },
+  { id: 'streak',    label: 'Streak',        value: '14d'  },
+  { id: 'level',     label: 'Nível',         value: 'Nv5'  },
+  { id: 'bronze',    label: 'Bronze',        value: '3'    },
+  { id: 'silver',    label: 'Prata',         value: '2'    },
+  { id: 'gold',      label: 'Ouro',          value: '1'    },
+  { id: 'diamond',   label: 'Diamante',      value: '1'    },
+  { id: 'galaxy',    label: 'Galáxia',       value: '1'    },
+]
+
+/* ── Playtest state ──────────────────────────────────── */
+const playtestBorder  = ref<AvatarBorder>('default')
+const playtestColor   = ref<AvatarColor | null>(null)
+const playtestEffect  = ref<AvatarEffect>('none')
+const playtestShadow  = ref<AvatarShadow>('default')
+const playtestCracha  = ref<AvatarCracha | null>(null)
+
+const playtestCrachaValue = computed(() =>
+  playtestCracha.value
+    ? (CRACHA_DEMOS.find(c => c.id === playtestCracha.value)?.value ?? '?')
+    : undefined
+)
 
 /* ── Form state ──────────────────────────────────────── */
 const inputValue = ref<string | number>('')
@@ -617,12 +704,6 @@ function isDark(hex: string): boolean {
               <UiAvatar alt="G" :size="80" />
               <UiAvatar :src="wintonUrl" alt="W" :size="96" />
             </div>
-            <span class="tag">Tons</span>
-            <div class="row">
-              <div class="av-item"><UiAvatar alt="P" :size="52" tone="primary" /><span class="helper">primary</span></div>
-              <div class="av-item"><UiAvatar alt="A" :size="52" tone="accent" /><span class="helper">accent</span></div>
-              <div class="av-item"><UiAvatar alt="N" :size="52" tone="neutral" /><span class="helper">neutral</span></div>
-            </div>
           </div>
         </UiCard>
 
@@ -636,6 +717,198 @@ function isDark(hex: string): boolean {
               <div class="av-item"><UiAvatar alt="G" :size="52" status="busy" /><span class="helper">Ocupado</span></div>
               <div class="av-item"><UiAvatar alt="G" :size="52" status="offline" /><span class="helper">Offline</span></div>
             </div>
+          </div>
+        </UiCard>
+      </div>
+
+      <!-- Customização em três partes -->
+      <div class="av-custom-sections">
+
+        <!-- Bordas -->
+        <UiCard>
+          <h3 class="card-h">Bordas</h3>
+          <p class="card-desc">Estilos de borda desbloqueáveis por nível. Todos usam apenas as cores do design system.</p>
+          <div class="av-custom-row">
+            <div v-for="b in BORDER_DEMOS" :key="b.id" class="av-custom-item">
+              <UiAvatar alt="G" :size="56" :border="b.id" avatar-color="teal" />
+              <span class="av-custom-label">{{ b.label }}</span>
+            </div>
+          </div>
+        </UiCard>
+
+        <!-- Cores -->
+        <UiCard class="card-wide">
+          <h3 class="card-h">Cores</h3>
+          <p class="card-desc">12 cores do design system + 4 cores especiais. As cores alteram a borda, não o avatar.</p>
+          <div class="column">
+            <div>
+              <span class="tag">Palete</span>
+              <div class="av-color-swatches">
+                <div v-for="c in COLOR_DEMOS.standard" :key="c.id" class="av-swatch-item">
+                  <div
+                    class="av-swatch-dot"
+                    :class="{ 'swatch-none': c.hex === 'none' }"
+                    :style="c.hex !== 'none' ? { background: c.hex } : {}"
+                    :title="c.label"
+                  />
+                  <span class="av-custom-label">{{ c.label }}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <span class="tag">Especiais</span>
+              <div class="av-specials-grid">
+                <div v-for="c in COLOR_DEMOS.special" :key="c.id" class="av-custom-item">
+                  <UiAvatar alt="G" :size="52" :avatar-color="c.id" border="ring" />
+                  <span class="av-custom-label">{{ c.label }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </UiCard>
+
+        <!-- Efeitos -->
+        <UiCard>
+          <h3 class="card-h">Efeitos</h3>
+          <p class="card-desc">Animações e efeitos visuais que funcionam independentemente da borda e cor escolhidas.</p>
+          <div class="av-effects-row">
+            <div v-for="e in EFFECT_DEMOS" :key="e.id" class="av-custom-item">
+              <UiAvatar alt="G" :size="56" avatar-color="teal" border="default" :effect="e.id" />
+              <span class="av-custom-label">{{ e.label }}</span>
+              <span class="av-custom-desc">{{ e.desc }}</span>
+            </div>
+          </div>
+        </UiCard>
+
+        <!-- Sombras -->
+        <UiCard>
+          <h3 class="card-h">Sombra</h3>
+          <p class="card-desc">Intensidade da sombra offset, independente da borda e cor escolhidas.</p>
+          <div class="av-custom-row">
+            <div v-for="s in SHADOW_DEMOS" :key="s.id" class="av-custom-item">
+              <UiAvatar alt="G" :size="56" avatar-color="teal" border="default" :shadow="s.id" />
+              <span class="av-custom-label">{{ s.label }}</span>
+              <span class="av-custom-desc">{{ s.desc }}</span>
+            </div>
+          </div>
+        </UiCard>
+
+        <!-- Crachás -->
+        <UiCard class="card-wide">
+          <h3 class="card-h">Crachás</h3>
+          <p class="card-desc">Um crachá de cada vez — mostra classificação, exercícios, streak, nível ou o melhor badge conquistado.</p>
+          <div class="av-crachas-grid">
+            <div v-for="c in CRACHA_DEMOS" :key="c.id" class="av-cracha-item">
+              <UiAvatar alt="G" :size="56" avatar-color="teal" border="default" :cracha="c.id" :cracha-value="c.value" />
+              <span class="av-custom-label">{{ c.label }}</span>
+            </div>
+          </div>
+        </UiCard>
+
+        <!-- Playtest -->
+        <UiCard class="card-wide">
+          <h3 class="card-h">Playtest — cria a tua combinação</h3>
+          <p class="card-desc">Seleciona borda, cor, efeito e sombra para pré-visualizar em tempo real.</p>
+          <div class="playtest">
+
+            <div class="playtest-preview">
+              <UiAvatar
+                alt="G"
+                :size="96"
+                :border="playtestBorder"
+                :avatar-color="playtestColor ?? undefined"
+                :effect="playtestEffect"
+                :shadow="playtestShadow"
+                :cracha="playtestCracha ?? undefined"
+                :cracha-value="playtestCrachaValue"
+              />
+            </div>
+
+            <div class="playtest-panel">
+              <div class="playtest-group">
+                <span class="tag">Borda</span>
+                <div class="playtest-pills">
+                  <button
+                    v-for="b in BORDER_DEMOS" :key="b.id"
+                    class="playtest-pill"
+                    :class="{ active: playtestBorder === b.id }"
+                    @click="playtestBorder = b.id"
+                  >{{ b.label }}</button>
+                </div>
+              </div>
+
+              <div class="playtest-group">
+                <span class="tag">Cor da borda</span>
+                <div class="playtest-color-row">
+                  <button
+                    class="playtest-swatch default-swatch"
+                    :class="{ active: playtestColor === null }"
+                    title="Padrão (escuro)"
+                    @click="playtestColor = null"
+                  />
+                  <button
+                    v-for="c in COLOR_DEMOS.standard" :key="c.id"
+                    class="playtest-swatch"
+                    :class="{ active: playtestColor === c.id, 'swatch-none': c.hex === 'none' }"
+                    :style="c.hex !== 'none' ? { background: c.hex } : {}"
+                    :title="c.label"
+                    @click="playtestColor = c.id"
+                  />
+                  <span class="playtest-swatch-sep" />
+                  <button
+                    v-for="c in COLOR_DEMOS.special" :key="c.id"
+                    class="playtest-swatch special-swatch"
+                    :class="{ active: playtestColor === c.id }"
+                    :title="c.label"
+                    @click="playtestColor = c.id"
+                  >
+                    <UiAvatar alt=" " :size="22" :avatar-color="c.id" border="default" />
+                  </button>
+                </div>
+              </div>
+
+              <div class="playtest-group">
+                <span class="tag">Efeito</span>
+                <div class="playtest-pills">
+                  <button
+                    v-for="e in EFFECT_DEMOS" :key="e.id"
+                    class="playtest-pill"
+                    :class="{ active: playtestEffect === e.id }"
+                    @click="playtestEffect = e.id"
+                  >{{ e.label }}</button>
+                </div>
+              </div>
+
+              <div class="playtest-group">
+                <span class="tag">Sombra</span>
+                <div class="playtest-pills">
+                  <button
+                    v-for="s in SHADOW_DEMOS" :key="s.id"
+                    class="playtest-pill"
+                    :class="{ active: playtestShadow === s.id }"
+                    @click="playtestShadow = s.id"
+                  >{{ s.label }}</button>
+                </div>
+              </div>
+
+              <div class="playtest-group">
+                <span class="tag">Crachá</span>
+                <div class="playtest-pills">
+                  <button
+                    class="playtest-pill"
+                    :class="{ active: playtestCracha === null }"
+                    @click="playtestCracha = null"
+                  >Nenhum</button>
+                  <button
+                    v-for="c in CRACHA_DEMOS" :key="c.id"
+                    class="playtest-pill"
+                    :class="{ active: playtestCracha === c.id }"
+                    @click="playtestCracha = c.id"
+                  >{{ c.label }}</button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </UiCard>
 
@@ -1253,10 +1526,283 @@ code.semantic-token {
 
 .av-item { display: grid; gap: var(--space-100); justify-items: center; }
 
+.frames-categories { display: grid; gap: var(--space-400); }
+.frames-category   { display: grid; gap: var(--space-200); }
 .frames-row { display: flex; flex-wrap: wrap; gap: var(--space-400); }
 .frame-item { display: grid; gap: 6px; justify-items: center; }
 .frame-name { font-size: 12px; font-weight: 700; color: var(--color-mirage-800); }
 .frame-lvl  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-mirage-500); }
+
+/* ── Avatar customization sections ──────────────────────── */
+
+.av-custom-sections {
+  display: grid;
+  gap: var(--space-400);
+}
+
+.av-custom-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-500);
+  margin-top: var(--space-300);
+  align-items: flex-end;
+}
+
+.av-effects-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-500);
+  margin-top: var(--space-300);
+  align-items: flex-end;
+}
+
+.av-color-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-400);
+  margin-top: var(--space-200);
+}
+
+.av-specials-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-600);
+  margin-top: var(--space-200);
+}
+
+.av-crachas-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-500);
+  margin-top: var(--space-200);
+  padding-bottom: var(--space-400);
+}
+
+.av-cracha-item {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.av-custom-item {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+}
+
+.av-custom-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+  text-align: center;
+  max-width: 72px;
+}
+
+.av-custom-desc {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mirage-500);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ── Color swatches ──────────────────────────────────────── */
+
+.av-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-300);
+  margin-top: var(--space-200);
+}
+
+.av-swatch-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-100);
+}
+
+.av-swatch-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  flex-shrink: 0;
+}
+
+/* "Sem cor": linha diagonal — sem borda */
+.swatch-none,
+.playtest-swatch.swatch-none {
+  background:
+    linear-gradient(
+      to bottom right,
+      transparent calc(50% - 1px),
+      var(--color-mirage-400) calc(50% - 1px),
+      var(--color-mirage-400) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ),
+    var(--color-wild-100);
+}
+
+/* ── Playtest ────────────────────────────────────────────── */
+
+.playtest {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-600);
+  margin-top: var(--space-300);
+  align-items: start;
+}
+
+.playtest-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-500);
+  padding-bottom: calc(var(--space-500) + 14px);
+  border-radius: 16px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  aspect-ratio: 1;
+}
+
+.playtest-panel {
+  display: grid;
+  gap: 0;
+}
+
+.playtest-group {
+  display: grid;
+  gap: var(--space-200);
+  padding: var(--space-300) 0;
+  border-top: 1px solid var(--color-wild-600);
+}
+
+.playtest-group:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* tag dentro do grupo: label limpa, não o chip */
+.playtest-group > .tag {
+  all: unset;
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+}
+
+.playtest-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-150);
+}
+
+.playtest-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.playtest-pill:hover {
+  background: var(--color-wild-300);
+}
+
+.playtest-pill.active {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+  box-shadow: 2px 2px 0 var(--color-deep-400);
+}
+
+/* ── Playtest color swatches ─────────────────────────────── */
+
+.playtest-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-200);
+}
+
+.playtest-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  cursor: pointer;
+  transition: outline-offset 0.1s ease;
+  flex-shrink: 0;
+  padding: 0;
+  outline: 2px solid transparent;
+  outline-offset: 0px;
+}
+
+.playtest-swatch:hover {
+  outline-color: var(--color-mirage-500);
+  outline-offset: 3px;
+}
+
+.playtest-swatch.active {
+  outline-color: var(--color-mirage-800);
+  outline-offset: 3px;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+/* Padrão: círculo escuro — representa a cor default */
+.playtest-swatch.default-swatch {
+  background: var(--color-mirage-800);
+}
+
+.playtest-swatch.default-swatch.active {
+  outline-color: var(--color-deep-500);
+}
+
+.playtest-swatch.special-swatch {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  outline-offset: 0px;
+}
+
+.playtest-swatch.special-swatch:hover {
+  outline-color: var(--color-mirage-500);
+  outline-offset: 3px;
+}
+
+.playtest-swatch.special-swatch.active {
+  outline-color: var(--color-mirage-800);
+  outline-offset: 3px;
+}
+
+.playtest-swatch-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--color-wild-600);
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .playtest { grid-template-columns: 1fr; }
+}
 
 /* ── Cards & dados ───────────────────────────────────────── */
 

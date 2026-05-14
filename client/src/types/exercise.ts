@@ -1,12 +1,24 @@
 import type { User } from './user'
 import type { Module } from './book'
 
+export type ExerciseContent = {
+  pergunta?: string
+  question?: string
+  enunciado?: string
+  frase?: string
+  afirmacao?: string
+  opcoes?: string[] | string
+  options?: string[] | string
+  resposta_correta?: string | boolean
+  correto?: boolean | string
+}
+
 export type Exercise = {
   exercise_id?: number
   id_module?: number | null
   status?: 'draft' | 'approved' | 'unapproved'
   type?: 'multiple-choice' | 'true-false'
-  content?: Record<string, unknown>
+  content?: ExerciseContent
   points?: number | null
   date_created?: string | null
   created_by?: string | null
@@ -14,9 +26,10 @@ export type Exercise = {
 
 export type DailyExercise = {
   daily_exercise_id?: number
+  exercise_id?: number
   book_id?: number | null
   type?: 'multiple-choice' | 'true-false'
-  content?: Record<string, unknown>
+  content?: ExerciseContent
   date_created?: string | null
   created_by?: string | null
 }
