@@ -7,10 +7,10 @@ services:
     container_name: gamibook-flowise
     ports:
       - "3000:3000"
-    # environment:  <-- Comentei isto para não dar erro!
+    # environment:
     #   OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     volumes:
-      - ./docker/flowise_data:/root/.flowise
+      - flowise_data:/root/.flowise # Alterado de bind mount para named volume
     restart: unless-stopped
 
   # 2. Serviço de Backend e Gestão de Conteúdos
@@ -40,3 +40,8 @@ services:
       ACCESS_TOKEN_TTL: "15m"
       REFRESH_TOKEN_TTL: "30d"
     restart: unless-stopped
+
+# Declaração do volume externo existente no Docker
+volumes:
+  flowise_data:
+    external: true
