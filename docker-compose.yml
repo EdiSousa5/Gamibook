@@ -10,7 +10,7 @@ services:
     # environment:
     #   OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     volumes:
-      - flowise_data:/root/.flowise # Alterado de bind mount para named volume
+      - ./docker/flowise_data:/root/.flowise
     restart: unless-stopped
 
   # 2. Serviço de Backend e Gestão de Conteúdos
@@ -40,8 +40,3 @@ services:
       ACCESS_TOKEN_TTL: "15m"
       REFRESH_TOKEN_TTL: "30d"
     restart: unless-stopped
-
-# Declaração do volume externo existente no Docker
-volumes:
-  flowise_data:
-    external: true
