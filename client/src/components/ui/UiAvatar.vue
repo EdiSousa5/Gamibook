@@ -70,42 +70,23 @@ watch(() => props.src, () => { imgError.value = false })
   background: var(--color-mirage-500);
 }
 
-.status.online {
-  background: var(--color-deep-500);
-}
+.status.online  { background: var(--color-deep-500); }
+.status.away    { background: var(--color-amber-500); }
+.status.busy    { background: #d74c4c; }
+.status.offline { background: var(--color-mirage-400); }
 
-.status.away {
-  background: var(--color-amber-500);
-}
-
-.status.busy {
-  background: #d74c4c;
-}
-
-.status.offline {
-  background: var(--color-mirage-400);
-}
-
-.tone-accent {
-  background: var(--color-amber-500);
-}
-
-.tone-neutral {
-  background: var(--color-mirage-500);
-}
+.tone-accent  { background: var(--color-amber-500); }
+.tone-neutral { background: var(--color-mirage-500); }
 
 /* ── Frame Styles ────────────────────────────────────── */
 
-/* Essence — elegância simples */
 .frame-essence {
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
-/* Bloom — flores desabrocham */
 .frame-bloom {
   border: 3px solid #ec4899;
-  position: relative;
   box-shadow:
     inset 0 0 0 1px rgba(236, 72, 153, 0.4),
     4px 4px 0 var(--color-shadow);
@@ -129,13 +110,11 @@ watch(() => props.src, () => { imgError.value = false })
 
 @keyframes bloom-pulse {
   0%, 100% { transform: scale(0.95); opacity: 0.5; }
-  50% { transform: scale(1.05); opacity: 0.8; }
+  50%       { transform: scale(1.05); opacity: 0.8; }
 }
 
-/* Ember — chamas dançantes */
 .frame-ember {
   border: 3px solid #f97316;
-  position: relative;
   box-shadow:
     inset 0 0 12px rgba(249, 115, 22, 0.4),
     0 0 20px rgba(249, 115, 22, 0.6),
@@ -158,15 +137,13 @@ watch(() => props.src, () => { imgError.value = false })
 
 @keyframes ember-flicker {
   0%, 100% { opacity: 0.7; }
-  25% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-  75% { opacity: 0.5; }
+  25%       { opacity: 0.4; }
+  50%       { opacity: 0.8; }
+  75%       { opacity: 0.5; }
 }
 
-/* Aurora — aurora boreal */
 .frame-aurora {
   border: 3px solid #06b6d4;
-  position: relative;
   box-shadow:
     inset 0 0 0 1px rgba(6, 182, 212, 0.5),
     0 0 25px rgba(6, 182, 212, 0.7),
@@ -198,10 +175,8 @@ watch(() => props.src, () => { imgError.value = false })
   to { transform: rotate(360deg); }
 }
 
-/* Nebula — nebulosa cósmica */
 .frame-nebula {
   border: 3px solid #a855f7;
-  position: relative;
   box-shadow:
     inset 0 0 0 1px rgba(168, 85, 247, 0.4),
     0 0 30px rgba(168, 85, 247, 0.8),
@@ -227,37 +202,12 @@ watch(() => props.src, () => { imgError.value = false })
   z-index: 1;
 }
 
-.frame-nebula::after {
-  content: '';
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow:
-    calc(20px - 100%) calc(10px - 100%) 0 #fff,
-    calc(60px - 100%) calc(70px - 100%) 0 rgba(255, 255, 255, 0.6),
-    calc(80px - 100%) calc(30px - 100%) 0 rgba(255, 255, 255, 0.8);
-  top: 30%;
-  left: 40%;
-  animation: nebula-twinkle 2.8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 2;
-}
-
 @keyframes nebula-spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes nebula-twinkle {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 0.2; }
-}
-
-/* Ethereal — aura etérea */
 .frame-ethereal {
   border: 3px solid #60a5fa;
-  position: relative;
   box-shadow:
     inset 0 0 0 1px rgba(96, 165, 250, 0.4),
     0 0 30px rgba(96, 165, 250, 0.9),
@@ -282,13 +232,11 @@ watch(() => props.src, () => { imgError.value = false })
 
 @keyframes ethereal-glow {
   0%, 100% { transform: scale(1) rotateZ(0deg); opacity: 0.7; }
-  50% { transform: scale(1.1) rotateZ(180deg); opacity: 0.4; }
+  50%       { transform: scale(1.1) rotateZ(180deg); opacity: 0.4; }
 }
 
-/* Void — buraco negro */
 .frame-void {
   border: 3px solid #1e1b4b;
-  position: relative;
   box-shadow:
     inset 0 0 0 1px rgba(30, 27, 75, 0.8),
     0 0 40px rgba(139, 92, 246, 0.9),

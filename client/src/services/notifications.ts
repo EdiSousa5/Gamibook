@@ -34,7 +34,7 @@ export const createNotification = async (
   const response = await authFetch('/items/notifications', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, is_read: false }),
   })
   return parseResponse<Notification>(response, 'createNotification')
 }

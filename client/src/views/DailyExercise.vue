@@ -24,10 +24,12 @@ import UiResultPill from '@/components/ui/UiResultPill.vue'
 import QuestionCard from '@/components/ui/QuestionCard.vue'
 import type { DailyExercise, User } from '@/types'
 import { useToast } from '@/composables/useToast'
+import { useNotificationsStore } from '@/stores/notifications'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
+const notifStore = useNotificationsStore()
 
 type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'no-exercises' | 'error'
 
@@ -160,6 +162,12 @@ const saveResult = async (isCorrect: boolean) => {
     auth.setPoints(newPoints)
     if (newLevel > oldLevel) {
         auth.triggerLevelUp(oldLevel, newLevel, newPoints)
+        notifStore.add({
+            user: userId.value!,
+            title: `Subiste para o nível ${newLevel}!`,
+            message: `Parabéns! Chegaste ao nível ${newLevel} com ${newPoints} XP no total.`,
+            type: 'achievement',
+        })
     }
 
     if (isCorrect) {
@@ -167,6 +175,12 @@ const saveResult = async (isCorrect: boolean) => {
             ? ` Streak atual: ${newStreak.value} ${newStreak.value === 1 ? 'dia' : 'dias'}.`
             : ''
         toast.success(`+${pointsEarned.value} XP ganhos no desafio diário!${streakMsg}`)
+        notifStore.add({
+            user: userId.value!,
+            title: 'Desafio diário concluído!',
+            message: `Ganhaste ${pointsEarned.value} XP.${newStreak.value >= 2 ? ` Streak de ${newStreak.value} dias!` : ''}`,
+            type: 'achievement',
+        })
     } else {
         toast.info('Sem sorte desta vez. Tenta novamente amanhã.')
     }

@@ -845,7 +845,7 @@ watch(
   height: 18px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--color-error-strong, #dc2626);
+  background: var(--color-deep-600);
   border: 2px solid var(--color-wild-100);
   color: #fff;
   font-size: 9px;

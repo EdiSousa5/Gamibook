@@ -40,7 +40,6 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   const add = async (payload: CreateNotificationPayload): Promise<void> => {
-    // Optimistic insert so it appears instantly
     const tempId = `temp-${Date.now()}`
     const optimistic: Notification = {
       notifications_id: tempId,
@@ -55,7 +54,6 @@ export const useNotificationsStore = defineStore('notifications', () => {
       const idx = notifications.value.findIndex((n) => n.notifications_id === tempId)
       if (idx !== -1) notifications.value[idx] = saved
     } catch {
-      // Remove optimistic if API failed
       notifications.value = notifications.value.filter((n) => n.notifications_id !== tempId)
     }
   }

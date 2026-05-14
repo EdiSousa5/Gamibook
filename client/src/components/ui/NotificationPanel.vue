@@ -40,22 +40,23 @@ const timeAgo = (dateStr: string): string => {
 const handleClick = async (id: string, isRead: boolean) => {
   if (!isRead) await notifStore.markRead(id)
 }
-
-const markAllRead = () => {
-  notifStore.markAllRead()
-}
 </script>
 
 <template>
   <Transition name="panel-pop">
     <div v-if="visible" class="notif-panel" role="dialog" aria-label="Notificações">
       <header class="notif-panel__header">
-        <h3 class="notif-panel__title">Notificações</h3>
+        <div class="notif-panel__title-row">
+          <h3 class="notif-panel__title">Notificações</h3>
+          <span v-if="notifStore.unreadCount > 0" class="notif-count-chip">
+            {{ notifStore.unreadCount }} por ler
+          </span>
+        </div>
         <button
           v-if="notifStore.unreadCount > 0"
           class="notif-mark-all"
           type="button"
-          @click="markAllRead"
+          @click="notifStore.markAllRead()"
         >
           Marcar todas como lidas
         </button>
@@ -67,40 +68,44 @@ const markAllRead = () => {
           :key="notif.notifications_id"
           type="button"
           class="notif-item"
-          :class="[`notif-item--${notif.type}`, { 'notif-item--unread': !notif.is_read }]"
+          :class="{ 'is-unread': !notif.is_read }"
           @click="handleClick(notif.notifications_id, notif.is_read)"
         >
-          <span v-if="!notif.is_read" class="notif-dot" aria-hidden="true" />
-          <span v-else class="notif-dot-spacer" aria-hidden="true" />
-
           <span class="notif-icon-wrap" :class="`notif-icon-wrap--${notif.type}`">
             <component :is="iconMap[notif.type]" class="notif-icon" aria-hidden="true" />
           </span>
 
           <span class="notif-body">
-            <span class="notif-title">{{ notif.title }}</span>
+            <span class="notif-header-row">
+              <span class="notif-title">{{ notif.title }}</span>
+              <span class="notif-time">{{ timeAgo(notif.date_created) }}</span>
+            </span>
             <span class="notif-message">{{ notif.message }}</span>
           </span>
 
-          <span class="notif-time">{{ timeAgo(notif.date_created) }}</span>
+          <span v-if="!notif.is_read" class="notif-unread-dot" aria-hidden="true" />
         </button>
       </div>
 
       <div v-else class="notif-empty">
-        <BellIcon class="notif-empty__icon" aria-hidden="true" />
-        <span>Sem notificações</span>
+        <div class="notif-empty__icon-wrap">
+          <BellIcon class="notif-empty__icon" aria-hidden="true" />
+        </div>
+        <span class="notif-empty__text">Sem notificações</span>
+        <span class="notif-empty__sub">As tuas notificações aparecerão aqui</span>
       </div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
+/* ── Panel container ── */
 .notif-panel {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 360px;
-  max-height: 480px;
+  width: 380px;
+  max-height: 500px;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
   border-radius: 16px;
@@ -116,9 +121,17 @@ const markAllRead = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-300);
   padding: 14px 16px 12px;
   border-bottom: 2px solid var(--color-mirage-800);
   flex-shrink: 0;
+  background: var(--color-wild-100);
+}
+
+.notif-panel__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
 }
 
 .notif-panel__title {
@@ -126,6 +139,20 @@ const markAllRead = () => {
   font-size: 14px;
   font-weight: 800;
   color: var(--color-mirage-800);
+  font-family: var(--font-display);
+}
+
+.notif-count-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-deep-600);
+  border: 1.5px solid var(--color-mirage-800);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .notif-mark-all {
@@ -138,6 +165,8 @@ const markAllRead = () => {
   padding: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .notif-mark-all:hover {
@@ -152,13 +181,14 @@ const markAllRead = () => {
 
 /* ── Item ── */
 .notif-item {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-300);
   padding: 12px 14px;
   border: none;
-  border-bottom: 1px solid var(--color-mirage-200, #e2e8f0);
+  border-bottom: 1.5px solid var(--color-wild-500);
   background: var(--color-wild-100);
   text-align: left;
   cursor: default;
@@ -169,54 +199,64 @@ const markAllRead = () => {
   border-bottom: none;
 }
 
-.notif-item--unread {
-  background: var(--color-wild-200);
+.notif-item.is-unread {
+  background: var(--color-deep-100);
+  border-left: 3px solid var(--color-deep-600);
+  padding-left: 11px;
 }
 
-/* Unread dot */
-.notif-dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+.notif-item.is-unread:hover {
+  background: var(--color-deep-200);
+}
+
+.notif-item:not(.is-unread):hover {
+  background: var(--color-wild-300);
+}
+
+/* Unread dot (top-right corner) */
+.notif-unread-dot {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--color-deep-500);
-  margin-top: 5px;
-}
-
-.notif-dot-spacer {
+  background: var(--color-deep-600);
+  border: 1.5px solid var(--color-wild-100);
   flex-shrink: 0;
-  width: 8px;
 }
 
 /* ── Icon wrap ── */
 .notif-icon-wrap {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
   display: grid;
   place-items: center;
+  margin-top: 1px;
 }
 
-.notif-icon-wrap--achievement   { background: var(--color-amber-100, #fef3c7); }
+.notif-icon-wrap--achievement   { background: var(--color-amber-100); }
 .notif-icon-wrap--quiz_ready    { background: #f3e8ff; }
 .notif-icon-wrap--quiz_result   { background: var(--color-deep-100); }
-.notif-icon-wrap--streak_warning{ background: var(--color-pumpkin-100, #fff0e0); }
-.notif-icon-wrap--system        { background: var(--color-wild-200); }
+.notif-icon-wrap--streak_warning{ background: var(--color-pumpkin-100); }
+.notif-icon-wrap--system        { background: var(--color-wild-400); }
 .notif-icon-wrap--book_unlocked { background: var(--color-deep-100); }
-.notif-icon-wrap--new_content   { background: var(--color-wild-200); }
+.notif-icon-wrap--new_content   { background: var(--color-mirage-100); }
 
 .notif-icon {
   width: 16px;
   height: 16px;
-  stroke-width: 1.8;
+  stroke-width: 2;
 }
 
-.notif-icon-wrap--achievement    .notif-icon { color: var(--color-amber-700, #b45309); }
+.notif-icon-wrap--achievement    .notif-icon { color: var(--color-amber-700); }
 .notif-icon-wrap--quiz_ready     .notif-icon { color: #7c3aed; }
 .notif-icon-wrap--quiz_result    .notif-icon { color: var(--color-deep-600); }
-.notif-icon-wrap--streak_warning .notif-icon { color: var(--color-pumpkin-500, #f97316); }
+.notif-icon-wrap--streak_warning .notif-icon { color: var(--color-pumpkin-700); }
 .notif-icon-wrap--system         .notif-icon { color: var(--color-mirage-500); }
 .notif-icon-wrap--book_unlocked  .notif-icon { color: var(--color-deep-600); }
 .notif-icon-wrap--new_content    .notif-icon { color: var(--color-mirage-500); }
@@ -226,54 +266,87 @@ const markAllRead = () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  padding-right: 14px;
+}
+
+.notif-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-200);
 }
 
 .notif-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-mirage-800);
   line-height: 1.3;
+  font-family: var(--font-display);
+}
+
+.notif-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mirage-400);
+  white-space: nowrap;
 }
 
 .notif-message {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-mirage-500);
-  line-height: 1.4;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* ── Time ── */
-.notif-time {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-mirage-400);
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
-/* ── Empty ── */
+/* ── Empty state ── */
 .notif-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 40px 24px;
-  color: var(--color-mirage-400);
-  font-size: 13px;
-  font-weight: 600;
+  gap: var(--space-200);
+  padding: 40px 24px 48px;
+  color: var(--color-mirage-500);
+}
+
+.notif-empty__icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  background: var(--color-wild-300);
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-100);
 }
 
 .notif-empty__icon {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   stroke-width: 1.5;
-  color: var(--color-mirage-300);
+  color: var(--color-mirage-400);
+}
+
+.notif-empty__text {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-mirage-700);
+  font-family: var(--font-display);
+}
+
+.notif-empty__sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-mirage-400);
+  text-align: center;
+  line-height: 1.5;
 }
 
 /* ── Transition ── */

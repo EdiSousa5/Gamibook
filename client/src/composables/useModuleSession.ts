@@ -18,11 +18,13 @@ import { fetchUserBook, TIER_ORDER, tierForPct, updateUserBookBadge } from '@/se
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationsStore } from '@/stores/notifications'
 
 export type SessionMode = 'normal' | 'retry' | 'review'
 
 export function useModuleSession(bookId: ComputedRef<number>, moduleId: ComputedRef<number>) {
   const auth = useAuthStore()
+  const notifStore = useNotificationsStore()
 
   const book = ref<Book | null>(null)
   const moduleData = ref<Module | null>(null)
@@ -222,6 +224,14 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
       if (newLevel > oldLevel) {
         isLevelUpQueued.value = true
         auth.triggerLevelUp(oldLevel, newLevel, totalPoints)
+        if (userId.value) {
+          notifStore.add({
+            user: userId.value,
+            title: `Subiste para o nível ${newLevel}!`,
+            message: `Parabéns! Chegaste ao nível ${newLevel} com ${totalPoints} XP no total.`,
+            type: 'achievement',
+          })
+        }
       }
     } catch (err) {
       console.error(err)
