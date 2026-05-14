@@ -233,10 +233,10 @@ export const fetchDailyExercisesByBook = async (bookId: number) => {
   const data = await response.json().catch(() => null)
   const items = (data?.data ?? []) as DailyExercise[]
 
-  return items.map((exercise: any) => ({
+  return items.map((exercise) => ({
     ...exercise,
     exercise_id: exercise.daily_exercise_id,
-  })) as DailyExercise[]
+  }))
 }
 
 export const createDailyExercise = async (payload: Partial<DailyExercise>) => {

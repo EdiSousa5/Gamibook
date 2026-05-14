@@ -21,7 +21,7 @@ onMounted(async () => {
 
 const displayName = computed(() => getUserDisplayName(user.value))
 const email = computed(() => user.value?.email ?? '—')
-const avatarUrl = computed(() => getAssetUrl(user.value?.avatar ?? user.value?.avatar_img ?? ''))
+const avatarUrl = computed(() => getAssetUrl(user.value?.avatar ?? ''))
 const initials = computed(() => displayName.value.charAt(0).toUpperCase())
 const joinedAt = computed(() => {
   const raw = user.value?.date_created

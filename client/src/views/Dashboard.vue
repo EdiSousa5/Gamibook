@@ -59,7 +59,7 @@ const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 const booksObtained = computed(() => userBooks.value.length)
 
 const avatar = computed(() =>
-  avatarUrl.value || getAssetUrl(user.value?.avatar ?? user.value?.avatar_img ?? ''),
+  avatarUrl.value || getAssetUrl(user.value?.avatar ?? ''),
 )
 
 const progressPct = computed(() =>

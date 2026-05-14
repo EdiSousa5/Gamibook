@@ -1,6 +1,8 @@
+import type { ExerciseContent } from '@/types'
+
 export type ExerciseLike = {
   type?: string
-  content?: Record<string, unknown>
+  content?: ExerciseContent
 }
 
 export function shuffleArray<T>(arr: T[]): T[] {

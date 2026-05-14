@@ -171,7 +171,7 @@ export const getUserDisplayName = (user?: User | null) => {
   return user.email || 'Utilizador'
 }
 
-export const getUserAvatarId = (user?: User | null) => user?.avatar ?? user?.avatar_img ?? null
+export const getUserAvatarId = (user?: User | null) => user?.avatar ?? null
 
 const ADMIN_ROLES = ['admin', 'admin absoluto', 'editora', 'autor']
 

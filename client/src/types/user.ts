@@ -5,7 +5,6 @@ export type User = {
   name?: string
   email?: string
   avatar?: string | null
-  avatar_img?: string | null
   points?: number
   level?: number
   role?: { id?: string; name?: string } | string | null

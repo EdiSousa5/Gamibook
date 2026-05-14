@@ -284,7 +284,7 @@ watch(
       let expectedTier = tierForPct(currentPct)
       const currentBadge = userBookData.current_badge || 'default'
 
-      if (currentBadge === 'galaxy' && currentPct >= 100) expectedTier = 'galaxy'
+      if (currentBadge === 'galaxy') expectedTier = 'galaxy'
 
       if (currentBadge !== expectedTier) {
         const oldRank = TIER_ORDER.indexOf(currentBadge as any)
