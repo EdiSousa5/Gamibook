@@ -25,6 +25,7 @@ import {
 } from '../services/badges'
 import { fetchApprovedExerciseCountsByModule, fetchUserExercisesByModule } from '../services/exercises'
 import { useToast } from '@/composables/useToast'
+import { useNotificationsStore } from '@/stores/notifications'
 import { getStoredUserId } from '../services/client'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
@@ -36,6 +37,7 @@ import type { Book, Exercise, UserBook, FinalQuizAttempt } from '@/types'
 
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
+const notifStore = useNotificationsStore()
 
 type QuizState = 'loading' | 'locked' | 'done' | 'quiz' | 'result' | 'history'
 
@@ -182,8 +184,24 @@ const submitResult = async () => {
       await updateUserBookBadge(userBook.value.user_book_id, 'galaxy')
       userBook.value = { ...userBook.value, current_badge: 'galaxy' }
       window.setTimeout(() => { showGalaxyModal.value = true }, 800)
+      if (userId.value) {
+        notifStore.add({
+          user: userId.value,
+          title: 'Quiz Final superado!',
+          message: `Acertaste ${score.value.correct} de ${questions.value.length} perguntas e conquistaste o badge Galaxy em "${book.value?.title ?? 'livro'}".`,
+          type: 'quiz_result',
+        })
+      }
     } else {
       cooldownUntil.value = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      if (userId.value) {
+        notifStore.add({
+          user: userId.value,
+          title: 'Quiz Final não superado',
+          message: `Acertaste ${score.value.correct} de ${questions.value.length}. Precisas de 8 certas. Tenta novamente amanhã.`,
+          type: 'quiz_result',
+        })
+      }
     }
   } catch (err) {
     console.error('[FinalQuiz] submitResult failed', err)

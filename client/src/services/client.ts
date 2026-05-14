@@ -29,6 +29,7 @@ export const getAssetUrl = (assetId?: string | null) => {
   return token ? `${base}?access_token=${token}` : base
 }
 
+
 let _onUnauthorized: (() => void) | null = null
 
 export const setUnauthorizedHandler = (handler: () => void) => {

@@ -140,11 +140,20 @@ h3 {
   letter-spacing: 0.5px;
 }
 
-.frame-status.locked {
-  color: var(--color-mirage-500);
-}
+.frame-status.locked   { color: var(--color-mirage-500); }
+.frame-status.unlocked { color: var(--color-teal-600); }
 
-.frame-status.unlocked {
-  color: var(--color-teal-600);
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 </style>
