@@ -38,15 +38,15 @@ const navItems = computed(() => {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
       { label: 'Estatísticas', to: '/admin/stats', icon: 'stats' },
-      { label: 'Gerar exercicios', to: '/exercise-generator', icon: 'generate' },
+      { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
     ]
   }
   return [
-    { label: 'Pagina Principal', to: '/app', icon: 'home' },
-    { label: 'Classificacao', to: '/leaderboard', icon: 'rank' },
-    { label: 'Catalogo de Livros', to: '/collection', icon: 'books' },
+    { label: 'Página Principal', to: '/app', icon: 'home' },
+    { label: 'Classificação', to: '/leaderboard', icon: 'rank' },
+    { label: 'Catálogo de Livros', to: '/collection', icon: 'books' },
     { label: 'Ajuda', to: '/help', icon: 'help' },
     { label: 'Definições', to: '/settings', icon: 'settings' },
   ]
@@ -135,7 +135,7 @@ watch(
         <div v-if="canGoBack && route.path !== '/'" class="landing-back">
           <UiButton variant="outline" size="sm" class="back-button" @click="handleBack">
             <ArrowLeftIcon class="icon" aria-hidden="true" />
-            Voltar para tras
+            Voltar para trás
           </UiButton>
         </div>
         <RouterView />

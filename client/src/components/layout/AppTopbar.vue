@@ -239,7 +239,7 @@ watch(
     <div v-if="showBack" class="back">
       <UiPillButton class="back-button" @click="goBack">
         <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
-        Voltar para tras
+        Voltar para trás
       </UiPillButton>
     </div>
     <div v-else class="back-spacer"></div>
@@ -274,7 +274,7 @@ watch(
           <ChevronDownIcon class="caret" aria-hidden="true" />
         </button>
         <div v-if="menuOpen" class="profile-menu">
-          <RouterLink class="menu-item" to="/settings/conta" @click="closeMenu()">Definicoes</RouterLink>
+          <RouterLink class="menu-item" to="/settings/conta" @click="closeMenu()">Definições</RouterLink>
           <button class="menu-item" type="button" @click="emit('action', 'Sair da conta'); closeMenu()">
             Sair da conta
           </button>
