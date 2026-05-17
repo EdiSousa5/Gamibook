@@ -232,7 +232,7 @@ onUnmounted(() => {
   <section class="collection" ref="collectionRef">
     <div class="header">
       <div>
-        <h1>Catalogo de Livros</h1>
+        <h1>Catálogo de Livros</h1>
         <p class="meta">O teu livro principal, os livros que tens e os que ainda não tens.</p>
       </div>
     </div>
