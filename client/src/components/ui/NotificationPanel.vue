@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import {
   TrophyIcon,
@@ -8,13 +9,53 @@ import {
   BookOpenIcon,
   CheckCircleIcon,
   RectangleStackIcon,
+  EyeIcon,
+  TrashIcon,
 } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
+import UiCheckbox from '@/components/ui/UiCheckbox.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiIconButton from '@/components/ui/UiIconButton.vue'
+import { useToast } from '@/composables/useToast'
 
 defineProps<{ visible: boolean }>()
 
 const notifStore = useNotificationsStore()
+const toast = useToast()
+
+const selectedIds = ref<Set<string>>(new Set())
+const hasSelection = computed(() => selectedIds.value.size > 0)
+const allSelected = computed(
+  () =>
+    notifStore.notifications.length > 0 &&
+    selectedIds.value.size === notifStore.notifications.length,
+)
+
+const toggleSelect = (id: string, checked: boolean) => {
+  const next = new Set(selectedIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedIds.value = next
+}
+
+const toggleSelectAll = (checked: boolean) => {
+  selectedIds.value = checked
+    ? new Set(notifStore.notifications.map((n) => n.notifications_id))
+    : new Set()
+}
+
+const markSelectedRead = () => {
+  notifStore.markSelectedRead(Array.from(selectedIds.value))
+  selectedIds.value = new Set()
+}
+
+const deleteSelected = () => {
+  const count = selectedIds.value.size
+  notifStore.deleteSelected(Array.from(selectedIds.value))
+  selectedIds.value = new Set()
+  toast.success(count === 1 ? 'Notificação eliminada.' : `${count} notificações eliminadas.`)
+}
 
 const iconMap: Record<NotificationType, Component> = {
   achievement: TrophyIcon,
@@ -37,7 +78,7 @@ const timeAgo = (dateStr: string): string => {
   return `há ${d} dia${d > 1 ? 's' : ''}`
 }
 
-const handleClick = async (id: string, isRead: boolean) => {
+const handleItemClick = async (id: string, isRead: boolean) => {
   if (!isRead) await notifStore.markRead(id)
 }
 </script>
@@ -45,48 +86,102 @@ const handleClick = async (id: string, isRead: boolean) => {
 <template>
   <Transition name="panel-pop">
     <div v-if="visible" class="notif-panel" role="dialog" aria-label="Notificações">
+
+      <!-- Header — checkbox column aligns with list items -->
       <header class="notif-panel__header">
-        <div class="notif-panel__title-row">
-          <h3 class="notif-panel__title">Notificações</h3>
-          <span v-if="notifStore.unreadCount > 0" class="notif-count-chip">
-            {{ notifStore.unreadCount }} por ler
-          </span>
+        <!-- Checkbox column: same width/padding as .notif-check in list -->
+        <div class="notif-header__check" @click.stop>
+          <UiCheckbox
+            v-if="notifStore.notifications.length"
+            :model-value="allSelected"
+            @update="toggleSelectAll"
+          />
         </div>
-        <button
-          v-if="notifStore.unreadCount > 0"
-          class="notif-mark-all"
-          type="button"
-          @click="notifStore.markAllRead()"
-        >
-          Marcar todas como lidas
-        </button>
+
+        <!-- Centre: title or selection count -->
+        <div class="notif-header__centre">
+          <template v-if="hasSelection">
+            <span class="notif-header__sel-count">
+              {{ selectedIds.size }} selecionada{{ selectedIds.size !== 1 ? 's' : '' }}
+            </span>
+          </template>
+          <template v-else>
+            <h3 class="notif-panel__title">Notificações</h3>
+            <span v-if="notifStore.unreadCount > 0" class="notif-count-chip">
+              {{ notifStore.unreadCount }}
+            </span>
+          </template>
+        </div>
+
+        <!-- Right: bulk actions or mark-all -->
+        <div class="notif-header__actions">
+          <template v-if="hasSelection">
+            <UiButton size="xs" variant="outline" @click="markSelectedRead">
+              <template #icon-left><EyeIcon class="btn-icon" aria-hidden="true" /></template>
+              Lidas
+            </UiButton>
+            <UiButton size="xs" variant="danger" @click="deleteSelected">
+              <template #icon-left><TrashIcon class="btn-icon" aria-hidden="true" /></template>
+              Eliminar
+            </UiButton>
+          </template>
+          <button
+            v-else-if="notifStore.unreadCount > 0"
+            class="notif-mark-all"
+            type="button"
+            @click="notifStore.markAllRead()"
+          >
+            Marcar todas como lidas
+          </button>
+        </div>
       </header>
 
+      <!-- Notification list -->
       <div v-if="notifStore.notifications.length" class="notif-list">
-        <button
+        <div
           v-for="notif in notifStore.notifications"
           :key="notif.notifications_id"
-          type="button"
           class="notif-item"
-          :class="{ 'is-unread': !notif.is_read }"
-          @click="handleClick(notif.notifications_id, notif.is_read)"
+          :class="{
+            'is-unread': !notif.is_read,
+            'is-selected': selectedIds.has(notif.notifications_id),
+          }"
         >
-          <span class="notif-icon-wrap" :class="`notif-icon-wrap--${notif.type}`">
-            <component :is="iconMap[notif.type]" class="notif-icon" aria-hidden="true" />
-          </span>
+          <div class="notif-check" @click.stop>
+            <UiCheckbox
+              :model-value="selectedIds.has(notif.notifications_id)"
+              @update="(v) => toggleSelect(notif.notifications_id, v)"
+            />
+          </div>
 
-          <span class="notif-body">
-            <span class="notif-header-row">
-              <span class="notif-title">{{ notif.title }}</span>
-              <span class="notif-time">{{ timeAgo(notif.date_created) }}</span>
+          <div class="notif-item__body">
+            <span class="notif-icon-wrap" :class="`notif-icon-wrap--${notif.type}`">
+              <component :is="iconMap[notif.type]" class="notif-icon" aria-hidden="true" />
             </span>
-            <span class="notif-message">{{ notif.message }}</span>
-          </span>
 
-          <span v-if="!notif.is_read" class="notif-unread-dot" aria-hidden="true" />
-        </button>
+            <span class="notif-body">
+              <span class="notif-header-row">
+                <span class="notif-title">{{ notif.title }}</span>
+                <span class="notif-time">{{ timeAgo(notif.date_created) }}</span>
+              </span>
+              <span class="notif-message">{{ notif.message }}</span>
+            </span>
+
+            <UiIconButton
+              v-if="!notif.is_read"
+              size="sm"
+              shape="square"
+              variant="read"
+              aria-label="Marcar como lida"
+              @click.stop="handleItemClick(notif.notifications_id, notif.is_read)"
+            >
+              <EyeIcon class="read-icon" aria-hidden="true" />
+            </UiIconButton>
+          </div>
+        </div>
       </div>
 
+      <!-- Empty state -->
       <div v-else class="notif-empty">
         <div class="notif-empty__icon-wrap">
           <BellIcon class="notif-empty__icon" aria-hidden="true" />
@@ -94,18 +189,19 @@ const handleClick = async (id: string, isRead: boolean) => {
         <span class="notif-empty__text">Sem notificações</span>
         <span class="notif-empty__sub">As tuas notificações aparecerão aqui</span>
       </div>
+
     </div>
   </Transition>
 </template>
 
 <style scoped>
-/* ── Panel container ── */
+/* ── Panel ── */
 .notif-panel {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 380px;
-  max-height: 500px;
+  width: 400px;
+  max-height: 520px;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
   border-radius: 16px;
@@ -120,18 +216,28 @@ const handleClick = async (id: string, isRead: boolean) => {
 .notif-panel__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-300);
-  padding: 14px 16px 12px;
+  gap: var(--space-200);
+  /* right/top/bottom padding only — left is handled by .notif-header__check to align with list */
+  padding: 12px 16px 12px 0;
   border-bottom: 2px solid var(--color-mirage-800);
   flex-shrink: 0;
   background: var(--color-wild-100);
 }
 
-.notif-panel__title-row {
+/* Checkbox column — same geometry as .notif-check in list items */
+.notif-header__check {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 12px;
+  flex-shrink: 0;
+}
+
+.notif-header__centre {
   display: flex;
   align-items: center;
   gap: var(--space-200);
+  flex: 1;
+  min-width: 0;
 }
 
 .notif-panel__title {
@@ -140,12 +246,20 @@ const handleClick = async (id: string, isRead: boolean) => {
   font-weight: 800;
   color: var(--color-mirage-800);
   font-family: var(--font-display);
+  white-space: nowrap;
+}
+
+.notif-header__sel-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  font-family: var(--font-display);
 }
 
 .notif-count-chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
   background: var(--color-deep-600);
   border: 1.5px solid var(--color-mirage-800);
@@ -153,24 +267,48 @@ const handleClick = async (id: string, isRead: boolean) => {
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
-}
-
-.notif-mark-all {
-  background: none;
-  border: none;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-deep-600);
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
   flex-shrink: 0;
 }
 
+.notif-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+}
+
+.notif-mark-all {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
 .notif-mark-all:hover {
-  color: var(--color-deep-800);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.notif-mark-all:active {
+  transform: translate(0, 0);
+  box-shadow: 1px 1px 0 var(--color-shadow);
 }
 
 /* ── List ── */
@@ -182,16 +320,10 @@ const handleClick = async (id: string, isRead: boolean) => {
 /* ── Item ── */
 .notif-item {
   position: relative;
-  width: 100%;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-300);
-  padding: 12px 14px;
-  border: none;
+  align-items: stretch;
   border-bottom: 1.5px solid var(--color-wild-500);
   background: var(--color-wild-100);
-  text-align: left;
-  cursor: default;
   transition: background 0.12s ease;
 }
 
@@ -202,28 +334,38 @@ const handleClick = async (id: string, isRead: boolean) => {
 .notif-item.is-unread {
   background: var(--color-deep-100);
   border-left: 3px solid var(--color-deep-600);
-  padding-left: 11px;
 }
 
-.notif-item.is-unread:hover {
-  background: var(--color-deep-200);
+.notif-item.is-selected {
+  background: color-mix(in srgb, var(--color-deep-600) 8%, var(--color-wild-100));
 }
 
-.notif-item:not(.is-unread):hover {
-  background: var(--color-wild-300);
+.notif-item.is-unread.is-selected {
+  background: color-mix(in srgb, var(--color-deep-600) 16%, var(--color-wild-100));
 }
 
-/* Unread dot (top-right corner) */
-.notif-unread-dot {
-  position: absolute;
-  top: 14px;
-  right: 12px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-deep-600);
-  border: 1.5px solid var(--color-wild-100);
+/* Checkbox column */
+.notif-check {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 12px;
   flex-shrink: 0;
+}
+
+/* Body */
+.notif-item__body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  padding: 12px 12px 12px 8px;
+  min-width: 0;
+}
+
+.read-icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
 }
 
 /* ── Icon wrap ── */
@@ -236,16 +378,15 @@ const handleClick = async (id: string, isRead: boolean) => {
   box-shadow: 2px 2px 0 var(--color-shadow);
   display: grid;
   place-items: center;
-  margin-top: 1px;
 }
 
-.notif-icon-wrap--achievement   { background: var(--color-amber-100); }
-.notif-icon-wrap--quiz_ready    { background: #f3e8ff; }
-.notif-icon-wrap--quiz_result   { background: var(--color-deep-100); }
-.notif-icon-wrap--streak_warning{ background: var(--color-pumpkin-100); }
-.notif-icon-wrap--system        { background: var(--color-wild-400); }
-.notif-icon-wrap--book_unlocked { background: var(--color-deep-100); }
-.notif-icon-wrap--new_content   { background: var(--color-mirage-100); }
+.notif-icon-wrap--achievement    { background: var(--color-amber-100); }
+.notif-icon-wrap--quiz_ready     { background: #f3e8ff; }
+.notif-icon-wrap--quiz_result    { background: var(--color-deep-100); }
+.notif-icon-wrap--streak_warning { background: var(--color-pumpkin-100); }
+.notif-icon-wrap--system         { background: var(--color-wild-400); }
+.notif-icon-wrap--book_unlocked  { background: var(--color-deep-100); }
+.notif-icon-wrap--new_content    { background: var(--color-mirage-100); }
 
 .notif-icon {
   width: 16px;
@@ -261,7 +402,7 @@ const handleClick = async (id: string, isRead: boolean) => {
 .notif-icon-wrap--book_unlocked  .notif-icon { color: var(--color-deep-600); }
 .notif-icon-wrap--new_content    .notif-icon { color: var(--color-mirage-500); }
 
-/* ── Body ── */
+/* ── Body text ── */
 .notif-body {
   flex: 1;
   display: flex;
@@ -349,7 +490,7 @@ const handleClick = async (id: string, isRead: boolean) => {
   line-height: 1.5;
 }
 
-/* ── Transition ── */
+/* ── Panel transition ── */
 .panel-pop-enter-active {
   animation: panel-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

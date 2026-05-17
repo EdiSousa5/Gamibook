@@ -56,6 +56,7 @@ const recentBadge = computed<BookBadgeTier | undefined>(() => {
 })
 
 const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
+const bestStreak = computed(() => user.value?.best_exercises_daily_streak ?? 0)
 const booksObtained = computed(() => userBooks.value.length)
 
 const avatar = computed(() =>
@@ -274,13 +275,13 @@ onUnmounted(() => {
               </RouterLink>
             </div>
             <div class="profile-stats">
-              <div class="mini-stat" :class="{ 'mini-stat--hot': dailyStreak >= 2 }">
+              <div class="mini-stat" :class="{ 'mini-stat--hot': bestStreak >= 2 }">
                 <div class="mini-icon">
                   <FireIcon class="icon" aria-hidden="true" />
                 </div>
                 <div class="mini-text">
-                  <strong>{{ dailyStreak }}</strong>
-                  <span>Streak atual</span>
+                  <strong>{{ bestStreak }}</strong>
+                  <span>Melhor Streak</span>
                 </div>
               </div>
               <div class="mini-stat">

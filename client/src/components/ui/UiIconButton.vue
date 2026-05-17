@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type Variant = 'primary' | 'secondary' | 'outline'
+type Variant = 'primary' | 'secondary' | 'outline' | 'read'
 type Size = 'sm' | 'md' | 'lg'
 type Shape = 'round' | 'square'
 
@@ -40,13 +40,14 @@ withDefaults(defineProps<Props>(), {
   place-items: center;
   cursor: pointer;
   box-shadow: 4px 4px 0 var(--color-shadow);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 
 .ui-icon-button.sm {
   width: 28px;
   height: 28px;
   font-size: 12px;
+  box-shadow: 2px 2px 0 var(--color-shadow);
 }
 
 .ui-icon-button.lg {
@@ -55,6 +56,7 @@ withDefaults(defineProps<Props>(), {
   font-size: 16px;
 }
 
+/* Variants */
 .ui-icon-button.primary {
   background: var(--color-wild-100);
   color: var(--color-deep-700);
@@ -66,21 +68,41 @@ withDefaults(defineProps<Props>(), {
   color: var(--color-mirage-800);
 }
 
-.ui-icon-button:hover {
+.ui-icon-button.read {
+  background: var(--color-deep-100);
+  color: var(--color-deep-700);
+}
+
+/* Hover — lift */
+.ui-icon-button:not(:disabled):hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--color-shadow);
   background: var(--color-deep-100);
 }
 
-.ui-icon-button:active {
+.ui-icon-button.sm:not(:disabled):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.ui-icon-button.read:not(:disabled):hover {
   background: var(--color-deep-200);
 }
 
-.ui-icon-button:active {
+/* Active — press into shadow */
+.ui-icon-button:not(:disabled):active {
   transform: translate(3px, 3px);
   box-shadow: 1px 1px 0 var(--color-shadow);
 }
 
+.ui-icon-button.sm:not(:disabled):active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0 var(--color-shadow);
+}
+
+/* Shape */
 .ui-icon-button.shape-square {
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .ui-icon-button:disabled {

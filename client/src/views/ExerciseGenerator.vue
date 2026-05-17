@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -42,6 +42,7 @@ import {
     resolveModuleTitle,
     type ExerciseType
 } from '@/utils/exerciseParser'
+import { useToast } from '@/composables/useToast'
 
 
 type GeneratedExercise = {
@@ -99,13 +100,11 @@ const generatedExercises = ref<GeneratedExercise[]>([])
 const rawFlowiseResponse = ref('')
 const rawFlowiseRequest = ref('')
 
+const toast = useToast()
 const isLoadingData = ref(false)
 const isGenerating = ref(false)
 const elapsedSeconds = ref(0)
 let elapsedTimer: number | null = null
-const error = ref('')
-const info = ref('')
-const warning = ref('')
 const progressLabel = ref('')
 const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
@@ -264,14 +263,13 @@ const groupedSections = computed<Section[]>(() => {
 
 const loadInitialData = async () => {
     isLoadingData.value = true
-    error.value = ''
     try {
         const [moduleList, bookList] = await Promise.all([fetchModules(), fetchBooks()])
         modules.value = moduleList
         books.value = bookList
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível carregar os módulos.'
+        toast.error('Não foi possível carregar os módulos.')
     } finally {
         isLoadingData.value = false
     }
@@ -297,7 +295,7 @@ const refreshApprovedExercises = async () => {
         approvedExercisesByModule.value = nextMap
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível carregar os exercícios aprovados.'
+        toast.error('Não foi possível carregar os exercícios aprovados.')
     }
 }
 
@@ -330,7 +328,7 @@ const refreshApprovedExercisesForModule = async (moduleId: number) => {
         return list
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível carregar os exercícios aprovados.'
+        toast.error('Não foi possível carregar os exercícios aprovados.')
         return []
     }
 }
@@ -342,7 +340,7 @@ const refreshDailyExercises = async () => {
         approvedDailyExercises.value = list
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível carregar os exercícios diários.'
+        toast.error('Não foi possível carregar os exercícios diários.')
     }
 }
 
@@ -387,16 +385,14 @@ const toggleModuleSelection = (moduleId: number) => {
             selectedModuleId.value = selectedModuleIds.value[0] ?? null
         }
         if (selectedModuleIds.value.length <= MAX_SELECTED_MODULES) {
-            warning.value = ''
         }
     } else {
         if (selectedModuleIds.value.length >= MAX_SELECTED_MODULES) {
-            warning.value = `Só podes selecionar até ${MAX_SELECTED_MODULES} módulos de cada vez.`
+            toast.warning(`Só podes selecionar até ${MAX_SELECTED_MODULES} módulos de cada vez.`)
             return
         }
         selectedModuleIds.value = [...selectedModuleIds.value, moduleId]
         selectedModuleId.value = moduleId
-        warning.value = ''
     }
 }
 
@@ -546,23 +542,23 @@ const generateForDaily = async (count: number) => {
 
 const handleGenerate = async () => {
     if (generationMode.value === 'module' && !selectedModules.value.length) {
-        error.value = 'Seleciona pelo menos um módulo primeiro.'
+        toast.error('Seleciona pelo menos um módulo primeiro.')
         return
     }
     if (generationMode.value === 'daily' && !selectedBookId.value) {
-        error.value = 'Seleciona um livro primeiro.'
+        toast.error('Seleciona um livro primeiro.')
         return
     }
     if (countPerModule.value <= 0) {
-        error.value = 'Define uma quantidade maior que zero.'
+        toast.error('Define uma quantidade maior que zero.')
         return
     }
     if (generationMode.value === 'module' && isOverMaxTotal.value) {
-        error.value = `O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`
+        toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
         return
     }
     if (remainingQuota.value <= 0) {
-        error.value = `Atingiste o limite diário de ${DAILY_GENERATION_LIMIT} perguntas geradas. Tenta amanhã.`
+        toast.error(`Atingiste o limite diário de ${DAILY_GENERATION_LIMIT} perguntas geradas. Tenta amanhã.`)
         return
     }
     isGenerating.value = true
@@ -571,9 +567,6 @@ const handleGenerate = async () => {
     elapsedTimer = window.setInterval(() => {
         elapsedSeconds.value += 1
     }, 1000)
-    error.value = ''
-    info.value = ''
-    warning.value = ''
     progressLabel.value = ''
     rawFlowiseResponse.value = ''
     rawFlowiseRequest.value = ''
@@ -587,14 +580,14 @@ const handleGenerate = async () => {
             : await generateForDaily(Math.min(countPerModule.value, 15))
         rawFlowiseResponse.value = JSON.stringify(result.rawResponse ?? null, null, 2)
         if (!result.items.length) {
-            error.value = 'A IA não devolveu exercícios. Tenta novamente.'
+            toast.error('A IA não devolveu exercícios. Tenta novamente.')
             return
         }
         generatedExercises.value = [...generatedExercises.value, ...result.items]
-        info.value = 'Exercícios gerados. Revê e aprova os melhores.'
+        toast.info('Exercícios gerados. Revê e aprova os melhores.')
     } catch (err) {
         console.error(err)
-        error.value = 'Erro ao gerar exercícios.'
+        toast.error('Erro ao gerar exercícios.')
     } finally {
         isGenerating.value = false
         progressLabel.value = ''
@@ -615,8 +608,6 @@ const setApproving = (localId: string, value: boolean) => {
 
 const handleApprove = async (exercise: GeneratedExercise) => {
     setApproving(exercise.localId, true)
-    error.value = ''
-    info.value = ''
 
     try {
         if (generationMode.value === 'module') {
@@ -624,7 +615,7 @@ const handleApprove = async (exercise: GeneratedExercise) => {
             if (!targetModuleId) return
             const currentCount = (approvedExercisesByModule.value[targetModuleId] || []).length
             if (currentCount >= MAX_MODULE_EXERCISES) {
-                error.value = `Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`
+                toast.error(`Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`)
                 return
             }
             await createExercise({
@@ -639,7 +630,7 @@ const handleApprove = async (exercise: GeneratedExercise) => {
         } else {
             if (!selectedBookId.value) return
             if (approvedDailyExercises.value.length >= MAX_DAILY_EXERCISES) {
-                error.value = `Este livro já atingiu o limite de ${MAX_DAILY_EXERCISES} perguntas diárias.`
+                toast.error(`Este livro já atingiu o limite de ${MAX_DAILY_EXERCISES} perguntas diárias.`)
                 return
             }
             await createDailyExercise({
@@ -652,10 +643,10 @@ const handleApprove = async (exercise: GeneratedExercise) => {
             await refreshDailyExercises()
         }
         await refreshQuota()
-        info.value = 'Exercício aprovado e guardado com sucesso.'
+        toast.info('Exercício aprovado e guardado com sucesso.')
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível aprovar o exercício.'
+        toast.error('Não foi possível aprovar o exercício.')
     } finally {
         setApproving(exercise.localId, false)
     }
@@ -665,15 +656,13 @@ const handleReject = async (exercise: GeneratedExercise) => {
     const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
     if (!targetModuleId) return
     setApproving(exercise.localId, true)
-    error.value = ''
-    info.value = ''
 
     try {
         removeGenerated(exercise.localId)
-        info.value = 'Exercício rejeitado e removido da lista.'
+        toast.info('Exercício rejeitado e removido da lista.')
     } catch (err) {
         console.error(err)
-        error.value = 'Ocorreu um erro ao rejeitar o exercício.'
+        toast.error('Ocorreu um erro ao rejeitar o exercício.')
     } finally {
         setApproving(exercise.localId, false)
     }
@@ -682,8 +671,6 @@ const handleReject = async (exercise: GeneratedExercise) => {
 const handleRemoveApproved = async (exercise: Exercise | DailyExercise) => {
     const ex = exercise as Exercise
     if (!ex.exercise_id) return
-    error.value = ''
-    info.value = ''
     try {
         await deleteExercise(ex.exercise_id)
         if (ex.id_module) {
@@ -692,25 +679,23 @@ const handleRemoveApproved = async (exercise: Exercise | DailyExercise) => {
         } else {
             await refreshApprovedExercises()
         }
-        info.value = 'Exercício removido com sucesso.'
+        toast.info('Exercício removido com sucesso.')
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível remover o exercício.'
+        toast.error('Não foi possível remover o exercício.')
     }
 }
 
 const handleRemoveDaily = async (exercise: Exercise | DailyExercise) => {
     const id = (exercise as DailyExercise).daily_exercise_id
     if (!id) return
-    error.value = ''
-    info.value = ''
     try {
         await deleteDailyExercise(id)
         await refreshDailyExercises()
-        info.value = 'Exercício diário removido com sucesso.'
+        toast.info('Exercício diário removido com sucesso.')
     } catch (err) {
         console.error(err)
-        error.value = 'Não foi possível remover o exercício diário.'
+        toast.error('Não foi possível remover o exercício diário.')
     }
 }
 
@@ -720,9 +705,6 @@ const toggleModuleExpanded = (moduleId: number) => {
 
 watch(generationMode, () => {
     generatedExercises.value = []
-    error.value = ''
-    info.value = ''
-    warning.value = ''
     if (generationMode.value === 'daily' && selectedBookId.value) {
         refreshDailyExercises()
         refreshAllApprovedExercisesForBook()
@@ -749,7 +731,6 @@ watch(selectedBookId, () => {
     approvedDailyExercises.value = []
     rawFlowiseResponse.value = ''
     rawFlowiseRequest.value = ''
-    warning.value = ''
     if (generationMode.value === 'daily') {
         refreshDailyExercises()
         refreshAllApprovedExercisesForBook()
@@ -774,12 +755,7 @@ onMounted(async () => {
             </div>
         </header>
 
-        <div class="status-stack" v-if="isLoadingData || error || warning || info">
-            <div v-if="isLoadingData" class="alert alert-loading">A carregar os dados da plataforma...</div>
-            <div v-if="error" class="alert alert-error">{{ error }}</div>
-            <div v-if="warning" class="alert alert-warning">{{ warning }}</div>
-            <div v-if="info" class="alert alert-info">{{ info }}</div>
-        </div>
+        <div v-if="isLoadingData" class="loading-banner">A carregar os dados da plataforma...</div>
 
         <div class="workspace">
             <div class="main-column">
@@ -1023,38 +999,14 @@ onMounted(async () => {
     color: var(--color-mirage-600);
 }
 
-/* Status Stack */
-.status-stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-200);
-}
-
-.alert {
+/* Loading banner */
+.loading-banner {
     padding: var(--space-300) var(--space-400);
     border-radius: var(--radius-200);
     border: 2px solid var(--color-mirage-900);
     font-weight: 600;
     box-shadow: 3px 3px 0 var(--color-shadow);
-}
-
-.alert-loading {
     background: var(--color-wild-200);
-}
-
-.alert-error {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.alert-warning {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.alert-info {
-    background: var(--color-deep-100);
-    color: var(--color-deep-800);
 }
 
 /* Workspace */

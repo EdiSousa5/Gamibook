@@ -28,6 +28,15 @@ export const markAllNotificationsRead = async (ids: string[]): Promise<void> => 
   })
 }
 
+export const deleteNotifications = async (ids: string[]): Promise<void> => {
+  if (!ids.length) return
+  await authFetch('/items/notifications', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids),
+  })
+}
+
 export const createNotification = async (
   payload: CreateNotificationPayload,
 ): Promise<Notification> => {

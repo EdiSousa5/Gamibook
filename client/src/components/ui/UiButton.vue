@@ -1,6 +1,6 @@
 <script setup lang="ts">
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost'
-type Size = 'sm' | 'md' | 'lg'
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
+type Size = 'xs' | 'sm' | 'md' | 'lg'
 
 type Props = {
   variant?: Variant
@@ -106,6 +106,24 @@ const props = withDefaults(defineProps<Props>(), {
   letter-spacing: 0.3px;
 }
 
+.ui-button.xs {
+  font-size: 11px;
+  --btn-offset-x: 2px;
+  --btn-offset-y: 3px;
+}
+
+.ui-button.xs .ui-button-shadow,
+.ui-button.xs .ui-button-surface {
+  border-radius: 8px;
+}
+
+.ui-button.xs .ui-button-content {
+  min-height: 0;
+  min-width: 0;
+  padding: 4px 10px;
+  gap: var(--space-150);
+}
+
 .ui-button.sm {
   font-size: 12px;
 }
@@ -175,6 +193,18 @@ const props = withDefaults(defineProps<Props>(), {
 }
 
 .ui-button.ghost:hover {
+  transform: translateY(-2px);
+}
+
+.ui-button.danger {
+  color: var(--color-error-strong);
+  --btn-face: var(--color-wild-100);
+  --btn-face-hover: #fef2f2;
+  --btn-shadow: var(--color-shadow);
+  --btn-border: var(--color-mirage-800);
+}
+
+.ui-button.danger:hover {
   transform: translateY(-2px);
 }
 

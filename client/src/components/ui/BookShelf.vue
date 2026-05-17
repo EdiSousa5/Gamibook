@@ -89,6 +89,7 @@ withDefaults(
   height: 24px;
   background: linear-gradient(to bottom, var(--color-deep-200), var(--color-deep-400));
   border: 2px solid var(--color-mirage-800);
+  border-top: none;
   border-bottom: none;
   transform-origin: bottom;
   transform: perspective(500px) rotateX(40deg);

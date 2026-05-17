@@ -6,7 +6,9 @@ import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import type { NotificationType } from '@/types/notification'
+import type { Component } from 'vue'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAuthStore } from '@/stores/auth'
@@ -202,7 +204,20 @@ const retry = () => {
 const toggleMenu = () => { menuOpen.value = !menuOpen.value }
 const closeMenu = () => { menuOpen.value = false }
 
-const toggleBell = () => { bellOpen.value = !bellOpen.value }
+const popupIconMap: Record<NotificationType, Component> = {
+  achievement: TrophyIcon,
+  quiz_ready: SparklesIcon,
+  quiz_result: CheckCircleIcon,
+  streak_warning: ExclamationTriangleIcon,
+  system: BellIcon,
+  book_unlocked: BookOpenIcon,
+  new_content: RectangleStackIcon,
+}
+
+const toggleBell = () => {
+  bellOpen.value = !bellOpen.value
+  if (bellOpen.value) notifStore.dismissPopup()
+}
 const closeBell = () => { bellOpen.value = false }
 
 const onDocumentClick = (event: MouseEvent) => {
@@ -255,6 +270,27 @@ watch(
           {{ notifStore.unreadCount > 9 ? '9+' : notifStore.unreadCount }}
         </span>
         <NotificationPanel :visible="bellOpen" @close="closeBell" />
+
+        <!-- New notification popup -->
+        <Transition name="notif-pop">
+          <div
+            v-if="notifStore.lastAdded && !bellOpen"
+            class="notif-popup"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="notif-popup__icon" :class="`popup-type--${notifStore.lastAdded.type}`">
+              <component :is="popupIconMap[notifStore.lastAdded.type]" class="popup-icon-svg" aria-hidden="true" />
+            </div>
+            <div class="notif-popup__body">
+              <span class="notif-popup__title">{{ notifStore.lastAdded.title }}</span>
+              <span class="notif-popup__msg">{{ notifStore.lastAdded.message }}</span>
+            </div>
+            <UiIconButton size="sm" shape="square" aria-label="Fechar" @click="notifStore.dismissPopup()">
+              <XMarkIcon class="popup-close-icon" aria-hidden="true" />
+            </UiIconButton>
+          </div>
+        </Transition>
       </div>
       <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
         <QrCodeIcon class="icon" aria-hidden="true" />
@@ -854,5 +890,98 @@ watch(
   place-items: center;
   pointer-events: none;
   line-height: 1;
+}
+
+/* ── New notification popup ── */
+.notif-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-200);
+  padding: 12px 10px 12px 12px;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  z-index: 101;
+}
+
+.notif-popup__icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.popup-type--achievement   { background: var(--color-amber-100); }
+.popup-type--quiz_ready    { background: #f3e8ff; }
+.popup-type--quiz_result   { background: var(--color-deep-100); }
+.popup-type--streak_warning{ background: var(--color-pumpkin-100); }
+.popup-type--system        { background: var(--color-wild-400); }
+.popup-type--book_unlocked { background: var(--color-deep-100); }
+.popup-type--new_content   { background: var(--color-mirage-100); }
+
+.popup-icon-svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  color: var(--color-mirage-700);
+}
+
+.popup-type--achievement  .popup-icon-svg { color: var(--color-amber-700); }
+.popup-type--quiz_ready   .popup-icon-svg { color: #7c3aed; }
+.popup-type--quiz_result  .popup-icon-svg { color: var(--color-deep-600); }
+.popup-type--streak_warning .popup-icon-svg { color: var(--color-pumpkin-700); }
+.popup-type--book_unlocked .popup-icon-svg { color: var(--color-deep-600); }
+
+.notif-popup__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notif-popup__title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  font-family: var(--font-display);
+  line-height: 1.3;
+}
+
+.notif-popup__msg {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-mirage-500);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.popup-close-icon {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.5;
+}
+
+.notif-pop-enter-active {
+  animation: notif-pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.notif-pop-leave-active {
+  animation: notif-pop-in 0.15s ease reverse both;
+}
+@keyframes notif-pop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 </style>

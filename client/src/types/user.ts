@@ -11,4 +11,6 @@ export type User = {
   password?: string
   date_created?: string | null
   exercises_daily_streak?: number
+  best_exercises_daily_streak?: number
+  last_login?: string | null
 }
