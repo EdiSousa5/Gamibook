@@ -66,8 +66,14 @@ const missingBooks = computed(() =>
   allBooks.value.filter((book) => !ownedBookIds.value.has(book.book_id)),
 )
 
+const allDisplayBooks = computed(() => [...ownedBooks.value, ...missingBooks.value])
+
 const selectedBook = computed(() =>
-  ownedBooks.value.find((book) => book.book_id === selectedBookId.value) || null,
+  allDisplayBooks.value.find((book) => book.book_id === selectedBookId.value) || null,
+)
+
+const isFeaturedBookOwned = computed(() =>
+  featuredBook.value ? ownedBookIds.value.has(featuredBook.value.book_id) : false,
 )
 
 const featuredBook = computed(() => selectedBook.value || ownedBooks.value[0] || null)
@@ -259,17 +265,19 @@ onUnmounted(() => {
         <!-- DESTAQUE (ESTANTE SUPERIOR) -->
         <div class="destaque-wrapper" v-if="featuredBook && showOwnedSection">
           <div class="destaque-info">
-            <div class="destaque-tags">
-              <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
-                variant="outline" />
-              <UiChip v-if="featuredBook.editora?.nome_editora" :label="featuredBook.editora.nome_editora"
-                variant="soft" />
+            <div class="destaque-top">
+              <div class="destaque-tags">
+                <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
+                  variant="outline" />
+                <UiChip v-if="featuredBook.editora?.nome_editora" :label="featuredBook.editora.nome_editora"
+                  variant="soft" />
+              </div>
+              <h2 class="titulo-livro">{{ featuredBook.title || 'Sem título' }}</h2>
+              <p class="descricao">
+                {{ featuredBook.description || featuredDescriptionFallback }}
+              </p>
             </div>
-            <h2 class="titulo-livro">{{ featuredBook.title || 'Sem título' }}</h2>
-            <p class="descricao">
-              {{ featuredBook.description || featuredDescriptionFallback }}
-            </p>
-            <div class="destaque-actions">
+            <div class="destaque-actions" v-if="isFeaturedBookOwned">
               <RouterLink :to="`/book/${featuredBook.book_id}`">
                 <UiButton size="lg" variant="primary">Fazer Exercícios</UiButton>
               </RouterLink>
@@ -320,10 +328,12 @@ onUnmounted(() => {
         <template v-if="showMissingSection && displayedMissingBooks.length">
           <div v-for="(shelf, index) in visibleMissingShelves" :key="'missing-shelf-' + index">
             <div class="lista-wrapper">
-              <h3 v-if="index === 0" class="titulo-secao">Para Descobrir</h3>
+              <h3 v-if="index === 0" class="titulo-secao">Livros que Não Tens</h3>
 
               <div class="livros-fila">
-                <div v-for="book in shelf" :key="book.book_id" class="livro-item is-locked">
+                <div v-for="book in shelf" :key="book.book_id" class="livro-item is-not-owned"
+                  :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
+                  tabindex="0" role="button">
                   <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
                 </div>
               </div>
@@ -383,12 +393,13 @@ onUnmounted(() => {
 .destaque-wrapper {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: stretch;
   gap: var(--space-500);
   padding: 0 var(--space-500);
   margin-bottom: 0;
   position: relative;
   z-index: 10;
+  min-height: 320px;
   animation: shelfFadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -396,6 +407,14 @@ onUnmounted(() => {
   flex: 1;
   max-width: 540px;
   padding-bottom: var(--space-600);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.destaque-top {
+  display: flex;
+  flex-direction: column;
 }
 
 .destaque-tags {
@@ -416,13 +435,18 @@ onUnmounted(() => {
   font-size: 16px;
   line-height: 1.6;
   color: var(--color-mirage-700);
-  margin: 0 0 var(--space-400);
+  margin: 0;
 }
 
 .destaque-visual {
   flex-shrink: 0;
   padding-right: var(--space-500);
   transform: translateY(2px);
+  align-self: flex-end;
+}
+
+.destaque-actions {
+  margin-top: var(--space-500);
 }
 
 /* =========================================
@@ -518,14 +542,21 @@ onUnmounted(() => {
   transform-origin: bottom center;
 }
 
-.livro-item:hover:not(.is-locked) {
+.livro-item:hover {
   transform: translateY(10px) scale(1.02);
 }
 
-.livro-item.is-locked {
-  cursor: not-allowed;
-  filter: grayscale(1) brightness(0.75);
+.livro-item.is-not-owned {
+  filter: grayscale(0.8) brightness(0.8);
+  opacity: 0.75;
 }
+
+.livro-item.is-not-owned:hover,
+.livro-item.is-not-owned.is-selected {
+  filter: grayscale(0.4) brightness(0.9);
+  opacity: 0.9;
+}
+
 
 .error {
   color: var(--color-amber-700);

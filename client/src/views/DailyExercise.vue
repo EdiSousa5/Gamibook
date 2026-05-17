@@ -86,7 +86,7 @@ const handleTimeout = async () => {
     if (isLocked.value) return
     isLocked.value = true
     pointsEarned.value = 0
-    newStreak.value = 0
+    newStreak.value = currentStreak.value
     result.value = 'wrong'
     await saveResult(false)
     window.setTimeout(() => { mode.value = 'done' }, 1500)
@@ -108,7 +108,7 @@ const handleSelect = async (option: string) => {
             newStreak.value = currentStreak.value + 1
         } else {
             pointsEarned.value = 5
-            newStreak.value = 0
+            newStreak.value = currentStreak.value
         }
         result.value = 'correct'
         await saveResult(true)
@@ -123,7 +123,7 @@ const handleSelect = async (option: string) => {
         stopTimer()
         isLocked.value = true
         pointsEarned.value = 0
-        newStreak.value = 0
+        newStreak.value = currentStreak.value
         result.value = 'wrong'
         await saveResult(false)
         window.setTimeout(() => { mode.value = 'done' }, FEEDBACK_DELAY_MS)
@@ -154,9 +154,22 @@ const saveResult = async (isCorrect: boolean) => {
     const newPoints = oldPoints + pointsEarned.value
     const newLevel = getLevelProgressFromPoints(newPoints).level
 
-    await updateUser(userId.value, { exercises_daily_streak: newStreak.value })
-    if (user.value) {
-        user.value.exercises_daily_streak = newStreak.value
+    const streakChanged = newStreak.value !== currentStreak.value
+    if (streakChanged) {
+        const currentBest = user.value?.best_exercises_daily_streak ?? 0
+        const newBest = newStreak.value > currentBest ? newStreak.value : currentBest
+        const userPatch: Record<string, unknown> = { exercises_daily_streak: newStreak.value }
+        if (newBest > currentBest) userPatch.best_exercises_daily_streak = newBest
+
+        await updateUser(userId.value, userPatch)
+        if (user.value) {
+            user.value.exercises_daily_streak = newStreak.value
+            if (newBest > currentBest) user.value.best_exercises_daily_streak = newBest
+        }
+        if (auth.user) {
+            auth.user.exercises_daily_streak = newStreak.value
+            if (newBest > currentBest) auth.user.best_exercises_daily_streak = newBest
+        }
     }
 
     auth.setPoints(newPoints)
@@ -217,7 +230,8 @@ onMounted(async () => {
 
         if (latestRecord?.date_created) {
             const elapsed = Date.now() - new Date(latestRecord.date_created).getTime()
-            if (elapsed < 24 * 60 * 60 * 1000) {
+            const ONE_DAY = 24 * 60 * 60 * 1000
+            if (elapsed < ONE_DAY) {
                 const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
                 if (lastEx?.content) {
                     lastExerciseQuestion.value = String(
@@ -227,6 +241,13 @@ onMounted(async () => {
                 startCooldownTimer(latestRecord.date_created)
                 mode.value = 'cooldown'
                 return
+            } else if (elapsed >= 2 * ONE_DAY) {
+                const currentStreak = userInfo.exercises_daily_streak ?? 0
+                if (currentStreak > 0) {
+                    await updateUser(storedId, { exercises_daily_streak: 0 })
+                    userInfo.exercises_daily_streak = 0
+                    if (auth.user) auth.user.exercises_daily_streak = 0
+                }
             }
         }
 
@@ -252,12 +273,13 @@ onMounted(async () => {
             (ex) => ex.daily_exercise_id != null && !answeredSet.has(ex.daily_exercise_id),
         )
 
-        if (!unanswered.length) {
+        if (!dailyExercises.length) {
             mode.value = 'no-exercises'
             return
         }
 
-        const chosen = unanswered[Math.floor(Math.random() * unanswered.length)]!
+        const pool = unanswered.length ? unanswered : dailyExercises
+        const chosen = pool[Math.floor(Math.random() * pool.length)]!
         exercise.value = chosen
         shuffledOptions.value = chosen.type === 'true-false' ? buildOptions(chosen) : shuffleArray(buildOptions(chosen))
         mode.value = 'answering'

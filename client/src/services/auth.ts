@@ -11,6 +11,8 @@ const USER_FIELDS = [
   'role.id',
   'role.name',
   'exercises_daily_streak',
+  'best_exercises_daily_streak',
+  'last_login',
   'level',
 ]
 

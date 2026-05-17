@@ -5,7 +5,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
-import { loginUser } from '../services/auth'
+import { loginUser, updateUser } from '../services/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -50,6 +50,7 @@ const submit = async () => {
       error.value = 'Credenciais inválidas.'
       return
     }
+    updateUser(String(loggedUser.id), { last_login: new Date().toISOString() }).catch(() => {})
     await auth.loadUser()
     await router.push(redirectPath.value)
   } catch {
