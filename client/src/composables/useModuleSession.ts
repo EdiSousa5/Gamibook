@@ -20,7 +20,7 @@ import { FEEDBACK_DELAY_MS } from '@/utils/timing'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 
-export type SessionMode = 'normal' | 'retry' | 'review'
+export type SessionMode = 'normal' | 'retry' | 'fresh'
 
 export function useModuleSession(bookId: ComputedRef<number>, moduleId: ComputedRef<number>) {
   const auth = useAuthStore()
@@ -64,7 +64,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   >([])
 
   const currentExercise = computed(() => exercises.value[currentIndex.value] || null)
-  const isReviewMode = computed(() => sessionMode.value === 'review')
+  const isReviewMode = computed(() => false)
 
   const getPreviousStatus = (exerciseId: number): 'correct' | 'wrong' | 'new' => {
     const record = existingRecords.value[exerciseId]
@@ -92,18 +92,20 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   const modeCounts = computed(() => ({
     normal: exerciseCounts.value.fresh + exerciseCounts.value.wrong,
     retry: exerciseCounts.value.wrong,
-    review: exerciseCounts.value.total,
+    fresh: exerciseCounts.value.fresh,
   }))
 
   const canStartMode = (mode: SessionMode) => {
     if (mode === 'normal') return modeCounts.value.normal > 0
     if (mode === 'retry') return modeCounts.value.retry > 0
-    return exerciseCounts.value.correct > 0
+    if (mode === 'fresh') return modeCounts.value.fresh > 0
+    return false
   }
 
   const recommendedMode = computed<SessionMode>(() => {
     if (!exerciseCounts.value.total) return 'normal'
-    if (exerciseCounts.value.correct === exerciseCounts.value.total) return 'review'
+    if (exerciseCounts.value.fresh > 0 && exerciseCounts.value.wrong > 0) return 'normal'
+    if (exerciseCounts.value.fresh > 0) return 'fresh'
     if (exerciseCounts.value.wrong > 0) return 'retry'
     return 'normal'
   })
@@ -116,7 +118,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
 
   const modeLabel = computed(() => {
     if (sessionMode.value === 'retry') return 'Repetir errados'
-    if (sessionMode.value === 'review') return 'Rever exercicios'
+    if (sessionMode.value === 'fresh') return 'Perguntas novas'
     return 'Modo normal'
   })
 
@@ -209,7 +211,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   }
 
   const isPointsEligible = (exerciseId: number) =>
-    sessionMode.value !== 'review' && getPreviousStatus(exerciseId) !== 'correct'
+    getPreviousStatus(exerciseId) === 'new'
 
   const updatePoints = async (points: number) => {
     if (!userId.value || points <= 0) return
@@ -281,9 +283,10 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
         return Number.isFinite(id) && getPreviousStatus(id) === 'wrong'
       })
     }
+    // 'fresh': only exercises never attempted
     return allExercises.value.filter((exercise) => {
       const id = Number(exercise.exercise_id)
-      return Number.isFinite(id) && getPreviousStatus(id) === 'correct'
+      return !Number.isFinite(id) || getPreviousStatus(id) === 'new'
     })
   }
 
@@ -319,7 +322,7 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
   }
 
   const persistResults = async () => {
-    if (!userId.value || isReviewMode.value) return
+    if (!userId.value) return
     const currentUserId = userId.value
     const updates = pendingResults.value.map(async (result) => {
       const existing = existingRecords.value[result.exerciseId]
@@ -356,6 +359,12 @@ export function useModuleSession(bookId: ComputedRef<number>, moduleId: Computed
       if (Number.isFinite(exerciseId)) existingRecords.value[exerciseId] = record
     }
     await updatePoints(summary.value.points)
+    if (saved.length > 0 && bookId.value) {
+      localStorage.setItem(
+        'gamibook:last_exercised_book',
+        JSON.stringify({ book_id: bookId.value, date: new Date().toISOString() }),
+      )
+    }
   }
 
   const loadData = async (currentBookId: number, currentModuleId: number) => {

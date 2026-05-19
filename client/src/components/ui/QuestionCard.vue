@@ -10,7 +10,7 @@ defineProps<{
   <div class="question-card">
     <div class="question-card__shadow" />
     <div class="question-card__panel">
-      <div class="question-timer">
+      <div v-if="timeLeft >= 0" class="question-timer">
         <svg class="timer-ring" viewBox="0 0 72 72" aria-hidden="true">
           <circle class="timer-ring__track" cx="36" cy="36" r="26" />
           <circle class="timer-ring__progress" cx="36" cy="36" r="26"

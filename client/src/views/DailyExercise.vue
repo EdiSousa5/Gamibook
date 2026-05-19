@@ -8,6 +8,7 @@ import { fetchUserBooks } from '../services/books'
 import {
     fetchDailyExercisesForBooks,
     fetchLatestUserDailyExercise,
+    fetchLatestDailyExerciseDate,
     fetchAnsweredDailyExerciseIds,
     createUserDailyExercise,
     fetchUserPointsFromHistory,
@@ -19,7 +20,7 @@ import { getLevelProgressFromPoints } from '../utils/gamification'
 import { useAuthStore } from '@/stores/auth'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
-import { CheckCircleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon, ExclamationTriangleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
 import QuestionCard from '@/components/ui/QuestionCard.vue'
 import type { DailyExercise, User } from '@/types'
@@ -44,8 +45,22 @@ const shuffledOptions = ref<string[]>([])
 const cooldownSeconds = ref(0)
 const lastExerciseQuestion = ref('')
 const errorMsg = ref('')
+const streakWasReset = ref(false)
+const elapsedTimeLabel = ref('')
 const QUESTION_TIME = 30
 let cooldownTimer: number | null = null
+
+const buildElapsedLabel = (dateStr: string): string => {
+    const elapsed = Date.now() - new Date(dateStr).getTime()
+    const minutes = Math.floor(elapsed / 60_000)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+    if (days >= 2) return `há ${days} dias`
+    if (days === 1) return 'ontem'
+    if (hours >= 1) return `há ${hours}h ${minutes % 60}min`
+    if (minutes >= 1) return `há ${minutes} min`
+    return 'agora mesmo'
+}
 
 const {
     timeLeft, selectedOption, attemptedOptions, isLocked, attemptsUsed,
@@ -130,8 +145,12 @@ const handleSelect = async (option: string) => {
     }
 }
 
+const lastDailyKey = () => `gamibook:last_daily:${userId.value}`
+
 const saveResult = async (isCorrect: boolean) => {
     if (!userId.value || !exercise.value?.daily_exercise_id) return
+
+    localStorage.setItem(lastDailyKey(), new Date().toISOString())
 
     await createUserDailyExercise({
         user_id: userId.value,
@@ -228,25 +247,35 @@ onMounted(async () => {
         ])
         user.value = userInfo
 
-        if (latestRecord?.date_created) {
-            const elapsed = Date.now() - new Date(latestRecord.date_created).getTime()
+        // Resolve last exercise date: localStorage → points history → exercise.date_created → record.date_created
+        let lastDateStr: string | null = localStorage.getItem(`gamibook:last_daily:${storedId}`)
+        if (!lastDateStr) lastDateStr = await fetchLatestDailyExerciseDate(storedId)
+        if (!lastDateStr) lastDateStr = (latestRecord?.daily_exercise_id as DailyExercise | null)?.date_created ?? null
+        if (!lastDateStr && latestRecord?.date_created) lastDateStr = latestRecord.date_created
+
+        if (lastDateStr) {
+            elapsedTimeLabel.value = buildElapsedLabel(lastDateStr)
+            const elapsed = Date.now() - new Date(lastDateStr).getTime()
             const ONE_DAY = 24 * 60 * 60 * 1000
             if (elapsed < ONE_DAY) {
-                const lastEx = latestRecord.daily_exercise_id as DailyExercise | null
+                const lastEx = latestRecord?.daily_exercise_id as DailyExercise | null
                 if (lastEx?.content) {
                     lastExerciseQuestion.value = String(
                         lastEx.content.pergunta ?? lastEx.content.question ?? lastEx.content.enunciado ?? '',
                     )
                 }
-                startCooldownTimer(latestRecord.date_created)
+                startCooldownTimer(lastDateStr)
                 mode.value = 'cooldown'
                 return
             } else if (elapsed >= 2 * ONE_DAY) {
-                const currentStreak = userInfo.exercises_daily_streak ?? 0
-                if (currentStreak > 0) {
+                const currentStreakVal = userInfo.exercises_daily_streak ?? 0
+                if (currentStreakVal > 0) {
                     await updateUser(storedId, { exercises_daily_streak: 0 })
                     userInfo.exercises_daily_streak = 0
+                    if (user.value) user.value.exercises_daily_streak = 0
                     if (auth.user) auth.user.exercises_daily_streak = 0
+                    streakWasReset.value = true
+                    toast.warning('O teu streak foi reiniciado por não teres feito o desafio diário a tempo.')
                 }
             }
         }
@@ -303,12 +332,20 @@ onUnmounted(() => {
                 <h1>Exercício Diário</h1>
                 <p class="meta">Uma pergunta por dia para manter o teu streak!</p>
             </div>
-            <div class="streak-badge" :class="{ active: currentStreak >= 2, 'streak-animate-fire': isStreakAnimating }">
-                <FireIcon class="fire-icon" aria-hidden="true" />
-                <strong>{{ currentStreak }}</strong>
-                <span>Streak</span>
+            <div class="streak-area">
+                <div class="streak-badge" :class="{ active: currentStreak >= 2, 'streak-animate-fire': isStreakAnimating }">
+                    <FireIcon class="fire-icon" :class="{ active: currentStreak >= 2 }" aria-hidden="true" />
+                    <strong>{{ currentStreak }}</strong>
+                    <span>Streak</span>
+                </div>
+                <p v-if="elapsedTimeLabel" class="last-attempt-label">Última vez: {{ elapsedTimeLabel }}</p>
             </div>
         </header>
+
+        <div v-if="streakWasReset" class="streak-reset-banner">
+            <ExclamationTriangleIcon class="streak-reset-icon" aria-hidden="true" />
+            O teu streak foi reiniciado. Faz o exercício de hoje para recomeçar!
+        </div>
 
         <p v-if="mode === 'loading'" class="state">A carregar exercício diário...</p>
         <p v-else-if="mode === 'error'" class="state error">{{ errorMsg }}</p>
@@ -428,6 +465,43 @@ onUnmounted(() => {
     color: var(--color-mirage-500);
     margin: 0;
     font-size: 13px;
+}
+
+.streak-area {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.last-attempt-label {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-mirage-500);
+    text-align: right;
+}
+
+.streak-reset-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 2px solid var(--color-amber-500, #f59e0b);
+    background: var(--color-amber-50, #fffbeb);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-mirage-800);
+    box-shadow: 4px 4px 0 rgba(245, 158, 11, 0.25);
+}
+
+.streak-reset-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--color-amber-500, #f59e0b);
+    stroke-width: 2;
 }
 
 .streak-badge {

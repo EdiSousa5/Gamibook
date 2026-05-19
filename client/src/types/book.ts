@@ -36,4 +36,5 @@ export type UserBook = {
   book_id?: number | Book
   current_badge?: 'default' | 'bronze' | 'silver' | 'gold' | 'diamond' | 'galaxy' | null
   final_quiz_unlocked?: boolean | null
+  date_created?: string | null
 }

@@ -19,10 +19,11 @@ import {
   SparklesIcon,
 } from '@heroicons/vue/24/outline'
 import { fetchUserBooks, fetchModule } from '../services/books'
-import { fetchUsers, getUserDisplayName } from '../services/auth'
+import { fetchUsers, getUserDisplayName, updateUser } from '../services/auth'
 import { getAssetUrl } from '../services/client'
 import {
   fetchLatestUserDailyExercise,
+  fetchLatestDailyExerciseDate,
   fetchDailyExercisesForBooks,
   fetchLatestUserExercise,
   fetchUserPointsFromHistory,
@@ -35,7 +36,6 @@ import type { Book, DailyExercise, UserBook } from '@/types'
 const auth = useAuthStore()
 const { user, avatarUrl, progress } = storeToRefs(auth)
 const toast = useToast()
-
 const userBooks = ref<UserBook[]>([])
 const isLoadingProfile = ref(true)
 const userRank = ref<number | null>(null)
@@ -119,20 +119,36 @@ const startDailyCooldownTimer = (lastDate: string) => {
 const loadDailyStatus = async (userId: string, books: UserBook[]) => {
   try {
     const latest = await fetchLatestUserDailyExercise(userId)
-    if (latest?.date_created) {
-      const elapsed = Date.now() - new Date(latest.date_created).getTime()
-      if (elapsed < 24 * 60 * 60 * 1000) {
-        const ex = latest.daily_exercise_id as DailyExercise | null
+
+    // Resolve last exercise date: localStorage → points history → exercise.date_created → record.date_created
+    let lastDateStr: string | null = localStorage.getItem(`gamibook:last_daily:${userId}`)
+    if (!lastDateStr) lastDateStr = await fetchLatestDailyExerciseDate(userId)
+    if (!lastDateStr) lastDateStr = (latest?.daily_exercise_id as DailyExercise | null)?.date_created ?? null
+    if (!lastDateStr && latest?.date_created) lastDateStr = latest.date_created
+
+    if (lastDateStr) {
+      const elapsed = Date.now() - new Date(lastDateStr).getTime()
+      const ONE_DAY = 24 * 60 * 60 * 1000
+      if (elapsed < ONE_DAY) {
+        const ex = latest?.daily_exercise_id as DailyExercise | null
         if (ex?.content) {
           dailyLastQuestion.value = String(
             ex.content.pergunta ?? ex.content.question ?? ex.content.enunciado ?? '',
           )
         }
-        startDailyCooldownTimer(latest.date_created)
+        startDailyCooldownTimer(lastDateStr)
         dailyStatus.value = 'cooldown'
         return
+      } else if (elapsed >= 2 * ONE_DAY) {
+        const streak = auth.user?.exercises_daily_streak ?? 0
+        if (streak > 0) {
+          await updateUser(userId, { exercises_daily_streak: 0 })
+          if (auth.user) auth.user.exercises_daily_streak = 0
+          toast.warning('O teu streak foi reiniciado por não teres feito o desafio diário a tempo.')
+        }
       }
     }
+
     const bookIds = books
       .map((ub) => { const b = ub.book_id; return typeof b === 'object' ? b?.book_id : undefined })
       .filter((id): id is number => typeof id === 'number')

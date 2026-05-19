@@ -45,6 +45,12 @@ const router = createRouter({
       meta: { requiresAuth: true, userOnly: true },
     },
     {
+      path: '/book/:bookId/study',
+      name: 'study',
+      component: () => import('../views/StudyMode.vue'),
+      meta: { requiresAuth: true, userOnly: true },
+    },
+    {
       path: '/book/:bookId/final-quiz',
       name: 'final-quiz',
       component: () => import('../views/FinalQuiz.vue'),

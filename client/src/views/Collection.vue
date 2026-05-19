@@ -220,7 +220,34 @@ onMounted(async () => {
     userBooks.value = booksList
     user.value = me
     allBooks.value = isAdminUser(me) ? await fetchBooks() : await fetchApprovedBooks()
-    selectedBookId.value = ownedBooks.value[0]?.book_id ?? null
+
+    // Most recently exercised book (set by useModuleSession on exercise save)
+    let latestExerciseBookId: number | null = null
+    let latestExerciseDate: number = 0
+    try {
+      const raw = localStorage.getItem('gamibook:last_exercised_book')
+      if (raw) {
+        const parsed = JSON.parse(raw) as { book_id: number; date: string }
+        latestExerciseBookId = parsed.book_id
+        latestExerciseDate = new Date(parsed.date).getTime()
+      }
+    } catch { /* ignore */ }
+
+    // Most recently unlocked book (from date_created on user_books)
+    const latestUnlock = userBooks.value
+      .filter((ub) => ub.date_created)
+      .sort((a, b) => new Date(b.date_created!).getTime() - new Date(a.date_created!).getTime())[0]
+    const latestUnlockBookId = latestUnlock
+      ? (typeof latestUnlock.book_id === 'object' ? (latestUnlock.book_id as import('@/types').Book)?.book_id : latestUnlock.book_id as number) ?? null
+      : null
+    const latestUnlockDate = latestUnlock?.date_created ? new Date(latestUnlock.date_created).getTime() : 0
+
+    const featuredId = latestExerciseDate >= latestUnlockDate && latestExerciseBookId !== null
+      ? latestExerciseBookId
+      : latestUnlockBookId
+
+    const ownedIds = new Set(ownedBooks.value.map((b) => b.book_id))
+    selectedBookId.value = (featuredId && ownedIds.has(featuredId) ? featuredId : null) ?? ownedBooks.value[0]?.book_id ?? null
   } catch {
     error.value = 'Não foi possível carregar a tua coleção.'
   } finally {

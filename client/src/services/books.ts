@@ -101,7 +101,7 @@ export const fetchModule = async (moduleId: number | string) => {
 export const fetchUserBooks = async (userId: string) => {
   const params = new URLSearchParams({
     fields:
-      'user_book_id,current_badge,final_quiz_unlocked,book_id.book_id,book_id.title,book_id.cover_img,book_id.description,book_id.ISBN,book_id.publish_date,book_id.publisher,book_id.is_approved,book_id.editora.*',
+      'user_book_id,date_created,current_badge,final_quiz_unlocked,book_id.book_id,book_id.title,book_id.cover_img,book_id.description,book_id.ISBN,book_id.publish_date,book_id.publisher,book_id.is_approved,book_id.editora.*',
     sort: '-user_book_id',
   })
   params.set('filter[user_id][_eq]', userId)
