@@ -34,6 +34,23 @@ export const fetchAllUsersPoints = async (startDate?: string): Promise<Map<strin
   return map
 }
 
+export const fetchLatestDailyExerciseDate = async (userId: string): Promise<string | null> => {
+  const params = new URLSearchParams({
+    fields: 'date_created',
+    sort: '-date_created',
+    limit: '1',
+  })
+  params.set('filter[user_id][_eq]', userId)
+  params.set('filter[source][_eq]', 'daily')
+
+  const response = await authFetch(`/items/user_points_history?${params.toString()}`)
+  if (!response.ok) return null
+
+  const data = await response.json().catch(() => null)
+  const item = (data?.data ?? [])[0] as { date_created?: string | null } | undefined
+  return item?.date_created ?? null
+}
+
 export const fetchUserPointsFromHistory = async (userId: string, startDate?: string) => {
   const params = new URLSearchParams({
     fields: 'points',
@@ -280,7 +297,7 @@ export const deleteExercise = async (exerciseId: number) => {
 export const fetchLatestUserDailyExercise = async (userId: string) => {
   const params = new URLSearchParams({
     fields:
-      'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,date_created',
+      'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,daily_exercise_id.date_created,date_created',
     sort: '-date_created',
     limit: '1',
   })
@@ -385,6 +402,7 @@ export const fetchExercisesCreatedTodayByUser = async (userId: string): Promise<
 
   return ((exercisesData?.data ?? []) as unknown[]).length + ((dailyData?.data ?? []) as unknown[]).length
 }
+
 
 export const fetchLatestUserExercise = async (userId: string) => {
   const params = new URLSearchParams({

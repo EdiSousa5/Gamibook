@@ -1,56 +1,70 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import UiButton from './UiButton.vue'
 import UiModal from './UiModal.vue'
+import UiCheckbox from './UiCheckbox.vue'
 import UiStatCard from './UiStatCard.vue'
-import ModeCard from './ModeCard.vue'
 import {
   BookOpenIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
+  ClipboardDocumentListIcon,
+  ArrowPathIcon,
 } from '@heroicons/vue/24/outline'
-
-type SessionMode = 'normal' | 'retry' | 'review'
+import type { SessionMode } from '@/composables/useModuleSession'
 
 const props = defineProps<{
   visible: boolean
   stats: { total: number; answered: number; correct: number; wrong: number; remaining: number } | null
-  selectedMode: SessionMode
 }>()
 
 const emit = defineEmits<{
   close: []
   start: [mode: SessionMode]
-  'update:selectedMode': [mode: SessionMode]
 }>()
 
-const modeCounts = computed(() => {
-  const s = props.stats
-  if (!s) return { normal: 0, retry: 0, review: 0 }
-  return {
-    normal: s.remaining + s.wrong,
-    retry: s.wrong,
-    review: s.correct,
-  }
+const includeUnanswered = ref(true)
+const includeWrong = ref(true)
+
+watch(
+  () => props.visible,
+  (open) => {
+    if (!open) return
+    includeUnanswered.value = (props.stats?.remaining ?? 0) > 0
+    includeWrong.value = (props.stats?.wrong ?? 0) > 0
+  },
+)
+
+const hasUnanswered = computed(() => (props.stats?.remaining ?? 0) > 0)
+const hasWrong = computed(() => (props.stats?.wrong ?? 0) > 0)
+
+const computedMode = computed<SessionMode | null>(() => {
+  if (includeUnanswered.value && includeWrong.value) return 'normal'
+  if (includeWrong.value) return 'retry'
+  if (includeUnanswered.value) return 'fresh'
+  return null
 })
 
-const canStart = (mode: SessionMode) => {
-  const s = props.stats
-  if (!s) return false
-  if (mode === 'normal') return modeCounts.value.normal > 0
-  if (mode === 'retry') return modeCounts.value.retry > 0
-  return s.total > 0 && s.correct > 0
+const canStart = computed(() => computedMode.value !== null)
+
+const handleStart = () => {
+  if (!computedMode.value) return
+  emit('start', computedMode.value)
 }
+
+const toggleUnanswered = () => { if (hasUnanswered.value) includeUnanswered.value = !includeUnanswered.value }
+const toggleWrong = () => { if (hasWrong.value) includeWrong.value = !includeWrong.value }
 </script>
 
 <template>
   <UiModal :visible="visible" close-on-overlay @close="emit('close')">
-    <div class="mode-modal" role="dialog" aria-modal="true" aria-label="Escolher modo">
+    <div class="mode-modal" role="dialog" aria-modal="true" aria-label="Configurar sessão">
 
       <header class="mode-modal__header">
         <p class="mode-modal__eyebrow">Exercícios do módulo</p>
-        <h2 class="mode-modal__title">Escolhe o modo</h2>
+        <h2 class="mode-modal__title">Configurar sessão</h2>
+        <p class="mode-modal__sub">Escolhe que tipos de perguntas queres praticar.</p>
       </header>
 
       <div class="mode-stats">
@@ -76,44 +90,71 @@ const canStart = (mode: SessionMode) => {
         </UiStatCard>
       </div>
 
-      <div class="mode-grid">
-        <ModeCard
-          title="Normal"
-          description="Exercícios novos e os que erraste anteriormente."
-          :count="modeCounts.normal"
-          :active="selectedMode === 'normal'"
-          :disabled="!canStart('normal')"
-          @select="emit('update:selectedMode', 'normal')"
-        />
-        <ModeCard
-          title="Repetir errados"
-          description="Foca-te apenas nos exercícios que falhaste."
-          :count="modeCounts.retry"
-          :active="selectedMode === 'retry'"
-          :disabled="!canStart('retry')"
-          @select="emit('update:selectedMode', 'retry')"
-        />
-        <ModeCard
-          title="Rever"
-          description="Revê os exercícios que já concluíste."
-          :count="modeCounts.review"
-          :active="selectedMode === 'review'"
-          :disabled="!canStart('review')"
-          @select="emit('update:selectedMode', 'review')"
-        />
+      <div class="filter-section">
+        <button
+          type="button"
+          class="filter-option"
+          :class="{ 'filter-option--active': includeUnanswered && hasUnanswered, 'filter-option--disabled': !hasUnanswered }"
+          :disabled="!hasUnanswered"
+          @click="toggleUnanswered"
+        >
+          <div class="filter-option__icon filter-option__icon--new">
+            <ClipboardDocumentListIcon class="filter-icon" aria-hidden="true" />
+          </div>
+          <div class="filter-option__body">
+            <span class="filter-option__title">Perguntas não respondidas</span>
+            <span class="filter-option__count">
+              {{ stats?.remaining ?? 0 }} pergunta{{ (stats?.remaining ?? 0) === 1 ? '' : 's' }}
+            </span>
+          </div>
+          <div class="filter-option__check">
+            <UiCheckbox
+              :model-value="includeUnanswered && hasUnanswered"
+              :disabled="!hasUnanswered"
+              @update="toggleUnanswered"
+            />
+          </div>
+        </button>
+
+        <button
+          type="button"
+          class="filter-option filter-option--wrong"
+          :class="{ 'filter-option--active': includeWrong && hasWrong, 'filter-option--disabled': !hasWrong }"
+          :disabled="!hasWrong"
+          @click="toggleWrong"
+        >
+          <div class="filter-option__icon filter-option__icon--wrong">
+            <ArrowPathIcon class="filter-icon" aria-hidden="true" />
+          </div>
+          <div class="filter-option__body">
+            <span class="filter-option__title">Perguntas que errei</span>
+            <span class="filter-option__count">
+              {{ stats?.wrong ?? 0 }} pergunta{{ (stats?.wrong ?? 0) === 1 ? '' : 's' }}
+            </span>
+          </div>
+          <div class="filter-option__check">
+            <UiCheckbox
+              :model-value="includeWrong && hasWrong"
+              :disabled="!hasWrong"
+              tone="accent"
+              @update="toggleWrong"
+            />
+          </div>
+        </button>
       </div>
 
-      <p class="xp-footnote">
-        * Só ganhas XP no modo <strong>Normal</strong>, para exercícios ainda sem resposta certa.
-        Os modos <em>Repetir errados</em> e <em>Rever</em> não atribuem XP.
+      <p v-if="!hasUnanswered && !hasWrong" class="complete-notice">
+        Completaste todos os exercícios deste módulo. Usa o Modo Estudo para rever.
       </p>
 
       <div class="mode-actions">
         <UiButton variant="outline" @click="emit('close')">Fechar</UiButton>
-        <UiButton variant="primary" :disabled="!canStart(selectedMode)" @click="emit('start', selectedMode)">
+        <UiButton variant="primary" :disabled="!canStart" @click="handleStart">
           Começar
         </UiButton>
       </div>
+
+      <p class="xp-footnote">* Exercícios que já erraste não dão pontos.</p>
 
     </div>
   </UiModal>
@@ -121,7 +162,7 @@ const canStart = (mode: SessionMode) => {
 
 <style scoped>
 .mode-modal {
-  width: min(860px, 100%);
+  width: min(640px, 100%);
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
   border-radius: 20px;
@@ -148,9 +189,15 @@ const canStart = (mode: SessionMode) => {
 
 .mode-modal__title {
   margin: 0;
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--color-mirage-900);
+}
+
+.mode-modal__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
 }
 
 /* ── Stat row ─────────────────────────── */
@@ -171,24 +218,107 @@ const canStart = (mode: SessionMode) => {
 .stat-icon--correct { color: var(--color-deep-600); }
 .stat-icon--wrong   { color: var(--color-error-strong); }
 
-/* ── Mode grid ────────────────────────── */
-.mode-grid {
+/* ── Filter section ───────────────────── */
+.filter-section {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: stretch;
+  gap: var(--space-200);
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
   gap: var(--space-300);
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  width: 100%;
 }
 
-/* ── XP footnote ──────────────────────── */
-.xp-footnote {
+.filter-option:hover:not(.filter-option--disabled) {
+  transform: translateY(-2px);
+  box-shadow: 5px 6px 0 var(--color-shadow);
+}
+
+.filter-option--active {
+  background: var(--color-wild-100);
+  border-color: var(--color-mirage-900);
+}
+
+.filter-option--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Option icon box ──────────────────── */
+.filter-option__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  display: grid;
+  place-items: center;
+}
+
+.filter-option__icon--new {
+  background: var(--color-deep-100);
+}
+
+.filter-option__icon--wrong {
+  background: var(--color-error-muted);
+}
+
+.filter-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--color-mirage-700);
+  stroke-width: 1.5;
+}
+
+.filter-option__icon--wrong .filter-icon {
+  color: var(--color-error-strong);
+}
+
+/* ── Option body ──────────────────────── */
+.filter-option__body {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.filter-option__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+}
+
+.filter-option__count {
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 600;
+}
+
+/* ── Checkbox slot ────────────────────── */
+.filter-option__check {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* ── Complete notice ──────────────────── */
+.complete-notice {
   margin: 0;
-  font-size: 11px;
-  color: var(--color-mirage-400);
-  line-height: 1.5;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  text-align: center;
+  padding: 14px;
+  border-radius: 12px;
+  border: 2px dashed var(--color-mirage-300);
 }
-
-.xp-footnote strong { font-weight: 700; color: var(--color-mirage-500); }
-.xp-footnote em     { font-style: normal; }
 
 /* ── Actions ──────────────────────────── */
 .mode-actions {
@@ -196,5 +326,13 @@ const canStart = (mode: SessionMode) => {
   gap: var(--space-300);
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* ── XP footnote ──────────────────────── */
+.xp-footnote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-mirage-400);
+  text-align: right;
 }
 </style>

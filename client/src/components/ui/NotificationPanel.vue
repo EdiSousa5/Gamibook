@@ -218,7 +218,7 @@ const handleItemClick = async (id: string, isRead: boolean) => {
   align-items: center;
   gap: var(--space-200);
   /* right/top/bottom padding only — left is handled by .notif-header__check to align with list */
-  padding: 12px 16px 12px 0;
+  padding: 16px 16px 16px 0;
   border-bottom: 2px solid var(--color-mirage-800);
   flex-shrink: 0;
   background: var(--color-wild-100);

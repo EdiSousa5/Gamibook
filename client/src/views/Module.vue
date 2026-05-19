@@ -5,7 +5,9 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
 import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
+import ConfettiOverlay from '@/components/ui/ConfettiOverlay.vue'
 import { BoltIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { useToast } from '@/composables/useToast'
 import { FireIcon } from '@heroicons/vue/24/solid'
 import QuestionCard from '@/components/ui/QuestionCard.vue'
 import { isOptionCorrect as checkOptionCorrect, getQuestionText } from '@/utils/exerciseUtils'
@@ -27,12 +29,12 @@ const {
     currentIndex, isCompleted, isSaving, correctStreak, userId,
     sessionPoints, xpDelta, xpPulse, streakDelta, streakAnimState,
     feedback, shuffledOptionsByExercise,
-    viewState, selectedMode, sessionMode, isLevelUpQueued, pendingResults, initialBadge,
-    currentExercise, isReviewMode,
+    viewState, selectedMode, isLevelUpQueued, pendingResults, initialBadge,
+    currentExercise,
     modeLabel,
     canStartMode, recommendedMode, currentExerciseStatus,
     summary, completionStats, exerciseResults,
-    isPointsEligible, awardXp, recordResult, showFeedback,
+    awardXp, recordResult, showFeedback,
     resetSessionState, startSession, persistResults,
     loadData,
 } = useModuleSession(bookId, moduleId)
@@ -50,6 +52,20 @@ const currentQuestionText = computed(() =>
     currentExercise.value ? getQuestionText(currentExercise.value) : '',
 )
 
+const isCurrentEligible = computed(() => currentExerciseStatus.value === 'new')
+
+const toast = useToast()
+const showConfetti = computed(() => completionStats.value.successRate >= 70)
+
+watch(viewState, (state) => {
+    if (state !== 'summary') return
+    const rate = completionStats.value.successRate
+    if (rate >= 90) toast.success('Incrível! Dominaste este módulo!')
+    else if (rate >= 70) toast.success('Muito bem! Continua assim!')
+    else if (rate >= 50) toast.info('Bom esforço! Podes melhorar!')
+    else toast.info('Não desistas! A prática leva à perfeição.')
+})
+
 const options = computed(() => {
     if (!currentExercise.value?.exercise_id) return []
     return shuffledOptionsByExercise.value[currentExercise.value.exercise_id] || []
@@ -57,7 +73,7 @@ const options = computed(() => {
 
 const modeFromQuery = computed<SessionMode | null>(() => {
     const raw = String(route.query.mode || '')
-    if (raw === 'normal' || raw === 'retry' || raw === 'review') return raw
+    if (raw === 'normal' || raw === 'retry' || raw === 'fresh') return raw
     return null
 })
 
@@ -81,30 +97,29 @@ const goNext = async () => {
 const handleCorrect = async () => {
     stopTimer()
     isLocked.value = true
-    const exerciseId = currentExercise.value?.exercise_id
-    const eligibleForPoints = exerciseId ? isPointsEligible(exerciseId) : false
+    const eligible = isCurrentEligible.value
     let basePoints = 0
     let bonusPoints = 0
-    if (!eligibleForPoints) {
-        correctStreak.value = 0
-    } else if (attemptsUsed.value === 0) {
-        correctStreak.value += 1
-        basePoints = 10
-        bonusPoints = correctStreak.value >= 2 ? 5 : 0
-    } else {
-        correctStreak.value = 0
-        basePoints = 5
+    if (eligible) {
+        if (attemptsUsed.value === 0) {
+            correctStreak.value += 1
+            basePoints = 10
+            bonusPoints = correctStreak.value >= 2 ? 5 : 0
+        } else {
+            correctStreak.value = 0
+            basePoints = 5
+        }
     }
-    const points = eligibleForPoints ? basePoints + bonusPoints : 0
+    const points = eligible ? basePoints + bonusPoints : 0
     recordResult(true, attemptsUsed.value + 1, points, QUESTION_TIME - timeLeft.value)
-    awardXp(eligibleForPoints ? basePoints : 0, eligibleForPoints ? bonusPoints : 0)
+    awardXp(eligible ? basePoints : 0, eligible ? bonusPoints : 0)
     showFeedback('correct', points)
     window.setTimeout(goNext, FEEDBACK_DELAY_MS)
 }
 
 const handleIncorrect = async () => {
     attemptsUsed.value += 1
-    correctStreak.value = 0
+    if (isCurrentEligible.value) correctStreak.value = 0
     showFeedback('wrong', 0)
     if (attemptsUsed.value < maxAttempts.value) return
     stopTimer()
@@ -116,7 +131,7 @@ const handleIncorrect = async () => {
 const handleTimeout = async () => {
     if (isLocked.value) return
     isLocked.value = true
-    correctStreak.value = 0
+    if (isCurrentEligible.value) correctStreak.value = 0
     showFeedback('wrong', 0)
     recordResult(false, maxAttempts.value, 0, QUESTION_TIME)
     window.setTimeout(goNext, FEEDBACK_DELAY_MS)
@@ -305,27 +320,25 @@ onBeforeRouteLeave(() => {
 
         <div v-else class="runner">
             <div class="runner-stats">
-                <template v-if="sessionMode === 'normal'">
-                    <UiStatCard
-                        :key="xpPulse"
-                        label="XP nesta sessao"
-                        :value="sessionPoints"
-                        :delta="xpDelta > 0 ? `+${xpDelta}` : undefined"
-                        :class="{ 'runner-stat--pulse': xpPulse > 0 }"
-                    >
-                        <template #icon><BoltIcon class="stat-icon" aria-hidden="true" /></template>
-                    </UiStatCard>
-                    <UiStatCard
-                        label="Streak"
-                        :value="correctStreak"
-                        :delta="streakDelta > 0 ? `+${streakDelta}` : undefined"
-                        delta-variant="streak"
-                        class="runner-stat--streak"
-                        :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost' }"
-                    >
-                        <template #icon><FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" /></template>
-                    </UiStatCard>
-                </template>
+                <UiStatCard
+                    :key="xpPulse"
+                    label="XP nesta sessao"
+                    :value="sessionPoints"
+                    :delta="xpDelta > 0 ? `+${xpDelta}` : undefined"
+                    :class="{ 'runner-stat--pulse': xpPulse > 0, 'runner-stat--inactive': !isCurrentEligible }"
+                >
+                    <template #icon><BoltIcon class="stat-icon" aria-hidden="true" /></template>
+                </UiStatCard>
+                <UiStatCard
+                    label="Streak"
+                    :value="correctStreak"
+                    :delta="streakDelta > 0 ? `+${streakDelta}` : undefined"
+                    delta-variant="streak"
+                    class="runner-stat--streak"
+                    :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost', 'runner-stat--inactive': !isCurrentEligible }"
+                >
+                    <template #icon><FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" /></template>
+                </UiStatCard>
                 <UiStatCard label="Pergunta" :value="currentIndex + 1">
                     <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
                 </UiStatCard>
@@ -337,11 +350,11 @@ onBeforeRouteLeave(() => {
                 </template>
                 <template #actions>
                     <div class="question-tags">
-                        <span v-if="!isReviewMode && currentExerciseStatus === 'correct'"
+                        <span v-if="currentExerciseStatus === 'correct'"
                             class="status-pill done">Ja respondido</span>
-                        <span v-else-if="!isReviewMode && currentExerciseStatus === 'wrong'"
+                        <span v-else-if="currentExerciseStatus === 'wrong'"
                             class="status-pill warn">Falhou antes</span>
-                        <span v-if="isReviewMode" class="status-pill review">Revisao</span>
+                        <span v-if="!isCurrentEligible" class="status-pill no-xp">Sem XP · sem streak</span>
                         <UiResultPill v-if="feedback" :result="feedback.type" :points="feedback.points" />
                         <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
@@ -369,6 +382,8 @@ onBeforeRouteLeave(() => {
             @close="handleBadgeModalClose" />
 
     </section>
+
+    <ConfettiOverlay :active="viewState === 'summary' && showConfetti" />
 
     <UiConfirmModal
         :visible="!!confirmModal"
@@ -439,6 +454,12 @@ onBeforeRouteLeave(() => {
     animation: streak-up 0.4s ease-out;
 }
 
+.runner-stat--inactive {
+    opacity: 0.35;
+    filter: grayscale(0.6);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
 .stat-icon {
     width: 22px;
     height: 22px;
@@ -502,8 +523,10 @@ onBeforeRouteLeave(() => {
     background: var(--color-deep-100);
 }
 
-.status-pill.review {
-    background: var(--color-teal-100);
+.status-pill.no-xp {
+    background: var(--color-wild-300);
+    border-color: var(--color-mirage-400);
+    color: var(--color-mirage-500);
 }
 
 .question-num {

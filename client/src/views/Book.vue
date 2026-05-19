@@ -15,6 +15,9 @@ import {
   LockClosedIcon,
   SparklesIcon,
   TrophyIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowPathIcon,
+  EyeIcon,
 } from '@heroicons/vue/24/outline'
 import {
   fetchBook,
@@ -30,13 +33,12 @@ import { fetchLatestFinalQuizAttempt, getCooldownUntil } from '../services/final
 import { getAssetUrl, getStoredUserId } from '../services/client'
 import { useToast } from '@/composables/useToast'
 import BookModeModal from '@/components/ui/BookModeModal.vue'
+import type { SessionMode } from '@/composables/useModuleSession'
 import type { Book, Module, UserBook } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const bookId = computed(() => Number(route.params.id || 1))
-
-type SessionMode = 'normal' | 'retry' | 'review'
 
 const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
@@ -50,7 +52,6 @@ const isLoading = ref(false)
 const badgeInfoOpen = ref(false)
 const modeModalOpen = ref(false)
 const selectedModuleId = ref<number | null>(null)
-const selectedMode = ref<SessionMode>('normal')
 
 const quizCooldownUntil = ref<Date | null>(null)
 const quizSectionRef = ref<HTMLElement | null>(null)
@@ -162,7 +163,7 @@ const moduleStatus = (id: number): 'done' | 'progress' | 'fresh' => {
 
 const ctaLabel = (id: number) => {
   const status = moduleStatus(id)
-  if (status === 'done') return 'Rever'
+  if (status === 'done') return 'Ver'
   if (status === 'progress') return 'Continuar'
   return 'Iniciar'
 }
@@ -177,16 +178,11 @@ const selectedModuleStats = computed(() =>
 
 const openModeModal = (moduleId: number) => {
   const status = moduleStatus(moduleId)
-  if (status === 'done') {
-    router.push(`/book/${bookId.value}/module/${moduleId}?mode=review`)
-    return
-  }
   if (status === 'fresh') {
     router.push(`/book/${bookId.value}/module/${moduleId}?mode=normal`)
     return
   }
   selectedModuleId.value = moduleId
-  selectedMode.value = 'normal'
   modeModalOpen.value = true
 }
 
@@ -451,7 +447,7 @@ watch(
               </span>
             </div>
 
-            <div class="module-stats">
+            <div v-if="moduleStatus(moduleItem.modules_id) !== 'done'" class="module-stats">
               <div class="module-stat">
                 <span>Total</span>
                 <strong>{{ moduleStats[moduleItem.modules_id]?.total ?? 0 }}</strong>
@@ -472,9 +468,8 @@ watch(
           </div>
 
           <!-- Action -->
-          <div class="module-action">
-            <UiButton :variant="moduleStatus(moduleItem.modules_id) === 'done' ? 'outline' : 'primary'" size="sm"
-              @click="openModeModal(moduleItem.modules_id)">
+          <div v-if="moduleStatus(moduleItem.modules_id) !== 'done'" class="module-action">
+            <UiButton variant="primary" size="sm" @click="openModeModal(moduleItem.modules_id)">
               {{ ctaLabel(moduleItem.modules_id) }}
             </UiButton>
           </div>
@@ -493,10 +488,8 @@ watch(
     <BookModeModal
       :visible="modeModalOpen"
       :stats="selectedModuleStats"
-      :selected-mode="selectedMode"
       @close="closeModeModal"
       @start="startSelectedModule"
-      @update:selectedMode="selectedMode = $event"
     />
 
     <Teleport to="body">
@@ -575,6 +568,51 @@ watch(
         </div>
       </Transition>
     </Teleport>
+
+    <!-- MODO LIVRE -->
+    <section v-if="approvedModules.length && !isLoading" class="free-section">
+      <div class="modules-header">
+        <h2>Modo Livre</h2>
+      </div>
+
+      <article class="free-card">
+        <div class="free-card__icon" aria-hidden="true">
+          <AdjustmentsHorizontalIcon class="free-icon" />
+        </div>
+
+        <div class="free-card__body">
+          <h3 class="free-card__title">Pratica ao teu ritmo</h3>
+          <p class="free-card__desc">
+            Escolhe módulos, filtra exercícios por tipo, define um timer, baralhamento e muito mais.
+            Sem pontos, sem penalizações.
+          </p>
+          <div class="free-card__tags">
+            <span class="free-tag">
+              <AdjustmentsHorizontalIcon class="free-tag__icon" aria-hidden="true" />
+              Configurável
+            </span>
+            <span class="free-tag">
+              <ClockIcon class="free-tag__icon" aria-hidden="true" />
+              Timer opcional
+            </span>
+            <span class="free-tag">
+              <ArrowPathIcon class="free-tag__icon" aria-hidden="true" />
+              Repetir erradas
+            </span>
+            <span class="free-tag">
+              <EyeIcon class="free-tag__icon" aria-hidden="true" />
+              Ver respostas
+            </span>
+          </div>
+        </div>
+
+        <div class="free-card__action">
+          <RouterLink :to="`/book/${bookId}/study`">
+            <UiButton variant="primary" size="sm">Iniciar</UiButton>
+          </RouterLink>
+        </div>
+      </article>
+    </section>
 
     <!-- FINAL QUIZ -->
     <section v-if="userBook && !isLoading" ref="quizSectionRef" class="quiz-section">
@@ -993,6 +1031,7 @@ watch(
 
 .module-card--done {
   background: var(--color-deep-100);
+  grid-template-columns: 80px 1fr;
 }
 
 /* Order badge */
@@ -1455,6 +1494,102 @@ watch(
 .badge-modal__footer {
   display: flex;
   justify-content: flex-end;
+}
+
+/* ── MODO LIVRE SECTION ─────────────────────────── */
+.free-section {
+  display: grid;
+  gap: var(--space-400);
+}
+
+.free-card {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: var(--space-400);
+  align-items: center;
+  padding: var(--space-400);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 18px;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  background: var(--color-wild-100);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.free-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 7px 0 var(--color-shadow);
+}
+
+.free-card__icon {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--color-deep-200), var(--color-deep-100));
+}
+
+.free-icon {
+  width: 38px;
+  height: 38px;
+  color: var(--color-deep-700);
+  stroke-width: 1.5;
+}
+
+.free-card__body {
+  display: grid;
+  gap: var(--space-200);
+  min-width: 0;
+}
+
+.free-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.free-card__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  line-height: 1.5;
+  max-width: 520px;
+}
+
+.free-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.free-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-300);
+  background: var(--color-wild-200);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-600);
+}
+
+.free-tag__icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.free-card__action {
+  display: grid;
+  place-items: center;
 }
 
 /* ── RESPONSIVE ─────────────────────────────────── */
