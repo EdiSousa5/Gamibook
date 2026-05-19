@@ -4,8 +4,6 @@ import UiInput from '@/components/ui/UiInput.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 
 defineProps<{
-    generationMode: 'module' | 'daily'
-    questionsLabel: string
     maxPerModule: number
     countPerModule: number
     totalQuestions: number
@@ -25,24 +23,20 @@ defineEmits<{
 <template>
     <UiCard class="config-panel">
         <div class="config-header">
-            <div class="step-indicator">{{ generationMode === 'module' ? '4' : '3' }}</div>
+            <div class="step-indicator">3</div>
             <h2>Configuração</h2>
         </div>
 
-        <div class="config-body"
-            :class="{ 'is-disabled': (generationMode === 'module' && selectedModuleIdsLength === 0) || (generationMode === 'daily' && !hasSelectedBook) }">
+        <div class="config-body" :class="{ 'is-disabled': selectedModuleIdsLength === 0 }">
             <div class="config-group">
                 <div class="group-header">
-                    <label>{{ questionsLabel }}</label>
-                    <span class="badge" v-if="generationMode === 'module'">Máx {{ maxPerModule }}</span>
-                    <span class="badge" v-else>Máx 15</span>
+                    <label>Perguntas por Módulo</label>
+                    <span class="badge">Máx {{ maxPerModule }}</span>
                 </div>
-                <UiInput type="number" :min="1" :max="generationMode === 'module' ? maxPerModule : 15"
+                <UiInput type="number" :min="1" :max="maxPerModule"
                     :model-value="countPerModule"
                     @update="$emit('update:countPerModule', Number($event))" />
-                <p class="config-math"
-                    :class="{ 'is-warning': generationMode === 'module' && isOverMaxTotal }"
-                    v-if="generationMode === 'module'">
+                <p class="config-math" :class="{ 'is-warning': isOverMaxTotal }">
                     Total: {{ totalQuestions }} = {{ countPerModule }} × {{ selectedModuleIdsLength }}
                     (limite {{ maxTotalQuestions }})
                 </p>
@@ -56,20 +50,18 @@ defineEmits<{
                     <div class="type-tag">Escolha Múltipla</div>
                     <div class="type-tag">Verdadeiro / Falso</div>
                 </div>
+
             </div>
 
             <div class="config-action">
                 <UiButton variant="primary" size="md" class="generate-btn"
-                    :disabled="(generationMode === 'module' && selectedModuleIdsLength === 0) || (generationMode === 'daily' && !hasSelectedBook) || isGenerating || (generationMode === 'module' && isOverMaxTotal)"
+                    :disabled="selectedModuleIdsLength === 0 || isGenerating || isOverMaxTotal"
                     @click="$emit('generate')">
                     <span v-if="!isGenerating">Gerar Exercícios</span>
                     <span v-else>A Gerar...</span>
                 </UiButton>
-                <p class="action-hint" v-if="generationMode === 'module' && selectedModuleIdsLength === 0">
-                    Seleciona módulos para começar.</p>
-                <p class="action-hint" v-else-if="generationMode === 'daily' && !hasSelectedBook">Seleciona um livro para começar.</p>
-                <p class="action-hint" v-else-if="generationMode === 'module' && isOverMaxTotal">Reduz o total para não ultrapassar o
-                    limite.</p>
+                <p class="action-hint" v-if="selectedModuleIdsLength === 0">Seleciona módulos para começar.</p>
+                <p class="action-hint" v-else-if="isOverMaxTotal">Reduz o total para não ultrapassar o limite.</p>
             </div>
         </div>
     </UiCard>
@@ -168,13 +160,15 @@ defineEmits<{
 }
 
 .type-tag {
-    background: var(--color-teal-100);
-    color: var(--color-teal-800);
-    border: 1px solid var(--color-teal-300);
-    padding: var(--space-150) var(--space-200);
-    border-radius: var(--radius-100);
-    font-size: 13px;
-    font-weight: 600;
+    background: var(--color-wild-100);
+    color: var(--color-mirage-800);
+    border: 2px solid var(--color-mirage-900);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 3px 3px 0 rgba(46, 127, 123, 0.45);
+    white-space: nowrap;
 }
 
 .config-action {

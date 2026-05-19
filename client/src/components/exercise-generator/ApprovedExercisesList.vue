@@ -4,24 +4,23 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
-import type { DailyExercise, Exercise } from '@/types'
+import type { Exercise } from '@/types'
 import { TrashIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
 type ExerciseType = 'multiple-choice' | 'true-false'
-type AnyExercise = Exercise | DailyExercise
 
 type Props = {
-    exercises: AnyExercise[]
+    exercises: Exercise[]
     typeLabels: Record<ExerciseType, string>
     maxCount?: number
     minRequired?: number
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ remove: [AnyExercise] }>()
+const emit = defineEmits<{ remove: [Exercise] }>()
 
 const confirmOpen = ref(false)
-const pendingExercise = ref<AnyExercise | null>(null)
+const pendingExercise = ref<Exercise | null>(null)
 
 const count = computed(() => props.exercises.length)
 const hasLimits = computed(() => props.maxCount !== undefined)
@@ -51,10 +50,9 @@ const statusClass = computed(() => {
     return 'progress--below'
 })
 
-const exerciseKey = (ex: AnyExercise) =>
-    (ex as Exercise).exercise_id ?? (ex as DailyExercise).daily_exercise_id
+const exerciseKey = (ex: Exercise) => ex.exercise_id
 
-const openConfirm = (exercise: AnyExercise) => {
+const openConfirm = (exercise: Exercise) => {
     pendingExercise.value = exercise
     confirmOpen.value = true
 }
@@ -91,13 +89,13 @@ const normalizeAnswers = (value: any) => {
     return [String(value)]
 }
 
-const getFillBlankAnswers = (exercise: AnyExercise) => {
+const getFillBlankAnswers = (exercise: Exercise) => {
     const content = exercise.content || {}
     const answers = normalizeAnswers((content as any).respostas_corretas)
     return answers.length ? answers.join(' / ') : 'Sem resposta'
 }
 
-const getQuestion = (exercise: AnyExercise) => {
+const getQuestion = (exercise: Exercise) => {
     const content = exercise.content || {}
     const question =
         (content as any).pergunta ||
@@ -108,7 +106,7 @@ const getQuestion = (exercise: AnyExercise) => {
     return question ? String(question) : 'Pergunta indisponivel'
 }
 
-const getAnswer = (exercise: AnyExercise) => {
+const getAnswer = (exercise: Exercise) => {
     const content = exercise.content || {}
     const rawAnswer =
         (content as any).resposta_correta ??

@@ -64,6 +64,20 @@ export const fetchModulesByBook = async (bookId: number) => {
   return (data?.data ?? []) as Module[]
 }
 
+export const fetchModulesByBooks = async (bookIds: number[]): Promise<Module[]> => {
+  if (!bookIds.length) return []
+  const params = new URLSearchParams({
+    fields: 'modules_id,id_book,module_title',
+    limit: '-1',
+    sort: 'id_book,order_number',
+  })
+  params.set('filter[id_book][_in]', bookIds.join(','))
+  const response = await authFetch(`/items/modules?${params.toString()}`)
+  if (!response.ok) return []
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as Module[]
+}
+
 export const fetchApprovedModulesByBook = async (bookId: number) => {
   const params = new URLSearchParams({ sort: 'order_number' })
   params.set('filter[id_book][_eq]', String(bookId))

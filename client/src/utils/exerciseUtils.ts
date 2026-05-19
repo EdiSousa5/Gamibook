@@ -39,14 +39,16 @@ export function buildOptions(exercise: ExerciseLike): string[] {
   if (exercise.type === 'true-false') return ['Falso', 'Verdadeiro']
   const rawOptions = toOptionArray(exercise.content?.opcoes || exercise.content?.options)
   if (rawOptions.length <= 4) return rawOptions
+
   const correctValue = String(exercise.content?.resposta_correta ?? '').trim().toUpperCase()
-  const correctByLetter = rawOptions.find((o) => getOptionLetter(o) === correctValue)
-  const correctByText = rawOptions.find((o) => o.trim().toUpperCase() === correctValue)
-  const correctOption = correctByLetter || correctByText
+  const correctOption =
+    rawOptions.find((o) => getOptionLetter(o) === correctValue) ||
+    rawOptions.find((o) => o.trim().toUpperCase() === correctValue)
+
   if (!correctOption) return shuffleArray(rawOptions).slice(0, 4)
-  const wrongs = rawOptions.filter((o) => o !== correctOption)
-  if (wrongs.length < 3) return shuffleArray(rawOptions).slice(0, 4)
-  return shuffleArray([correctOption, ...shuffleArray(wrongs).slice(0, 3)])
+
+  const wrongs = shuffleArray(rawOptions.filter((o) => o !== correctOption))
+  return shuffleArray([correctOption, ...wrongs.slice(0, 3)])
 }
 
 export function isOptionCorrect(exercise: ExerciseLike, option: string): boolean {

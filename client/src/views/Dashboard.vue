@@ -15,6 +15,7 @@ import {
   TrophyIcon,
   PencilSquareIcon,
   CheckCircleIcon,
+  XCircleIcon,
   QuestionMarkCircleIcon,
   SparklesIcon,
 } from '@heroicons/vue/24/outline'
@@ -23,15 +24,13 @@ import { fetchUsers, getUserDisplayName, updateUser } from '../services/auth'
 import { getAssetUrl } from '../services/client'
 import {
   fetchLatestUserDailyExercise,
-  fetchLatestDailyExerciseDate,
-  fetchDailyExercisesForBooks,
   fetchLatestUserExercise,
   fetchUserPointsFromHistory,
 } from '../services/exercises'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { BADGE_TIERS, TIER_LABELS, TIER_DESCS } from '@/utils/badgeTiers'
-import type { Book, DailyExercise, UserBook } from '@/types'
+import type { Book, UserBook } from '@/types'
 
 const auth = useAuthStore()
 const { user, avatarUrl, progress } = storeToRefs(auth)
@@ -40,10 +39,11 @@ const userBooks = ref<UserBook[]>([])
 const isLoadingProfile = ref(true)
 const userRank = ref<number | null>(null)
 
-type DailyStatus = 'loading' | 'ready' | 'cooldown' | 'no-exercises'
+type DailyStatus = 'loading' | 'ready' | 'cooldown' | 'no-exercises' | 'locked'
 const dailyStatus = ref<DailyStatus>('loading')
 const dailyCooldownSeconds = ref(0)
 const dailyLastQuestion = ref('')
+const dailyWasCorrect = ref<boolean | null>(null)
 let dailyTimer: number | null = null
 
 // ── Computed ──────────────────────────────────────────────────
@@ -116,26 +116,32 @@ const startDailyCooldownTimer = (lastDate: string) => {
   dailyTimer = window.setInterval(update, 1000)
 }
 
+const DAILY_UNLOCK_LEVEL = 3
+
 const loadDailyStatus = async (userId: string, books: UserBook[]) => {
   try {
-    const latest = await fetchLatestUserDailyExercise(userId)
+    // Verificar nível mínimo para desafios diários
+    const userLevel = auth.progress.level
+    if (userLevel < DAILY_UNLOCK_LEVEL) {
+      dailyStatus.value = 'locked'
+      return
+    }
 
-    // Resolve last exercise date: localStorage → points history → exercise.date_created → record.date_created
-    let lastDateStr: string | null = localStorage.getItem(`gamibook:last_daily:${userId}`)
-    if (!lastDateStr) lastDateStr = await fetchLatestDailyExerciseDate(userId)
-    if (!lastDateStr) lastDateStr = (latest?.daily_exercise_id as DailyExercise | null)?.date_created ?? null
-    if (!lastDateStr && latest?.date_created) lastDateStr = latest.date_created
+    const latest = await fetchLatestUserDailyExercise(userId)
+    const lastDateStr = latest?.date_created ?? null
 
     if (lastDateStr) {
       const elapsed = Date.now() - new Date(lastDateStr).getTime()
       const ONE_DAY = 24 * 60 * 60 * 1000
+
       if (elapsed < ONE_DAY) {
-        const ex = latest?.daily_exercise_id as DailyExercise | null
+        const ex = latest?.exercise_id as { content?: Record<string, unknown> } | null
         if (ex?.content) {
           dailyLastQuestion.value = String(
             ex.content.pergunta ?? ex.content.question ?? ex.content.enunciado ?? '',
           )
         }
+        dailyWasCorrect.value = latest?.is_correct ?? null
         startDailyCooldownTimer(lastDateStr)
         dailyStatus.value = 'cooldown'
         return
@@ -149,12 +155,11 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
       }
     }
 
-    const bookIds = books
-      .map((ub) => { const b = ub.book_id; return typeof b === 'object' ? b?.book_id : undefined })
-      .filter((id): id is number => typeof id === 'number')
-    if (!bookIds.length) { dailyStatus.value = 'no-exercises'; return }
-    const exercises = await fetchDailyExercisesForBooks(bookIds)
-    dailyStatus.value = exercises.length ? 'ready' : 'no-exercises'
+    const hasBooks = books.some((ub) => {
+      const b = ub.book_id
+      return typeof b === 'object' ? !!b?.book_id : typeof b === 'number'
+    })
+    dailyStatus.value = hasBooks ? 'ready' : 'no-exercises'
   } catch {
     dailyStatus.value = 'no-exercises'
   }
@@ -370,9 +375,10 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="dailyStatus === 'cooldown'" class="daily-body">
-          <div class="daily-done-row">
-            <CheckCircleIcon class="daily-done-icon" aria-hidden="true" />
-            <span class="daily-done-label">Concluído hoje!</span>
+          <div class="daily-done-row" :class="dailyWasCorrect === false ? 'daily-done-row--wrong' : 'daily-done-row--correct'">
+            <CheckCircleIcon v-if="dailyWasCorrect !== false" class="daily-done-icon" aria-hidden="true" />
+            <XCircleIcon v-else class="daily-done-icon daily-done-icon--wrong" aria-hidden="true" />
+            <span class="daily-done-label">{{ dailyWasCorrect === false ? 'Erraste hoje' : 'Concluído hoje!' }}</span>
           </div>
           <div class="daily-timer-block">
             <p class="timer-label">Próximo desafio em</p>
@@ -384,9 +390,14 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div v-else-if="dailyStatus === 'locked'" class="daily-body daily-empty">
+          <BookOpenIcon class="daily-empty-icon" aria-hidden="true" />
+          <p>Desbloqueia ao atingir o nível {{ DAILY_UNLOCK_LEVEL }}.</p>
+        </div>
+
         <div v-else class="daily-body daily-empty">
           <BookOpenIcon class="daily-empty-icon" aria-hidden="true" />
-          <p>Sem exercícios diários disponíveis para os teus livros.</p>
+          <p>Sem exercícios disponíveis. Completa módulos primeiro!</p>
         </div>
       </section>
 
@@ -847,9 +858,17 @@ onUnmounted(() => {
   gap: var(--space-200);
   padding: var(--space-200) var(--space-300);
   border-radius: 10px;
+  width: fit-content;
+}
+
+.daily-done-row--correct {
   background: var(--color-deep-100);
   border: 2px solid var(--color-deep-600);
-  width: fit-content;
+}
+
+.daily-done-row--wrong {
+  background: var(--color-error-muted, #fff0f0);
+  border: 2px solid var(--color-red-500, #ef4444);
 }
 
 .daily-done-icon {
@@ -858,10 +877,18 @@ onUnmounted(() => {
   color: var(--color-deep-700);
 }
 
+.daily-done-icon--wrong {
+  color: var(--color-error-strong, #dc2626);
+}
+
 .daily-done-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-deep-700);
+}
+
+.daily-done-row--wrong .daily-done-label {
+  color: var(--color-error-strong, #dc2626);
 }
 
 .daily-timer-block {
