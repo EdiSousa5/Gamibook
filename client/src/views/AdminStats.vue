@@ -10,7 +10,6 @@ type BookStat = {
   owners: number
   modules: number
   exercises: number
-  dailyExercises: number
   answeredExercises: number
 }
 
@@ -25,21 +24,18 @@ onMounted(async () => {
       userBooksData,
       modulesData,
       exercisesData,
-      dailyExData,
       userExData,
     ] = await Promise.all([
       fetchBooks(),
       authFetch('/items/user_books?fields=book_id&limit=-1').then(r => r.json()),
       authFetch('/items/modules?fields=modules_id,id_book&limit=-1').then(r => r.json()),
       authFetch('/items/exercises?fields=exercise_id,id_module&limit=-1').then(r => r.json()),
-      authFetch('/items/daily_exercise?fields=daily_exercise_id,book_id&limit=-1').then(r => r.json()),
       authFetch('/items/user_exercises?fields=id_user_exercises,module_id&limit=-1').then(r => r.json()),
     ])
 
     const userBooksItems: Array<{ book_id: number }> = userBooksData?.data ?? []
     const allModules: Array<{ modules_id: number; id_book: number }> = modulesData?.data ?? []
     const exerciseItems: Array<{ exercise_id: number; id_module: number }> = exercisesData?.data ?? []
-    const dailyExItems: Array<{ daily_exercise_id: number; book_id: number }> = dailyExData?.data ?? []
     const userExItems: Array<{ id_user_exercises: number; module_id: number }> = userExData?.data ?? []
 
     stats.value = books.map((book) => {
@@ -51,9 +47,6 @@ onMounted(async () => {
       const moduleIds = new Set(bookModules.map(m => m.modules_id))
 
       const exercises = exerciseItems.filter(r => moduleIds.has(Number(r.id_module))).length
-
-      const dailyExercises = dailyExItems.filter(r => Number(r.book_id) === id).length
-
       const answeredExercises = userExItems.filter(r => moduleIds.has(Number(r.module_id))).length
 
       return {
@@ -61,7 +54,6 @@ onMounted(async () => {
         owners,
         modules: bookModules.length,
         exercises,
-        dailyExercises,
         answeredExercises,
       }
     })
@@ -101,7 +93,7 @@ onMounted(async () => {
         </UiCard>
         <UiCard class="summary-card">
           <span class="summary-label">Total de exercícios</span>
-          <strong class="summary-value">{{ stats.reduce((s, b) => s + b.exercises + b.dailyExercises, 0) }}</strong>
+          <strong class="summary-value">{{ stats.reduce((s, b) => s + b.exercises, 0) }}</strong>
         </UiCard>
         <UiCard class="summary-card">
           <span class="summary-label">Respostas dadas</span>
@@ -117,8 +109,7 @@ onMounted(async () => {
                 <th class="col-book">Livro</th>
                 <th class="col-num">Proprietários</th>
                 <th class="col-num">Módulos</th>
-                <th class="col-num">Exercícios<br><small>de módulo</small></th>
-                <th class="col-num">Exercícios<br><small>diários</small></th>
+                <th class="col-num">Exercícios</th>
                 <th class="col-num">Respostas<br><small>dadas</small></th>
                 <th class="col-rate">Taxa de resposta</th>
               </tr>
@@ -149,9 +140,6 @@ onMounted(async () => {
                 </td>
                 <td class="col-num">
                   <span class="stat-num">{{ s.exercises }}</span>
-                </td>
-                <td class="col-num">
-                  <span class="stat-num">{{ s.dailyExercises }}</span>
                 </td>
                 <td class="col-num">
                   <span class="stat-num">{{ s.answeredExercises }}</span>

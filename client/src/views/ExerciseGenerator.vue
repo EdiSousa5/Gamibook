@@ -1,12 +1,11 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
-import { gerarExercicios, gerarPerguntasDiarias } from '@/services/flowise.ts'
-import { ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { gerarExercicios } from '@/services/flowise.ts'
+import { ChevronDownIcon, ClipboardDocumentIcon, ClipboardDocumentCheckIcon } from '@heroicons/vue/24/outline'
 import {
     fetchBooks,
     fetchModulesByBook,
@@ -15,23 +14,18 @@ import {
     updateBookApproval,
 } from '@/services/books'
 import {
-    createDailyExercise,
     createExercise,
-    deleteDailyExercise,
     deleteExercise,
     fetchExercisesByModule,
-    fetchDailyExercisesByBook,
-    fetchExercisesCreatedTodayByUser,
 } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
-import type { Book, DailyExercise, Exercise, Module } from '@/types'
+import type { Book, Exercise, Module } from '@/types'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
 import GeneratorConfigPanel from '@/components/exercise-generator/GeneratorConfigPanel.vue'
 import GeneratorLoadingOverlay from '@/components/exercise-generator/GeneratorLoadingOverlay.vue'
-import ExerciseQuotaPanel from '@/components/exercise-generator/ExerciseQuotaPanel.vue'
 import {
     normalizeExerciseList,
     normalizeModuleResults,
@@ -64,29 +58,11 @@ const APPROVAL_THRESHOLD = 5
 const MAX_TOTAL_QUESTIONS = 40
 const MAX_SELECTED_MODULES = 4
 const MAX_MODULE_EXERCISES = 15
-const MAX_DAILY_EXERCISES = 20
-const DAILY_GENERATION_LIMIT = 50
 let exerciseSeed = 0
 
 const loggedUserId = localStorage.getItem('gb_user_id') ?? ''
 
-const quotaUsed = ref(0)
-const quotaLoading = ref(false)
-const remainingQuota = computed(() => Math.max(0, DAILY_GENERATION_LIMIT - quotaUsed.value))
 
-const refreshQuota = async () => {
-    if (!loggedUserId) return
-    quotaLoading.value = true
-    try {
-        quotaUsed.value = await fetchExercisesCreatedTodayByUser(loggedUserId)
-    } catch {
-        // quota display degrades silently
-    } finally {
-        quotaLoading.value = false
-    }
-}
-
-const generationMode = ref<'module' | 'daily'>('module')
 const route = useRoute()
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
@@ -95,10 +71,22 @@ const selectedModuleId = ref<number | null>(null)
 const selectedModuleIds = ref<number[]>([])
 const countPerModule = ref(5)
 const approvedExercisesByModule = ref<Record<number, Exercise[]>>({})
-const approvedDailyExercises = ref<DailyExercise[]>([])
 const generatedExercises = ref<GeneratedExercise[]>([])
 const rawFlowiseResponse = ref('')
 const rawFlowiseRequest = ref('')
+const copiedResponse = ref(false)
+const copiedRequest = ref(false)
+
+const copyToClipboard = async (text: string, which: 'response' | 'request') => {
+    await navigator.clipboard.writeText(text)
+    if (which === 'response') {
+        copiedResponse.value = true
+        window.setTimeout(() => { copiedResponse.value = false }, 2000)
+    } else {
+        copiedRequest.value = true
+        window.setTimeout(() => { copiedRequest.value = false }, 2000)
+    }
+}
 
 const toast = useToast()
 const isLoadingData = ref(false)
@@ -110,12 +98,6 @@ const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
 const statusFilter = ref<'all' | 'approved' | 'unapproved'>('all')
 const publisherFilter = ref<string>('all')
-
-const questionsLabel = computed(() =>
-    generationMode.value === 'module'
-        ? 'Perguntas por Módulo'
-        : 'Total de Perguntas Diárias',
-)
 
 const elapsedLabel = computed(() => {
     const minutes = Math.floor(elapsedSeconds.value / 60)
@@ -238,14 +220,9 @@ const groupedSections = computed<Section[]>(() => {
         : Array.from(grouped.keys()).filter((id): id is number => id !== null)
 
     const sections = Array.from(grouped.entries()).map(([moduleId, typeMap]) => {
-        let moduleTitle = ''
-        if (generationMode.value === 'daily') {
-            moduleTitle = ''
-        } else {
-            moduleTitle = moduleId
-                ? moduleTitleById.get(moduleId) || `Módulo ${moduleId}`
-                : 'Módulo desconhecido'
-        }
+        const moduleTitle = moduleId
+            ? moduleTitleById.get(moduleId) || `Módulo ${moduleId}`
+            : 'Módulo desconhecido'
         const types = typeOrder
             .map((type) => ({ type, items: typeMap[type] }))
             .filter((entry) => entry.items.length > 0)
@@ -299,25 +276,6 @@ const refreshApprovedExercises = async () => {
     }
 }
 
-const refreshAllApprovedExercisesForBook = async () => {
-    if (!filteredModules.value.length) return
-    try {
-        const entries = await Promise.all(
-            filteredModules.value.map(async (m) => [
-                m.modules_id,
-                await fetchExercisesByModule(m.modules_id)
-            ] as const)
-        )
-        const nextMap: Record<number, Exercise[]> = {}
-        entries.forEach(([moduleId, list]) => {
-            nextMap[moduleId] = list
-        })
-        approvedExercisesByModule.value = nextMap
-    } catch (err) {
-        console.error(err)
-    }
-}
-
 const refreshApprovedExercisesForModule = async (moduleId: number) => {
     try {
         const list = await fetchExercisesByModule(moduleId)
@@ -330,17 +288,6 @@ const refreshApprovedExercisesForModule = async (moduleId: number) => {
         console.error(err)
         toast.error('Não foi possível carregar os exercícios aprovados.')
         return []
-    }
-}
-
-const refreshDailyExercises = async () => {
-    if (!selectedBookId.value) return
-    try {
-        const list = await fetchDailyExercisesByBook(selectedBookId.value)
-        approvedDailyExercises.value = list
-    } catch (err) {
-        console.error(err)
-        toast.error('Não foi possível carregar os exercícios diários.')
     }
 }
 
@@ -384,8 +331,6 @@ const toggleModuleSelection = (moduleId: number) => {
         if (selectedModuleId.value === moduleId) {
             selectedModuleId.value = selectedModuleIds.value[0] ?? null
         }
-        if (selectedModuleIds.value.length <= MAX_SELECTED_MODULES) {
-        }
     } else {
         if (selectedModuleIds.value.length >= MAX_SELECTED_MODULES) {
             toast.warning(`Só podes selecionar até ${MAX_SELECTED_MODULES} módulos de cada vez.`)
@@ -396,9 +341,8 @@ const toggleModuleSelection = (moduleId: number) => {
     }
 }
 
-const generateForModules = async (count: number) => {
-    // Mantemos este array internamente apenas para gerar os Map lookups do response da IA
-    const modulePayload = selectedModules.value.map((moduleItem) => {
+const generateForModules = async (count: number, modulesToUse = selectedModules.value) => {
+    const modulePayload = modulesToUse.map((moduleItem) => {
         return {
             id: moduleItem.modules_id,
             titulo: moduleItem.module_title || `Módulo ${moduleItem.modules_id}`,
@@ -406,7 +350,7 @@ const generateForModules = async (count: number) => {
         }
     })
 
-    const perguntasJaCriadas = selectedModules.value.flatMap((moduleItem) => {
+    const perguntasJaCriadas = modulesToUse.flatMap((moduleItem) => {
         const list = approvedExercisesByModule.value[moduleItem.modules_id] || []
         return list.map((item) => getQuestionText(item.content || item))
     }).join('\n')
@@ -477,90 +421,37 @@ const generateForModules = async (count: number) => {
     return { items, receivedCount: items.length, rawResponse }
 }
 
-const generateForDaily = async (count: number) => {
-    // 1. Modulos listados numa unica string separados por quebra de linha (\n)
-    const modulosEmExtenso = filteredModules.value
-        .map(m => m.module_title || `Módulo ${m.modules_id}`)
-        .join('\n')
-
-    // 2. Obtem APENAS os exercicios diarios (user_daily_exercise via approvedDailyExercises)
-    const perguntasJaCriadas = approvedDailyExercises.value.map((item) =>
-        getQuestionText((item.content ?? item) as Record<string, unknown>),
-    ).join('\n')
-
-    const requestPayload = {
-        titulo_livro: selectedBook.value?.title || 'Livro',
-        descricao_livro: selectedBook.value?.description || '',
-        modulos_livro: modulosEmExtenso,
-        numero_perguntas: count,
-        perguntas_existentes: perguntasJaCriadas || 'Nenhuma pergunta existente. Podes começar do zero.',
-    }
-
-    rawFlowiseRequest.value = JSON.stringify(requestPayload, null, 2)
-
-    const response = await gerarPerguntasDiarias(requestPayload)
-    const rawResponse = response.raw
-    const parsedResponse = response.parsed
-
-    const results = normalizeModuleResults(parsedResponse)
-    const fallbackList = normalizeExerciseList(parsedResponse)
-    const items: GeneratedExercise[] = []
-
-    if (results.length) {
-        results.forEach((result: any) => {
-            const list = Array.isArray(result?.exercicios) ? result.exercicios : (Array.isArray(result?.quiz) ? result.quiz : [])
-            list.forEach((item: any) => {
-                const exerciseType = resolveExerciseType(item?.tipo || item?.type || result?.tipo)
-                const questionText = getQuestionText(item)
-                items.push({
-                    localId: `gen-${Date.now()}-${exerciseSeed++}`,
-                    questionText,
-                    content: buildContent(item, exerciseType, questionText),
-                    exerciseType,
-                    moduleId: null,
-                    moduleTitle: '',
-                })
-            })
-        })
-    } else {
-        fallbackList.forEach((item: any) => {
-            const exerciseType = resolveExerciseType(item?.tipo || item?.type)
-            const questionText = getQuestionText(item)
-            items.push({
-                localId: `gen-${Date.now()}-${exerciseSeed++}`,
-                questionText,
-                content: buildContent(item, exerciseType, questionText),
-                exerciseType,
-                moduleId: null,
-                moduleTitle: '',
-            })
-        })
-    }
-
-    return { items, receivedCount: items.length, rawResponse }
-}
-
 const handleGenerate = async () => {
-    if (generationMode.value === 'module' && !selectedModules.value.length) {
+    if (!selectedModules.value.length) {
         toast.error('Seleciona pelo menos um módulo primeiro.')
-        return
-    }
-    if (generationMode.value === 'daily' && !selectedBookId.value) {
-        toast.error('Seleciona um livro primeiro.')
         return
     }
     if (countPerModule.value <= 0) {
         toast.error('Define uma quantidade maior que zero.')
         return
     }
-    if (generationMode.value === 'module' && isOverMaxTotal.value) {
+    if (isOverMaxTotal.value) {
         toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
         return
     }
-    if (remainingQuota.value <= 0) {
-        toast.error(`Atingiste o limite diário de ${DAILY_GENERATION_LIMIT} perguntas geradas. Tenta amanhã.`)
+
+    const fullModules = selectedModules.value.filter(
+        (m) => (approvedExercisesByModule.value[m.modules_id] ?? []).length >= MAX_MODULE_EXERCISES,
+    )
+    const generatableModules = selectedModules.value.filter(
+        (m) => (approvedExercisesByModule.value[m.modules_id] ?? []).length < MAX_MODULE_EXERCISES,
+    )
+
+    if (generatableModules.length === 0) {
+        toast.error(`Todos os módulos selecionados já atingiram o limite de ${MAX_MODULE_EXERCISES} exercícios.`)
         return
     }
+
+    if (fullModules.length > 0) {
+        const names = fullModules.map((m) => m.module_title || `Módulo ${m.modules_id}`).join(', ')
+        toast.warning(`Os seguintes módulos já estão no limite e serão ignorados: ${names}.`)
+    }
+
     isGenerating.value = true
     elapsedSeconds.value = 0
     if (elapsedTimer) window.clearInterval(elapsedTimer)
@@ -572,12 +463,8 @@ const handleGenerate = async () => {
     rawFlowiseRequest.value = ''
 
     try {
-        progressLabel.value = generationMode.value === 'module'
-            ? `A gerar exercícios para ${selectedModules.value.length} módulos`
-            : `A gerar perguntas diárias`
-        const result = generationMode.value === 'module'
-            ? await generateForModules(Math.min(countPerModule.value, maxPerModule.value))
-            : await generateForDaily(Math.min(countPerModule.value, 15))
+        progressLabel.value = `A gerar exercícios para ${generatableModules.length} módulo${generatableModules.length !== 1 ? 's' : ''}`
+        const result = await generateForModules(Math.min(countPerModule.value, maxPerModule.value), generatableModules)
         rawFlowiseResponse.value = JSON.stringify(result.rawResponse ?? null, null, 2)
         if (!result.items.length) {
             toast.error('A IA não devolveu exercícios. Tenta novamente.')
@@ -610,39 +497,22 @@ const handleApprove = async (exercise: GeneratedExercise) => {
     setApproving(exercise.localId, true)
 
     try {
-        if (generationMode.value === 'module') {
-            const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
-            if (!targetModuleId) return
-            const currentCount = (approvedExercisesByModule.value[targetModuleId] || []).length
-            if (currentCount >= MAX_MODULE_EXERCISES) {
-                toast.error(`Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`)
-                return
-            }
-            await createExercise({
-                id_module: targetModuleId,
-                type: exercise.exerciseType,
-                content: exercise.content,
-                created_by: loggedUserId || undefined,
-            })
-            removeGenerated(exercise.localId)
-            const list = await refreshApprovedExercisesForModule(targetModuleId)
-            await syncModuleApproval(targetModuleId, list.length)
-        } else {
-            if (!selectedBookId.value) return
-            if (approvedDailyExercises.value.length >= MAX_DAILY_EXERCISES) {
-                toast.error(`Este livro já atingiu o limite de ${MAX_DAILY_EXERCISES} perguntas diárias.`)
-                return
-            }
-            await createDailyExercise({
-                book_id: selectedBookId.value,
-                type: exercise.exerciseType,
-                content: exercise.content,
-                created_by: loggedUserId || undefined,
-            })
-            removeGenerated(exercise.localId)
-            await refreshDailyExercises()
+        const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
+        if (!targetModuleId) return
+        const currentCount = (approvedExercisesByModule.value[targetModuleId] || []).length
+        if (currentCount >= MAX_MODULE_EXERCISES) {
+            toast.error(`Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`)
+            return
         }
-        await refreshQuota()
+        await createExercise({
+            id_module: targetModuleId,
+            type: exercise.exerciseType,
+            content: exercise.content,
+            created_by: loggedUserId || undefined,
+        })
+        removeGenerated(exercise.localId)
+        const list = await refreshApprovedExercisesForModule(targetModuleId)
+        await syncModuleApproval(targetModuleId, list.length)
         toast.info('Exercício aprovado e guardado com sucesso.')
     } catch (err) {
         console.error(err)
@@ -653,10 +523,7 @@ const handleApprove = async (exercise: GeneratedExercise) => {
 }
 
 const handleReject = async (exercise: GeneratedExercise) => {
-    const targetModuleId = exercise.moduleId || selectedModule.value?.modules_id
-    if (!targetModuleId) return
     setApproving(exercise.localId, true)
-
     try {
         removeGenerated(exercise.localId)
         toast.info('Exercício rejeitado e removido da lista.')
@@ -668,14 +535,13 @@ const handleReject = async (exercise: GeneratedExercise) => {
     }
 }
 
-const handleRemoveApproved = async (exercise: Exercise | DailyExercise) => {
-    const ex = exercise as Exercise
-    if (!ex.exercise_id) return
+const handleRemoveApproved = async (exercise: Exercise) => {
+    if (!exercise.exercise_id) return
     try {
-        await deleteExercise(ex.exercise_id)
-        if (ex.id_module) {
-            const list = await refreshApprovedExercisesForModule(ex.id_module)
-            await syncModuleApproval(ex.id_module, list.length)
+        await deleteExercise(exercise.exercise_id)
+        if (exercise.id_module) {
+            const list = await refreshApprovedExercisesForModule(exercise.id_module)
+            await syncModuleApproval(exercise.id_module, list.length)
         } else {
             await refreshApprovedExercises()
         }
@@ -686,30 +552,9 @@ const handleRemoveApproved = async (exercise: Exercise | DailyExercise) => {
     }
 }
 
-const handleRemoveDaily = async (exercise: Exercise | DailyExercise) => {
-    const id = (exercise as DailyExercise).daily_exercise_id
-    if (!id) return
-    try {
-        await deleteDailyExercise(id)
-        await refreshDailyExercises()
-        toast.info('Exercício diário removido com sucesso.')
-    } catch (err) {
-        console.error(err)
-        toast.error('Não foi possível remover o exercício diário.')
-    }
-}
-
 const toggleModuleExpanded = (moduleId: number) => {
     expandedModules.value[moduleId] = !expandedModules.value[moduleId]
 }
-
-watch(generationMode, () => {
-    generatedExercises.value = []
-    if (generationMode.value === 'daily' && selectedBookId.value) {
-        refreshDailyExercises()
-        refreshAllApprovedExercisesForBook()
-    }
-})
 
 watch(selectedModuleId, async () => {
     generatedExercises.value = []
@@ -728,17 +573,12 @@ watch(selectedBookId, () => {
     selectedModuleIds.value = []
     generatedExercises.value = []
     approvedExercisesByModule.value = {}
-    approvedDailyExercises.value = []
     rawFlowiseResponse.value = ''
     rawFlowiseRequest.value = ''
-    if (generationMode.value === 'daily') {
-        refreshDailyExercises()
-        refreshAllApprovedExercisesForBook()
-    }
 })
 
 onMounted(async () => {
-    await Promise.all([loadInitialData(), refreshQuota()])
+    await loadInitialData()
 })
 </script>
 
@@ -746,7 +586,7 @@ onMounted(async () => {
     <div class="exercise-generator-page">
         <header class="hero">
             <div class="hero-content">
-                <h1 class="hero-title">Gerar Exercícios </h1>
+                <h1 class="hero-title">Gerar Exercícios</h1>
                 <p class="hero-subtitle">
                     Acelera a criação de conteúdos. Escolhe um livro, seleciona os módulos e gera múltiplas questões
                     estruturadas de uma só vez. São necessários {{ APPROVAL_THRESHOLD }} exercícios aprovados por
@@ -801,29 +641,9 @@ onMounted(async () => {
                 </UiCard>
 
                 <Transition name="fade-slide">
-                    <UiCard v-if="selectedBookId" class="workspace-panel is-completed">
-                        <div class="panel-header" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0;">
-                            <div class="step-indicator">2</div>
-                            <div class="header-text mode-header-flex">
-                                <div>
-                                    <h2>Modo de Geração</h2>
-                                    <p class="meta">Escolhe o tipo de exercícios que pretendes criar.</p>
-                                </div>
-                                <div class="mode-buttons">
-                                    <UiButton :variant="generationMode === 'module' ? 'primary' : 'outline'"
-                                        @click="generationMode = 'module'">Por Módulo</UiButton>
-                                    <UiButton :variant="generationMode === 'daily' ? 'primary' : 'outline'"
-                                        @click="generationMode = 'daily'">Perguntas Diárias</UiButton>
-                                </div>
-                            </div>
-                        </div>
-                    </UiCard>
-                </Transition>
-
-                <Transition name="fade-slide">
-                    <UiCard v-if="selectedBookId && generationMode === 'module'" class="workspace-panel">
+                    <UiCard v-if="selectedBookId" class="workspace-panel">
                         <div class="panel-header">
-                            <div class="step-indicator">3</div>
+                            <div class="step-indicator">2</div>
                             <div class="header-text">
                                 <h2>Seleciona os Módulos</h2>
                                 <p class="meta">Marca até {{ MAX_SELECTED_MODULES }} módulos que precisam de novos
@@ -838,7 +658,7 @@ onMounted(async () => {
                     </UiCard>
                 </Transition>
 
-                <section v-if="generationMode === 'module' && approvedSummaries.length" class="approved-section">
+                <section v-if="approvedSummaries.length" class="approved-section">
                     <div class="workspace-section-header">
                         <h2>Estado das Aprovações</h2>
                         <p class="meta">Acompanha o progresso de cada módulo selecionado.</p>
@@ -881,44 +701,6 @@ onMounted(async () => {
                     </div>
                 </section>
 
-                <section v-if="generationMode === 'daily' && selectedBookId" class="approved-section">
-                    <div class="workspace-section-header">
-                        <h2>Exercícios Diários Guardados</h2>
-                        <p class="meta">Acompanha as perguntas diárias associadas ao livro selecionado.</p>
-                    </div>
-                    <div class="approved-grid">
-                        <UiCard class="approved-module-card is-approved">
-                            <div class="card-summary" :role="approvedDailyExercises.length > 0 ? 'button' : undefined"
-                                :tabindex="approvedDailyExercises.length > 0 ? '0' : undefined"
-                                @click="approvedDailyExercises.length > 0 && toggleModuleExpanded(-1)">
-                                <div class="module-info">
-                                    <h4>Perguntas Diárias</h4>
-                                    <UiChip :label="approvedDailyExercises.length + ' Guardadas'" variant="filled" />
-                                    <UiChip
-                                        :label="approvedDailyExercises.length >= MAX_DAILY_EXERCISES ? 'Limite atingido' : `${approvedDailyExercises.length}/${MAX_DAILY_EXERCISES} perguntas`"
-                                        :variant="approvedDailyExercises.length >= MAX_DAILY_EXERCISES ? 'filled' : 'outline'"
-                                        size="sm" />
-                                </div>
-                                <div class="module-progress module-progress--icon-only">
-                                    <ChevronDownIcon v-if="approvedDailyExercises.length > 0" class="accordion-icon"
-                                        :class="{ 'is-rotated': expandedModules[-1] }" aria-hidden="true" />
-                                    <div v-else class="accordion-icon-placeholder"></div>
-                                </div>
-                            </div>
-                            <div class="accordion-wrapper" :class="{ 'is-open': expandedModules[-1] }">
-                                <div class="accordion-content">
-                                    <div class="approved-list-container">
-                                        <ApprovedExercisesList v-if="approvedDailyExercises.length"
-                                            :exercises="approvedDailyExercises" :type-labels="typeLabels"
-                                            :max-count="MAX_DAILY_EXERCISES"
-                                            @remove="handleRemoveDaily" />
-                                    </div>
-                                </div>
-                            </div>
-                        </UiCard>
-                    </div>
-                </section>
-
                 <div v-if="groupedSections.length" class="generated-section">
                     <div class="workspace-section-header">
                         <h2>Exercícios Gerados pela IA</h2>
@@ -929,25 +711,38 @@ onMounted(async () => {
                 </div>
 
                 <UiCard v-if="rawFlowiseResponse" class="raw-panel">
-                    <h3>Resposta Raw Flowise</h3>
+                    <div class="raw-panel-header">
+                        <h3>Resposta Raw Flowise</h3>
+                        <button class="copy-btn" @click="copyToClipboard(rawFlowiseResponse, 'response')">
+                            <ClipboardDocumentCheckIcon v-if="copiedResponse" class="copy-icon" aria-hidden="true" />
+                            <ClipboardDocumentIcon v-else class="copy-icon" aria-hidden="true" />
+                            {{ copiedResponse ? 'Copiado!' : 'Copiar' }}
+                        </button>
+                    </div>
                     <pre class="raw-output">{{ rawFlowiseResponse }}</pre>
                 </UiCard>
 
                 <UiCard v-if="rawFlowiseRequest" class="raw-panel">
-                    <h3>Pedido Raw Flowise (Enviado)</h3>
+                    <div class="raw-panel-header">
+                        <h3>Pedido Raw Flowise (Enviado)</h3>
+                        <button class="copy-btn" @click="copyToClipboard(rawFlowiseRequest, 'request')">
+                            <ClipboardDocumentCheckIcon v-if="copiedRequest" class="copy-icon" aria-hidden="true" />
+                            <ClipboardDocumentIcon v-else class="copy-icon" aria-hidden="true" />
+                            {{ copiedRequest ? 'Copiado!' : 'Copiar' }}
+                        </button>
+                    </div>
                     <pre class="raw-output">{{ rawFlowiseRequest }}</pre>
                 </UiCard>
             </div>
 
             <div class="sidebar-column">
-                <GeneratorConfigPanel :generation-mode="generationMode" :questions-label="questionsLabel"
-                    :max-per-module="maxPerModule" :count-per-module="countPerModule" :total-questions="totalQuestions"
-                    :is-over-max-total="isOverMaxTotal" :selected-module-ids-length="selectedModuleIds.length"
+                <GeneratorConfigPanel :max-per-module="maxPerModule" :count-per-module="countPerModule"
+                    :total-questions="totalQuestions" :is-over-max-total="isOverMaxTotal"
+                    :selected-module-ids-length="selectedModuleIds.length"
                     :has-selected-book="!!selectedBookId" :is-generating="isGenerating"
                     :max-total-questions="MAX_TOTAL_QUESTIONS"
                     @update:count-per-module="countPerModule = Math.max(1, Number($event) || 1)"
                     @generate="handleGenerate" />
-                <ExerciseQuotaPanel :used="quotaUsed" :limit="DAILY_GENERATION_LIMIT" :is-loading="quotaLoading" />
             </div>
         </div>
 
@@ -964,7 +759,6 @@ onMounted(async () => {
     color: var(--color-mirage-900);
 }
 
-/* Hero Section */
 .hero {
     display: flex;
     align-items: center;
@@ -999,7 +793,6 @@ onMounted(async () => {
     color: var(--color-mirage-600);
 }
 
-/* Loading banner */
 .loading-banner {
     padding: var(--space-300) var(--space-400);
     border-radius: var(--radius-200);
@@ -1009,7 +802,6 @@ onMounted(async () => {
     background: var(--color-wild-200);
 }
 
-/* Workspace */
 .workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
@@ -1069,21 +861,6 @@ onMounted(async () => {
     flex-shrink: 0;
 }
 
-.mode-header-flex {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    flex-wrap: wrap;
-    gap: var(--space-300);
-}
-
-.mode-buttons {
-    display: flex;
-    gap: var(--space-200);
-}
-
-/* Book Grid & Filters */
 .filters-bar {
     display: flex;
     gap: var(--space-300);
@@ -1178,13 +955,6 @@ onMounted(async () => {
     font-size: 14px;
 }
 
-.header-actions {
-    margin-left: auto;
-    display: flex;
-    gap: var(--space-200);
-}
-
-/* Sections */
 .workspace-section-header {
     display: flex;
     flex-direction: column;
@@ -1268,11 +1038,6 @@ onMounted(async () => {
     justify-content: flex-end;
 }
 
-.module-progress--icon-only {
-    flex: unset;
-    max-width: unset;
-}
-
 .accordion-icon {
     width: 20px;
     height: 20px;
@@ -1312,7 +1077,6 @@ onMounted(async () => {
     border-top: 1px solid var(--color-mirage-200);
 }
 
-/* Raw Panel */
 .raw-panel {
     background: var(--color-mirage-900);
     color: var(--color-wild-100);
@@ -1334,7 +1098,6 @@ onMounted(async () => {
     color: var(--color-teal-200);
 }
 
-/* Transitions */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
     transition: all 0.3s ease;
@@ -1346,14 +1109,9 @@ onMounted(async () => {
     transform: translateY(-10px);
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
     .workspace {
         grid-template-columns: 1fr;
-    }
-
-    .sidebar-column .sticky {
-        position: static;
     }
 
     .card-summary {
@@ -1372,5 +1130,44 @@ onMounted(async () => {
         flex-direction: column;
         align-items: flex-start;
     }
+}
+
+.raw-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-300);
+}
+
+.raw-panel-header h3 {
+    margin: 0;
+    color: var(--color-wild-100);
+}
+
+.copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 2px solid var(--color-teal-400);
+    background: transparent;
+    color: var(--color-teal-300);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.copy-btn:hover {
+    background: var(--color-teal-400);
+    color: var(--color-mirage-900);
+}
+
+.copy-icon {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+    flex-shrink: 0;
 }
 </style>

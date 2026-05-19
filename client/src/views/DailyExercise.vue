@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import ExerciseOption from '@/components/ui/ExerciseOption.vue'
 import { shuffleArray, buildOptions, isOptionCorrect as checkOptionCorrect } from '@/utils/exerciseUtils'
-import { fetchUserBooks } from '../services/books'
+import { fetchUserBooks, fetchModulesByBooks } from '../services/books'
 import {
-    fetchDailyExercisesForBooks,
     fetchLatestUserDailyExercise,
-    fetchLatestDailyExerciseDate,
-    fetchAnsweredDailyExerciseIds,
+    fetchUsedDailyExerciseIds,
+    fetchUserAttemptedExerciseIds,
+    fetchExercisesByIds,
     createUserDailyExercise,
     fetchUserPointsFromHistory,
     createUserPointsHistory,
@@ -20,10 +20,10 @@ import { getLevelProgressFromPoints } from '../utils/gamification'
 import { useAuthStore } from '@/stores/auth'
 import { useExerciseRunner } from '@/composables/useExerciseRunner'
 import { FEEDBACK_DELAY_MS } from '@/utils/timing'
-import { CheckCircleIcon, ExclamationTriangleIcon, FireIcon, XCircleIcon } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon, ExclamationTriangleIcon, FireIcon, LockClosedIcon, XCircleIcon } from '@heroicons/vue/24/outline'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
 import QuestionCard from '@/components/ui/QuestionCard.vue'
-import type { DailyExercise, User } from '@/types'
+import type { Exercise, User } from '@/types'
 import { useToast } from '@/composables/useToast'
 import { useNotificationsStore } from '@/stores/notifications'
 
@@ -32,10 +32,12 @@ const auth = useAuthStore()
 const toast = useToast()
 const notifStore = useNotificationsStore()
 
-type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'no-exercises' | 'error'
+const DAILY_UNLOCK_LEVEL = 3
+
+type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'locked' | 'no-exercises' | 'error'
 
 const mode = ref<ViewMode>('loading')
-const exercise = ref<DailyExercise | null>(null)
+const exercise = ref<Exercise | null>(null)
 const user = ref<User | null>(null)
 const userId = ref<string | null>(null)
 const result = ref<'correct' | 'wrong' | null>(null)
@@ -45,8 +47,11 @@ const shuffledOptions = ref<string[]>([])
 const cooldownSeconds = ref(0)
 const lastExerciseQuestion = ref('')
 const errorMsg = ref('')
+const exerciseBookTitle = ref('')
 const streakWasReset = ref(false)
 const elapsedTimeLabel = ref('')
+const leaveModalOpen = ref(false)
+const pendingNavTarget = ref('/app')
 const QUESTION_TIME = 30
 let cooldownTimer: number | null = null
 
@@ -101,7 +106,7 @@ const handleTimeout = async () => {
     if (isLocked.value) return
     isLocked.value = true
     pointsEarned.value = 0
-    newStreak.value = currentStreak.value
+    newStreak.value = 0
     result.value = 'wrong'
     await saveResult(false)
     window.setTimeout(() => { mode.value = 'done' }, 1500)
@@ -138,23 +143,19 @@ const handleSelect = async (option: string) => {
         stopTimer()
         isLocked.value = true
         pointsEarned.value = 0
-        newStreak.value = currentStreak.value
+        newStreak.value = 0
         result.value = 'wrong'
         await saveResult(false)
         window.setTimeout(() => { mode.value = 'done' }, FEEDBACK_DELAY_MS)
     }
 }
 
-const lastDailyKey = () => `gamibook:last_daily:${userId.value}`
-
 const saveResult = async (isCorrect: boolean) => {
-    if (!userId.value || !exercise.value?.daily_exercise_id) return
-
-    localStorage.setItem(lastDailyKey(), new Date().toISOString())
+    if (!userId.value || !exercise.value?.exercise_id) return
 
     await createUserDailyExercise({
         user_id: userId.value,
-        daily_exercise_id: exercise.value.daily_exercise_id,
+        exercise_id: exercise.value.exercise_id,
         is_correct: isCorrect,
     })
 
@@ -166,7 +167,7 @@ const saveResult = async (isCorrect: boolean) => {
             user_id: userId.value,
             points: pointsEarned.value,
             source: 'daily',
-            reference_id: exercise.value.daily_exercise_id,
+            reference_id: exercise.value.exercise_id,
         }).catch(() => console.error('Failed to save points history'))
     }
 
@@ -231,6 +232,31 @@ const startCooldownTimer = (lastDate: string) => {
     cooldownTimer = window.setInterval(update, 1000)
 }
 
+const confirmLeave = async () => {
+    leaveModalOpen.value = false
+    stopTimer()
+    isLocked.value = true
+    pointsEarned.value = 0
+    newStreak.value = 0
+    result.value = 'wrong'
+    await saveResult(false)
+    router.push(pendingNavTarget.value)
+}
+
+const cancelLeave = () => {
+    leaveModalOpen.value = false
+}
+
+onBeforeRouteLeave((to, _from, next) => {
+    if (mode.value === 'answering' && !isLocked.value) {
+        pendingNavTarget.value = to.fullPath
+        leaveModalOpen.value = true
+        next(false)
+        return
+    }
+    next()
+})
+
 onMounted(async () => {
     const storedId = getStoredUserId()
     if (!storedId) {
@@ -240,25 +266,31 @@ onMounted(async () => {
     userId.value = storedId
 
     try {
-        const [userInfo, userBooks, latestRecord] = await Promise.all([
+        const [userInfo, userBooks] = await Promise.all([
             fetchUserById(storedId),
             fetchUserBooks(storedId),
-            fetchLatestUserDailyExercise(storedId),
         ])
         user.value = userInfo
 
-        // Resolve last exercise date: localStorage → points history → exercise.date_created → record.date_created
-        let lastDateStr: string | null = localStorage.getItem(`gamibook:last_daily:${storedId}`)
-        if (!lastDateStr) lastDateStr = await fetchLatestDailyExerciseDate(storedId)
-        if (!lastDateStr) lastDateStr = (latestRecord?.daily_exercise_id as DailyExercise | null)?.date_created ?? null
-        if (!lastDateStr && latestRecord?.date_created) lastDateStr = latestRecord.date_created
+        // Verificar se o utilizador atingiu o nível mínimo para desbloquear o desafio diário
+        const userLevel = getLevelProgressFromPoints(auth.points).level
+        if (userLevel < DAILY_UNLOCK_LEVEL) {
+            mode.value = 'locked'
+            return
+        }
+
+        // Verificar se já fez o desafio nas últimas 24h
+        const latestRecord = await fetchLatestUserDailyExercise(storedId)
+        const lastDateStr = latestRecord?.date_created ?? null
 
         if (lastDateStr) {
             elapsedTimeLabel.value = buildElapsedLabel(lastDateStr)
             const elapsed = Date.now() - new Date(lastDateStr).getTime()
             const ONE_DAY = 24 * 60 * 60 * 1000
+
             if (elapsed < ONE_DAY) {
-                const lastEx = latestRecord?.daily_exercise_id as DailyExercise | null
+                // Ainda em cooldown — mostrar a última pergunta
+                const lastEx = latestRecord?.exercise_id as Exercise | null
                 if (lastEx?.content) {
                     lastExerciseQuestion.value = String(
                         lastEx.content.pergunta ?? lastEx.content.question ?? lastEx.content.enunciado ?? '',
@@ -268,6 +300,7 @@ onMounted(async () => {
                 mode.value = 'cooldown'
                 return
             } else if (elapsed >= 2 * ONE_DAY) {
+                // Faltou mais de um dia — reset streak
                 const currentStreakVal = userInfo.exercises_daily_streak ?? 0
                 if (currentStreakVal > 0) {
                     await updateUser(storedId, { exercises_daily_streak: 0 })
@@ -280,6 +313,7 @@ onMounted(async () => {
             }
         }
 
+        // Obter livros e módulos do utilizador
         const bookIds = userBooks
             .map((ub) => {
                 const book = ub.book_id
@@ -292,24 +326,55 @@ onMounted(async () => {
             return
         }
 
-        const [dailyExercises, answeredIds] = await Promise.all([
-            fetchDailyExercisesForBooks(bookIds),
-            fetchAnsweredDailyExerciseIds(storedId),
-        ])
+        const modules = await fetchModulesByBooks(bookIds)
+        const moduleIds = modules.map((m) => m.modules_id).filter((id): id is number => id != null)
 
-        const answeredSet = new Set(answeredIds)
-        const unanswered = dailyExercises.filter(
-            (ex) => ex.daily_exercise_id != null && !answeredSet.has(ex.daily_exercise_id),
-        )
-
-        if (!dailyExercises.length) {
+        if (!moduleIds.length) {
             mode.value = 'no-exercises'
             return
         }
 
-        const pool = unanswered.length ? unanswered : dailyExercises
-        const chosen = pool[Math.floor(Math.random() * pool.length)]!
+        // Exercícios tentados pelo utilizador nos módulos dos seus livros
+        const attemptedIds = await fetchUserAttemptedExerciseIds(storedId, moduleIds)
+
+        if (!attemptedIds.length) {
+            mode.value = 'no-exercises'
+            return
+        }
+
+        // IDs já usados como diário
+        const usedDailyIds = await fetchUsedDailyExerciseIds(storedId)
+        const usedSet = new Set(usedDailyIds)
+
+        // Pool: tentados menos os já usados como diário
+        // Se todos já foram usados, recomeçar o ciclo
+        let pool = attemptedIds.filter((id) => !usedSet.has(id))
+        if (!pool.length) {
+            pool = attemptedIds
+        }
+
+        // Buscar detalhes dos exercícios do pool e escolher aleatório
+        const exercises = await fetchExercisesByIds(pool)
+
+        if (!exercises.length) {
+            mode.value = 'no-exercises'
+            return
+        }
+
+        const chosen = exercises[Math.floor(Math.random() * exercises.length)]!
         exercise.value = chosen
+
+        const chosenModule = modules.find(m => m.modules_id === chosen.id_module)
+        if (chosenModule) {
+            const matchingUb = userBooks.find(ub => {
+                const bid = typeof ub.book_id === 'object' ? (ub.book_id as any)?.book_id : ub.book_id
+                return bid === chosenModule.id_book
+            })
+            if (matchingUb && typeof matchingUb.book_id === 'object') {
+                exerciseBookTitle.value = (matchingUb.book_id as any)?.title ?? ''
+            }
+        }
+
         shuffledOptions.value = chosen.type === 'true-false' ? buildOptions(chosen) : shuffleArray(buildOptions(chosen))
         mode.value = 'answering'
         resetTimer()
@@ -350,11 +415,25 @@ onUnmounted(() => {
         <p v-if="mode === 'loading'" class="state">A carregar exercício diário...</p>
         <p v-else-if="mode === 'error'" class="state error">{{ errorMsg }}</p>
 
+        <div v-else-if="mode === 'locked'" class="info-card locked-card">
+            <div class="locked-icon-wrap">
+                <LockClosedIcon class="locked-icon" aria-hidden="true" />
+            </div>
+            <h2>Desafio Diário Bloqueado</h2>
+            <p>Os desafios diários desbloqueiam ao atingir o <strong>nível {{ DAILY_UNLOCK_LEVEL }}</strong>. Completa exercícios nos módulos dos teus livros para subir de nível!</p>
+            <div class="locked-progress">
+                <span class="locked-progress-label">Nível atual: {{ auth.progress.level }} / {{ DAILY_UNLOCK_LEVEL }}</span>
+            </div>
+            <RouterLink to="/collection">
+                <UiButton variant="primary">Ver Livros</UiButton>
+            </RouterLink>
+        </div>
+
         <div v-else-if="mode === 'no-exercises'" class="info-card">
             <h2>Sem exercícios disponíveis</h2>
-            <p>Ainda não há exercícios diários para os teus livros. Volta mais tarde!</p>
-            <RouterLink to="/app">
-                <UiButton variant="outline">Voltar ao Dashboard</UiButton>
+            <p>Ainda não tens exercícios suficientes para o desafio diário. Completa alguns módulos dos teus livros primeiro!</p>
+            <RouterLink to="/collection">
+                <UiButton variant="outline">Explorar Livros</UiButton>
             </RouterLink>
         </div>
 
@@ -373,7 +452,7 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="mode === 'done'" class="done-wrapper">
-            <!-- Left: question + answer recap -->
+            <!-- Esquerda: recap da pergunta e resposta -->
             <div class="done-recap">
                 <span class="done-recap__kicker">Pergunta de hoje</span>
                 <p class="done-recap__question">{{ questionText }}</p>
@@ -387,7 +466,7 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <!-- Right: result card -->
+            <!-- Direita: cartão de resultado -->
             <div class="done-card" :class="result === 'correct' ? 'done-correct' : 'done-wrong'">
                 <div class="done-result-header">
                     <div class="done-icon-wrap" :class="result === 'correct' ? 'done-icon--correct' : 'done-icon--wrong'">
@@ -424,9 +503,24 @@ onUnmounted(() => {
             </div>
         </div>
 
+        <!-- Modal de aviso ao sair -->
+        <div v-if="leaveModalOpen" class="leave-overlay" @click.self="cancelLeave">
+            <div class="leave-modal" role="dialog" aria-modal="true">
+                <div class="leave-modal-icon">
+                    <ExclamationTriangleIcon class="leave-warn-icon" aria-hidden="true" />
+                </div>
+                <h3>Tens a certeza que queres sair?</h3>
+                <p>Se saíres agora, o exercício ficará marcado como <strong>errado</strong> e o teu streak será <strong>quebrado</strong>.</p>
+                <div class="leave-actions">
+                    <UiButton variant="outline" size="sm" @click="cancelLeave">Ficar</UiButton>
+                    <UiButton variant="primary" size="sm" @click="confirmLeave">Sair mesmo assim</UiButton>
+                </div>
+            </div>
+        </div>
+
         <template v-else-if="mode === 'answering' && exercise">
             <QuestionCard :question-text="questionText" :time-left="timeLeft" :timer-dash="timerDash">
-                <template #label>Exercício Diário</template>
+                <template #label>{{ exerciseBookTitle || 'Exercício Diário' }}</template>
                 <template #actions>
                     <UiResultPill v-if="result" :result="result" :points="pointsEarned" />
                     <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
@@ -459,7 +553,6 @@ onUnmounted(() => {
     padding-bottom: var(--space-300);
     border-bottom: 2px solid var(--color-wild-400);
 }
-
 
 .meta {
     color: var(--color-mirage-500);
@@ -567,6 +660,43 @@ onUnmounted(() => {
     gap: var(--space-400);
 }
 
+/* Locked state */
+.locked-card {
+    place-items: center;
+    text-align: center;
+}
+
+.locked-icon-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-200);
+    display: grid;
+    place-items: center;
+    box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.locked-icon {
+    width: 36px;
+    height: 36px;
+    color: var(--color-mirage-500);
+    stroke-width: 1.5;
+}
+
+.locked-progress {
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: var(--color-wild-200);
+    border: 2px solid var(--color-mirage-300);
+}
+
+.locked-progress-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-mirage-700);
+}
+
 .cooldown-timer {
     display: grid;
     gap: 6px;
@@ -611,7 +741,7 @@ onUnmounted(() => {
     font-weight: 600;
 }
 
-/* Done wrapper – two-column layout */
+/* Done wrapper */
 .done-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -619,7 +749,6 @@ onUnmounted(() => {
     align-items: start;
 }
 
-/* Left panel: question recap */
 .done-recap {
     border-radius: 16px;
     border: 2px solid var(--color-mirage-800);
@@ -691,7 +820,6 @@ onUnmounted(() => {
     color: var(--color-error-strong);
 }
 
-/* Done card */
 .done-card {
     border-radius: 16px;
     border: 2px solid var(--color-mirage-800);
@@ -859,6 +987,68 @@ onUnmounted(() => {
     }
 }
 
+.leave-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 29, 32, 0.4);
+    display: grid;
+    place-items: center;
+    z-index: 9999;
+}
+
+.leave-modal {
+    width: min(440px, 92vw);
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    border-radius: 18px;
+    box-shadow: 6px 6px 0 var(--color-shadow);
+    padding: var(--space-500);
+    display: grid;
+    gap: var(--space-300);
+    text-align: center;
+    place-items: center;
+}
+
+.leave-modal-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--color-amber-50, #fffbeb);
+    border: 2px solid var(--color-amber-500, #f59e0b);
+    box-shadow: 3px 3px 0 rgba(245, 158, 11, 0.25);
+    display: grid;
+    place-items: center;
+}
+
+.leave-warn-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--color-amber-500, #f59e0b);
+    stroke-width: 1.8;
+}
+
+.leave-modal h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-mirage-900);
+}
+
+.leave-modal p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-mirage-600);
+    line-height: 1.5;
+    max-width: 320px;
+}
+
+.leave-actions {
+    display: flex;
+    gap: var(--space-300);
+    justify-content: center;
+    margin-top: var(--space-100);
+}
+
 .attempts-pill {
     padding: 6px 12px;
     border-radius: 999px;
@@ -880,7 +1070,6 @@ onUnmounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* Animações dinâmicas para a streak e o fogo */
 @keyframes badge-fire-pop {
     0% { transform: scale(1); }
     50% { transform: scale(1.1) rotate(-2deg); filter: drop-shadow(0 0 8px rgba(255, 138, 80, 0.6)); border-color: var(--color-pumpkin-500); }

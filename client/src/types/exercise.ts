@@ -24,20 +24,10 @@ export type Exercise = {
   created_by?: string | null
 }
 
-export type DailyExercise = {
-  daily_exercise_id?: number
-  exercise_id?: number
-  book_id?: number | null
-  type?: 'multiple-choice' | 'true-false'
-  content?: ExerciseContent
-  date_created?: string | null
-  created_by?: string | null
-}
-
 export type UserDailyExercise = {
   id_user_daily_exercise?: number
   user_id?: string | User
-  daily_exercise_id?: number | DailyExercise
+  exercise_id?: number | Exercise
   is_correct?: boolean | null
   date_created?: string | null
 }

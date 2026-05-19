@@ -1,5 +1,4 @@
 import type {
-  DailyExercise,
   Exercise,
   ExerciseExample,
   UserDailyExercise,
@@ -34,22 +33,6 @@ export const fetchAllUsersPoints = async (startDate?: string): Promise<Map<strin
   return map
 }
 
-export const fetchLatestDailyExerciseDate = async (userId: string): Promise<string | null> => {
-  const params = new URLSearchParams({
-    fields: 'date_created',
-    sort: '-date_created',
-    limit: '1',
-  })
-  params.set('filter[user_id][_eq]', userId)
-  params.set('filter[source][_eq]', 'daily')
-
-  const response = await authFetch(`/items/user_points_history?${params.toString()}`)
-  if (!response.ok) return null
-
-  const data = await response.json().catch(() => null)
-  const item = (data?.data ?? [])[0] as { date_created?: string | null } | undefined
-  return item?.date_created ?? null
-}
 
 export const fetchUserPointsFromHistory = async (userId: string, startDate?: string) => {
   const params = new URLSearchParams({
@@ -232,57 +215,6 @@ export const createExercise = async (payload: Partial<Exercise>) => {
   return (data?.data ?? data) as Exercise
 }
 
-
-export const fetchDailyExercisesByBook = async (bookId: number) => {
-  const params = new URLSearchParams({
-    fields: 'daily_exercise_id,type,book_id,content,date_created',
-    sort: '-date_created',
-  })
-  params.set('filter[book_id][_eq]', String(bookId))
-
-  const response = await authFetch(`/items/daily_exercise?${params.toString()}`)
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Fetch daily exercises failed: ${response.status} ${text}`.trim())
-  }
-
-  const data = await response.json().catch(() => null)
-  const items = (data?.data ?? []) as DailyExercise[]
-
-  return items.map((exercise) => ({
-    ...exercise,
-    exercise_id: exercise.daily_exercise_id,
-  }))
-}
-
-export const createDailyExercise = async (payload: Partial<DailyExercise>) => {
-  const response = await authFetch('/items/daily_exercise', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Create daily exercise failed: ${response.status} ${text}`.trim())
-  }
-
-  const data = await response.json().catch(() => null)
-  return (data?.data ?? data) as DailyExercise
-}
-
-export const deleteDailyExercise = async (exerciseId: number) => {
-  const response = await authFetch(`/items/daily_exercise/${exerciseId}`, {
-    method: 'DELETE',
-  })
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Delete daily exercise failed: ${response.status} ${text}`.trim())
-  }
-}
-
 export const deleteExercise = async (exerciseId: number) => {
   const response = await authFetch(`/items/exercises/${exerciseId}`, {
     method: 'DELETE',
@@ -296,8 +228,7 @@ export const deleteExercise = async (exerciseId: number) => {
 
 export const fetchLatestUserDailyExercise = async (userId: string) => {
   const params = new URLSearchParams({
-    fields:
-      'id_user_daily_exercise,user_id,daily_exercise_id.daily_exercise_id,daily_exercise_id.content,daily_exercise_id.type,daily_exercise_id.date_created,date_created',
+    fields: 'id_user_daily_exercise,user_id,is_correct,exercise_id.exercise_id,exercise_id.content,exercise_id.type,date_created',
     sort: '-date_created',
     limit: '1',
   })
@@ -331,9 +262,9 @@ export const createUserDailyExercise = async (payload: Partial<UserDailyExercise
   return (data?.data ?? data) as UserDailyExercise
 }
 
-export const fetchAnsweredDailyExerciseIds = async (userId: string): Promise<number[]> => {
+export const fetchUsedDailyExerciseIds = async (userId: string): Promise<number[]> => {
   const params = new URLSearchParams({
-    fields: 'daily_exercise_id',
+    fields: 'exercise_id',
     limit: '-1',
   })
   params.set('filter[user_id][_eq]', userId)
@@ -342,32 +273,52 @@ export const fetchAnsweredDailyExerciseIds = async (userId: string): Promise<num
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    throw new Error(`Fetch answered daily exercises failed: ${response.status} ${text}`.trim())
+    throw new Error(`Fetch used daily exercise IDs failed: ${response.status} ${text}`.trim())
   }
 
   const data = await response.json().catch(() => null)
-  const items = (data?.data ?? []) as Array<{ daily_exercise_id: number | null }>
-  return items.map((item) => item.daily_exercise_id).filter((id): id is number => id !== null)
+  const items = (data?.data ?? []) as Array<{ exercise_id?: number | null }>
+  return items.map((item) => item.exercise_id).filter((id): id is number => id != null)
 }
 
-export const fetchDailyExercisesForBooks = async (bookIds: number[]) => {
-  if (!bookIds.length) return [] as DailyExercise[]
+export const fetchUserAttemptedExerciseIds = async (
+  userId: string,
+  moduleIds: number[],
+): Promise<number[]> => {
+  if (!moduleIds.length) return []
 
   const params = new URLSearchParams({
-    fields: 'daily_exercise_id,type,book_id,content,date_created',
+    fields: 'exercise_id',
     limit: '-1',
   })
-  params.set('filter[book_id][_in]', bookIds.join(','))
+  params.set('filter[user_id][_eq]', userId)
+  params.set('filter[module_id][_in]', moduleIds.join(','))
 
-  const response = await authFetch(`/items/daily_exercise?${params.toString()}`)
+  const response = await authFetch(`/items/user_exercises?${params.toString()}`)
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Fetch daily exercises for books failed: ${response.status} ${text}`.trim())
-  }
+  if (!response.ok) return []
 
   const data = await response.json().catch(() => null)
-  return (data?.data ?? []) as DailyExercise[]
+  const items = (data?.data ?? []) as Array<{ exercise_id?: number | null }>
+  const ids = items.map((i) => i.exercise_id).filter((id): id is number => id != null)
+  return [...new Set(ids)]
+}
+
+export const fetchExercisesByIds = async (ids: number[]): Promise<Exercise[]> => {
+  if (!ids.length) return []
+
+  const params = new URLSearchParams({
+    fields: 'exercise_id,type,id_module,content',
+    limit: '-1',
+  })
+  params.set('filter[exercise_id][_in]', ids.join(','))
+
+  const response = await authFetch(`/items/exercises?${params.toString()}`)
+
+  if (!response.ok) return []
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as Exercise[]
 }
 
 export const fetchExercisesCreatedTodayByUser = async (userId: string): Promise<number> => {
@@ -379,30 +330,16 @@ export const fetchExercisesCreatedTodayByUser = async (userId: string): Promise<
   exerciseParams.set('filter[created_by][_eq]', userId)
   exerciseParams.set('filter[date_created][_gte]', todayStr)
 
-  const dailyParams = new URLSearchParams({ fields: 'daily_exercise_id', limit: '-1' })
-  dailyParams.set('filter[created_by][_eq]', userId)
-  dailyParams.set('filter[date_created][_gte]', todayStr)
+  const response = await authFetch(`/items/exercises?${exerciseParams.toString()}`)
 
-  const [exercisesRes, dailyRes] = await Promise.all([
-    authFetch(`/items/exercises?${exerciseParams.toString()}`),
-    authFetch(`/items/daily_exercise?${dailyParams.toString()}`),
-  ])
-
-  if (!exercisesRes.ok) {
-    const text = await exercisesRes.text().catch(() => '')
-    throw new Error(`Fetch exercises created today failed: ${exercisesRes.status} ${text}`.trim())
-  }
-  if (!dailyRes.ok) {
-    const text = await dailyRes.text().catch(() => '')
-    throw new Error(`Fetch daily exercises created today failed: ${dailyRes.status} ${text}`.trim())
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch exercises created today failed: ${response.status} ${text}`.trim())
   }
 
-  const exercisesData = await exercisesRes.json().catch(() => null)
-  const dailyData = await dailyRes.json().catch(() => null)
-
-  return ((exercisesData?.data ?? []) as unknown[]).length + ((dailyData?.data ?? []) as unknown[]).length
+  const exercisesData = await response.json().catch(() => null)
+  return ((exercisesData?.data ?? []) as unknown[]).length
 }
-
 
 export const fetchLatestUserExercise = async (userId: string) => {
   const params = new URLSearchParams({
