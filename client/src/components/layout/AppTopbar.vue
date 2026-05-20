@@ -297,7 +297,15 @@ watch(
       </UiIconButton>
       <div class="profile" ref="profileRef">
         <button class="profile-button" :class="{ 'is-open': menuOpen }" type="button" @click="toggleMenu">
-          <UiAvatar :alt="initials" :size="44" :src="avatarUrl" />
+          <UiAvatar
+              :alt="initials"
+              :size="44"
+              :src="avatarUrl"
+              :border="authStore.avatarConfig.border"
+              :avatar-color="authStore.avatarConfig.avatarColor"
+              :effect="authStore.avatarConfig.effect"
+              :shadow="authStore.avatarConfig.shadow"
+            />
           <div v-if="!isAdmin" class="profile-details">
             <div class="level-row">
               <span>Nível {{ level ?? '-' }}</span>

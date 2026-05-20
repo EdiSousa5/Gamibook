@@ -14,6 +14,11 @@ const USER_FIELDS = [
   'best_exercises_daily_streak',
   'last_login',
   'level',
+  'avatar_border',
+  'avatar_color',
+  'avatar_effect',
+  'avatar_shadow',
+  'background_theme',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {

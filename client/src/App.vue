@@ -68,15 +68,30 @@ const handleBack = () => {
   window.history.back()
 }
 
+function applyUserBg() {
+  const bg = auth.user?.background_theme || localStorage.getItem('gb_bg') || 'bg-1'
+  document.documentElement.setAttribute('data-bg', bg)
+}
+
+function clearBg() {
+  document.documentElement.removeAttribute('data-bg')
+}
+
 onMounted(() => {
-  const savedBg = localStorage.getItem('gb_bg')
-  if (savedBg) {
-    document.documentElement.setAttribute('data-bg', savedBg)
-  }
+  if (!showLanding.value) applyUserBg()
 
   setUnauthorizedHandler(() => router.push('/login'))
   auth.loadUser()
   updateCanGoBack()
+})
+
+watch(showLanding, (isLanding) => {
+  if (isLanding) clearBg()
+  else applyUserBg()
+})
+
+watch(() => auth.user?.background_theme, () => {
+  if (!showLanding.value) applyUserBg()
 })
 
 watch(

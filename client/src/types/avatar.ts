@@ -12,9 +12,8 @@ export type AvatarColor =
   | 'amber' | 'amber-dark' | 'pumpkin'
   | 'crimson' | 'crimson-dark'
   | 'slate' | 'slate-dark' | 'black'
-  | 'galaxy' | 'ocean' | 'inferno' | 'forest'
 
-export type AvatarEffect = 'none' | 'glow' | 'shine' | 'aura' | 'sombra'
+export type AvatarEffect = 'none' | 'glow' | 'shine' | 'sombra' | 'retro' | 'mono' | 'vivid'
 
 export type AvatarShadow = 'none' | 'small' | 'default'
 

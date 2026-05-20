@@ -339,67 +339,11 @@ const classes = computed(() => {
 .av-color-slate-dark   { --av-border-color: var(--color-mirage-700);  --av-shadow: var(--color-mirage-900); }
 .av-color-black        { --av-border-color: #111111;                  --av-shadow: #000000; }
 
-/* ── Especiais: animam border-color lentamente ───────────── */
-
-.av-color-galaxy {
-  --av-border-color: #4c1d95;
-  --av-shadow: #3b0066;
-  animation: av-galaxy 14s linear infinite;
-}
-
-@keyframes av-galaxy {
-  0%   { border-color: #1a004a; }
-  20%  { border-color: #4c1d95; }
-  40%  { border-color: #7c3aed; }
-  60%  { border-color: #5b21b6; }
-  80%  { border-color: #2e1065; }
-  100% { border-color: #1a004a; }
-}
-
-/* Oceano: azuis e turquesas de mar aberto */
-.av-color-ocean {
-  --av-border-color: #0369a1;
-  --av-shadow: #0c4a6e;
-  animation: av-ocean 9s ease-in-out infinite;
-}
-
-@keyframes av-ocean {
-  0%, 100% { border-color: #0c4a6e; }
-  40%       { border-color: #0891b2; }
-  70%       { border-color: #38bdf8; }
-}
-
-.av-color-inferno {
-  --av-border-color: var(--color-crimson-700);
-  --av-shadow: var(--color-crimson-800);
-  animation: av-inferno 5s ease-in-out infinite;
-}
-
-@keyframes av-inferno {
-  0%, 100% { border-color: var(--color-crimson-700); }
-  30%       { border-color: var(--color-amber-500);  }
-  65%       { border-color: var(--color-crimson-500); }
-  85%       { border-color: #e8611e; }
-}
-
-/* Floresta: ciclo nos tons deep do design system */
-.av-color-forest {
-  --av-border-color: var(--color-deep-600);
-  --av-shadow: var(--color-deep-800);
-  animation: av-forest 11s ease-in-out infinite;
-}
-
-@keyframes av-forest {
-  0%, 100% { border-color: var(--color-deep-800); }
-  40%       { border-color: var(--color-deep-500); }
-  70%       { border-color: var(--color-deep-200); }
-}
-
 /* ── Effects ─────────────────────────────────────────── */
 
 /* Brilho: halo suave na cor da borda */
 .av-effect-glow {
-  filter: drop-shadow(0 0 7px var(--av-border-color));
+  filter: drop-shadow(0 0 4px var(--av-border-color));
 }
 
 /* Lustro: feixe de luz a varrer — clipped ao círculo pelo overflow:hidden */
@@ -428,15 +372,6 @@ const classes = computed(() => {
   40%, 100% { transform: translateX(180%); }
 }
 
-/* Aura: halo suave e lento na cor da borda */
-.av-effect-aura {
-  animation: av-aura 4.5s ease-in-out infinite;
-}
-
-@keyframes av-aura {
-  0%, 100% { filter: drop-shadow(0 0 1px var(--av-border-color)); }
-  50%       { filter: drop-shadow(0 0 5px var(--av-border-color)); }
-}
 
 /*
   Sombra: vinheta escura por cima da imagem — simula
@@ -449,8 +384,8 @@ const classes = computed(() => {
   inset: 0;
   background: radial-gradient(
     circle,
-    transparent 35%,
-    rgba(26, 38, 46, 0.55) 100%
+    transparent 40%,
+    rgba(26, 38, 46, 0.30) 100%
   );
   z-index: 2;
   pointer-events: none;
@@ -459,5 +394,23 @@ const classes = computed(() => {
 .has-cracha.av-effect-sombra::before {
   clip-path: circle(50%);
 }
+
+/* Filtros aplicados apenas à imagem / letra de fallback — borda e sombra não são afetadas */
+
+.av-effect-retro img,
+.av-effect-retro > span:not(.status):not(.cracha) {
+  filter: sepia(0.6) contrast(1.05) brightness(0.95);
+}
+
+.av-effect-mono img,
+.av-effect-mono > span:not(.status):not(.cracha) {
+  filter: grayscale(100%) contrast(1.15);
+}
+
+.av-effect-vivid img,
+.av-effect-vivid > span:not(.status):not(.cracha) {
+  filter: saturate(1.9) contrast(1.08);
+}
+
 
 </style>

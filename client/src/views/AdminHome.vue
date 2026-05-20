@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import { fetchUserById, getUserDisplayName } from '@/services/auth'
 import { getAssetUrl } from '@/services/client'
+import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
+
+const { avatarConfig } = storeToRefs(useAuthStore())
 
 const user = ref<User | null>(null)
 
@@ -66,7 +70,15 @@ const quickLinks = [
 
     <UiCard class="account-card">
       <div class="account-inner">
-        <UiAvatar :alt="initials" :src="avatarUrl" :size="72" />
+        <UiAvatar
+          :alt="initials"
+          :src="avatarUrl"
+          :size="72"
+          :border="avatarConfig.border"
+          :avatar-color="avatarConfig.avatarColor"
+          :effect="avatarConfig.effect"
+          :shadow="avatarConfig.shadow"
+        />
         <div class="account-info">
           <div class="account-name-row">
             <strong class="account-name">{{ displayName }}</strong>

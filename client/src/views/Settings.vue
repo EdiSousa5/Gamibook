@@ -26,8 +26,8 @@ const isActive = (path: string) => route.path === path
   <section class="settings">
     <div class="header">
       <div>
-        <h1>Definicoes</h1>
-        <p class="meta">Preferencias do utilizador e configuracoes pessoais.</p>
+        <h1>Definições</h1>
+        <p class="meta">Preferências do utilizador e configurações pessoais.</p>
       </div>
     </div>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 const props = defineProps<{
     position: number
@@ -9,6 +10,10 @@ const props = defineProps<{
     avatarUrl?: string | null
     displayName: string
     elementId?: string
+    avatarBorder?: AvatarBorder
+    avatarColor?: AvatarColor
+    avatarEffect?: AvatarEffect
+    avatarShadow?: AvatarShadow
 }>()
 
 const isFirst = computed(() => props.position === 1)
@@ -19,7 +24,11 @@ const isFirst = computed(() => props.position === 1)
         <div class="podium-header">
             <div class="avatar-wrap">
                 <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
-                    :size="isFirst ? 190 : (position === 2 ? 160 : 140)" />
+                    :size="isFirst ? 190 : (position === 2 ? 160 : 140)"
+                    :border="avatarBorder"
+                    :avatar-color="avatarColor"
+                    :effect="avatarEffect"
+                    :shadow="avatarShadow" />
                 <div class="place-badge">#{{ position }}</div>
                 <div class="level-pill">Nível {{ level }}</div>
             </div>
@@ -64,15 +73,7 @@ const isFirst = computed(() => props.position === 1)
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px;
-    border-radius: 999px;
-    background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-800);
-    box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.avatar-wrap :deep(.ui-avatar) {
-    box-shadow: none;
+    z-index: 5;
 }
 
 .place-badge {
@@ -106,6 +107,8 @@ const isFirst = computed(() => props.position === 1)
     font-weight: 800;
     color: var(--color-mirage-800);
     box-shadow: 2px 2px 0 var(--color-shadow);
+    z-index: 20;
+    white-space: nowrap;
 }
 
 .name {
