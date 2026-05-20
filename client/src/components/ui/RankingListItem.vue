@@ -2,6 +2,7 @@
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
+import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 defineProps<{
     position: number
@@ -11,6 +12,10 @@ defineProps<{
     avatarUrl?: string | null
     displayName: string
     isCurrentUser?: boolean
+    avatarBorder?: AvatarBorder
+    avatarColor?: AvatarColor
+    avatarEffect?: AvatarEffect
+    avatarShadow?: AvatarShadow
 }>()
 
 const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'galaxy']
@@ -21,7 +26,11 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
         <div class="item-left">
             <div class="position-circle">{{ position }}</div>
             <div class="user-info">
-                <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()" :size="48" />
+                <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()" :size="48"
+                    :border="avatarBorder"
+                    :avatar-color="avatarColor"
+                    :effect="avatarEffect"
+                    :shadow="avatarShadow" />
                 <div class="user-text">
                     <span class="name">{{ displayName }}</span>
                     <div class="meta-row">

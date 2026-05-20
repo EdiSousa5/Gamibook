@@ -71,16 +71,24 @@ const progressPct = computed(() =>
 
 
 
+const TIER_RANK: Record<BookBadgeTier, number> = { bronze: 0, silver: 1, gold: 2, diamond: 3, galaxy: 4 }
+
 const badgeCounts = computed(() => {
   const counts: Record<BookBadgeTier, number> = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
   for (const ub of userBooks.value) {
     const b = ub.current_badge as BookBadgeTier | 'default' | undefined
-    if (b && b !== 'default' && b in counts) counts[b]++
+    if (!b || b === 'default' || !(b in TIER_RANK)) continue
+    const rank = TIER_RANK[b]
+    for (const tier of BADGE_TIERS) {
+      if (TIER_RANK[tier] <= rank) counts[tier]++
+    }
   }
   return counts
 })
 
-const totalBadges = computed(() => Object.values(badgeCounts.value).reduce((s, v) => s + v, 0))
+const totalBadges = computed(() =>
+  userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
+)
 
 const formatDailyCooldown = computed(() => {
   const h = Math.floor(dailyCooldownSeconds.value / 3600)
@@ -447,7 +455,7 @@ onUnmounted(() => {
     <!-- ── BADGES COLLECTION ──────────────────────────────── -->
     <section v-if="!isLoadingProfile && booksObtained > 0" class="badges-card">
       <div class="badges-header">
-        <h2>Os Meus Badges</h2>
+        <h2>Badges Conquistados</h2>
         <span class="badges-total-pill">
           <SparklesIcon class="badges-pill-icon" aria-hidden="true" />
           {{ totalBadges }} ganhos

@@ -13,4 +13,9 @@ export type User = {
   exercises_daily_streak?: number
   best_exercises_daily_streak?: number
   last_login?: string | null
+  avatar_border?: string
+  avatar_color?: string
+  avatar_effect?: string
+  avatar_shadow?: string
+  background_theme?: string
 }

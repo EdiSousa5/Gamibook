@@ -119,7 +119,15 @@ onMounted(loadProfile)
                 </div>
             </label>
             <div v-if="avatar" class="avatar">
-                <UiAvatar :src="avatar" alt="Avatar" :size="96" />
+                <UiAvatar
+                    :src="avatar"
+                    alt="Avatar"
+                    :size="96"
+                    :border="auth.avatarConfig.border"
+                    :avatar-color="auth.avatarConfig.avatarColor"
+                    :effect="auth.avatarConfig.effect"
+                    :shadow="auth.avatarConfig.shadow"
+                />
             </div>
             <p v-if="isLoading" class="state">A carregar perfil...</p>
             <UiButton type="button" class="cta" :loading="isSaving" @click="saveProfile">Guardar</UiButton>

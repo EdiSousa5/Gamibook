@@ -5,6 +5,7 @@ import { clearAccessToken, getAssetUrl, setStoredUserId } from '@/services/clien
 import { fetchUserPointsFromHistory, createUserPointsHistory } from '@/services/exercises'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
+import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -20,6 +21,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => isAdminUser(user.value))
   const avatarUrl = computed(() => getAssetUrl(user.value?.avatar ?? ''))
   const progress = computed(() => getLevelProgressFromPoints(points.value))
+  const avatarConfig = computed(() => ({
+    border: (user.value?.avatar_border as AvatarBorder) || 'default' as AvatarBorder,
+    avatarColor: (user.value?.avatar_color as AvatarColor) || undefined,
+    effect: (user.value?.avatar_effect as AvatarEffect) || undefined,
+    shadow: (user.value?.avatar_shadow as AvatarShadow) || 'default' as AvatarShadow,
+  }))
 
   const loadUser = async () => {
     const storedId = localStorage.getItem('gb_user_id')
@@ -113,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     displayName,
     isAdmin,
     avatarUrl,
+    avatarConfig,
     points,
     progress,
     loadUser,

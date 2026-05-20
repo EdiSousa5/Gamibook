@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import logoUrl from '@/assets/images/gamibook_logo.png'
 import NavItem from './NavItem.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const { avatarConfig } = storeToRefs(useAuthStore())
 
 type NavEntry = {
   label: string
@@ -43,7 +47,15 @@ const initials = computed(() => {
     <div class="spacer"></div>
 
     <div class="footer">
-      <UiAvatar :alt="initials" :size="56" :src="avatarUrl" />
+      <UiAvatar
+        :alt="initials"
+        :size="56"
+        :src="avatarUrl"
+        :border="avatarConfig.border"
+        :avatar-color="avatarConfig.avatarColor"
+        :effect="avatarConfig.effect"
+        :shadow="avatarConfig.shadow"
+      />
       <div class="text">
         <span class="welcome">Bem-vindo!</span>
         <strong>{{ username || 'Utilizador' }}</strong>

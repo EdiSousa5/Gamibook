@@ -172,7 +172,11 @@ watch(timeFilter, () => {
           <PodiumItem v-if="podiumUsers[1]" :position="2" :points="podiumUsers[1].totalPoints"
             :level="podiumUsers[1].level" :avatarUrl="getAvatarUrl(podiumUsers[1])"
             :displayName="displayUserName(podiumUsers[1])"
-            :elementId="`user-${podiumUsers[1].id}`" />
+            :elementId="`user-${podiumUsers[1].id}`"
+            :avatarBorder="podiumUsers[1].avatar_border as any"
+            :avatarColor="podiumUsers[1].avatar_color as any"
+            :avatarEffect="podiumUsers[1].avatar_effect as any"
+            :avatarShadow="podiumUsers[1].avatar_shadow as any" />
         </div>
 
         <!-- 1º Lugar -->
@@ -180,7 +184,11 @@ watch(timeFilter, () => {
           <PodiumItem v-if="podiumUsers[0]" :position="1" :points="podiumUsers[0].totalPoints"
             :level="podiumUsers[0].level" :avatarUrl="getAvatarUrl(podiumUsers[0])"
             :displayName="displayUserName(podiumUsers[0])"
-            :elementId="`user-${podiumUsers[0].id}`" />
+            :elementId="`user-${podiumUsers[0].id}`"
+            :avatarBorder="podiumUsers[0].avatar_border as any"
+            :avatarColor="podiumUsers[0].avatar_color as any"
+            :avatarEffect="podiumUsers[0].avatar_effect as any"
+            :avatarShadow="podiumUsers[0].avatar_shadow as any" />
         </div>
 
         <!-- 3º Lugar -->
@@ -188,7 +196,11 @@ watch(timeFilter, () => {
           <PodiumItem v-if="podiumUsers[2]" :position="3" :points="podiumUsers[2].totalPoints"
             :level="podiumUsers[2].level" :avatarUrl="getAvatarUrl(podiumUsers[2])"
             :displayName="displayUserName(podiumUsers[2])"
-            :elementId="`user-${podiumUsers[2].id}`" />
+            :elementId="`user-${podiumUsers[2].id}`"
+            :avatarBorder="podiumUsers[2].avatar_border as any"
+            :avatarColor="podiumUsers[2].avatar_color as any"
+            :avatarEffect="podiumUsers[2].avatar_effect as any"
+            :avatarShadow="podiumUsers[2].avatar_shadow as any" />
         </div>
       </section>
 
@@ -198,7 +210,11 @@ watch(timeFilter, () => {
             <RankingListItem v-for="(user, index) in remainingUsersList" :key="user.id || user.email || user.name"
               :id="`user-${user.id}`" :position="index + 4" :points="user.totalPoints" :level="user.level"
               :badgeCounts="user.badgeCounts" :isCurrentUser="String(user.id) === String(currentUserId)"
-              :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)" />
+              :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)"
+              :avatarBorder="user.avatar_border as any"
+              :avatarColor="user.avatar_color as any"
+              :avatarEffect="user.avatar_effect as any"
+              :avatarShadow="user.avatar_shadow as any" />
           </ul>
 
           <template v-if="showUserBelowList && currentUserEntry">
@@ -215,6 +231,10 @@ watch(timeFilter, () => {
                 :isCurrentUser="true"
                 :avatarUrl="getAvatarUrl(currentUserEntry)"
                 :displayName="displayUserName(currentUserEntry)"
+                :avatarBorder="currentUserEntry.avatar_border as any"
+                :avatarColor="currentUserEntry.avatar_color as any"
+                :avatarEffect="currentUserEntry.avatar_effect as any"
+                :avatarShadow="currentUserEntry.avatar_shadow as any"
               />
             </ul>
           </template>

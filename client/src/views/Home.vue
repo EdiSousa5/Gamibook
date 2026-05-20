@@ -88,7 +88,6 @@ const onIconLeave = () => {
   <div class="home-wrapper">
     <section class="landing">
       <div class="halo halo-1"></div>
-      <div class="halo halo-2"></div>
       <div class="halo halo-3"></div>
 
       <div class="content">
@@ -188,20 +187,13 @@ const onIconLeave = () => {
   right: -80px;
 }
 
-.halo-2 {
-  width: 420px;
-  height: 420px;
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.08), transparent 65%);
-  bottom: -120px;
-  left: -80px;
-}
 
 .halo-3 {
   width: 300px;
   height: 300px;
   background: radial-gradient(circle, rgba(46, 127, 123, 0.08), transparent 65%);
-  top: 40%;
-  left: 40%;
+  top: 55%;
+  left: 60%;
 }
 
 /* ── Content ──────────────────────────────────────── */
