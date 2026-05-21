@@ -4,20 +4,20 @@ import { storeToRefs } from 'pinia'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
-import BookShelf from '@/components/ui/BookShelf.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import heroUrl from '@/assets/images/person_and_books.png'
 import {
   FireIcon,
   BookOpenIcon,
-  TrophyIcon,
   PencilSquareIcon,
   CheckCircleIcon,
   XCircleIcon,
   QuestionMarkCircleIcon,
   SparklesIcon,
+  LockClosedIcon,
 } from '@heroicons/vue/24/outline'
 import { fetchUserBooks, fetchModule } from '../services/books'
 import { fetchUsers, getUserDisplayName, updateUser } from '../services/auth'
@@ -29,15 +29,16 @@ import {
 } from '../services/exercises'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useNotificationsStore } from '@/stores/notifications'
 import { BADGE_TIERS, TIER_LABELS, TIER_DESCS } from '@/utils/badgeTiers'
 import type { Book, UserBook } from '@/types'
 
 const auth = useAuthStore()
-const { user, avatarUrl, progress } = storeToRefs(auth)
+const { user, avatarUrl, progress, avatarConfig } = storeToRefs(auth)
 const toast = useToast()
+const notifStore = useNotificationsStore()
 const userBooks = ref<UserBook[]>([])
 const isLoadingProfile = ref(true)
-const userRank = ref<number | null>(null)
 
 type DailyStatus = 'loading' | 'ready' | 'cooldown' | 'no-exercises' | 'locked'
 const dailyStatus = ref<DailyStatus>('loading')
@@ -58,10 +59,6 @@ const recentBadge = computed<BookBadgeTier | undefined>(() => {
 const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 const bestStreak = computed(() => user.value?.best_exercises_daily_streak ?? 0)
 const booksObtained = computed(() => userBooks.value.length)
-
-const avatar = computed(() =>
-  avatarUrl.value || getAssetUrl(user.value?.avatar ?? ''),
-)
 
 const progressPct = computed(() =>
   progress.value.nextLevelXp
@@ -96,18 +93,6 @@ const formatDailyCooldown = computed(() => {
   const s = dailyCooldownSeconds.value % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
-
-const resolveUserId = (value: unknown) => {
-  if (typeof value === 'number') return String(value)
-  if (typeof value === 'string') return value
-  if (value && typeof value === 'object' && 'id' in value) {
-    return String((value as { id?: string | number }).id ?? '')
-  }
-  if (value && typeof value === 'object' && 'user_id' in value) {
-    return String((value as { user_id?: string | number }).user_id ?? '')
-  }
-  return null
-}
 
 // ── Methods ───────────────────────────────────────────────────
 const startDailyCooldownTimer = (lastDate: string) => {
@@ -173,35 +158,48 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
   }
 }
 
-const loadUserRank = async (userId: string) => {
+const checkLeaderboardNotification = async (userId: string) => {
   try {
     const users = await fetchUsers(100)
-
     const pointsMap = new Map<string, number>()
-    const pointsPromises = users.map(async (u) => {
+    await Promise.all(users.map(async (u) => {
       const id = String(u.id ?? '')
       if (!id) return
-      try {
-        const points = await fetchUserPointsFromHistory(id)
-        pointsMap.set(id, points)
-      } catch {
-        pointsMap.set(id, 0)
-      }
-    })
-    await Promise.all(pointsPromises)
+      try { pointsMap.set(id, await fetchUserPointsFromHistory(id)) }
+      catch { pointsMap.set(id, 0) }
+    }))
 
     const sorted = users
-      .map((u) => ({
-        id: String(u.id ?? ''),
-        totalPoints: pointsMap.get(String(u.id ?? '')) ?? 0,
-      }))
+      .map((u) => ({ id: String(u.id ?? ''), totalPoints: pointsMap.get(String(u.id ?? '')) ?? 0 }))
       .sort((a, b) => b.totalPoints - a.totalPoints)
 
     const idx = sorted.findIndex((u) => u.id === userId)
-    userRank.value = idx >= 0 ? idx + 1 : null
-  } catch {
-    userRank.value = null
-  }
+    const currentRank = idx >= 0 ? idx + 1 : null
+    if (!currentRank) return
+
+    const storedKey = `gb_last_rank_${userId}`
+    const prevRankStr = localStorage.getItem(storedKey)
+    const prevRank = prevRankStr ? parseInt(prevRankStr, 10) : null
+    localStorage.setItem(storedKey, String(currentRank))
+
+    if (prevRank === null || prevRank === currentRank) return
+
+    if (currentRank < prevRank) {
+      notifStore.add({
+        user: userId,
+        title: 'Subiste no ranking!',
+        message: `Passaste da posição ${prevRank} para a posição ${currentRank} na tabela de classificação.`,
+        type: 'achievement',
+      })
+    } else {
+      notifStore.add({
+        user: userId,
+        title: 'Desceste no ranking',
+        message: `Passaste da posição ${prevRank} para a posição ${currentRank} na tabela de classificação.`,
+        type: 'system',
+      })
+    }
+  } catch { /* silent */ }
 }
 
 const loadRecentBook = async (userId: string) => {
@@ -230,7 +228,7 @@ onMounted(async () => {
     if (!userId) return
     const [books] = await Promise.all([
       fetchUserBooks(userId).catch(() => [] as UserBook[]),
-      loadUserRank(userId),
+      checkLeaderboardNotification(userId),
     ])
     userBooks.value = books
     await loadRecentBook(userId)
@@ -286,13 +284,15 @@ onUnmounted(() => {
 
         <template v-else>
           <div class="profile-avatar-wrapper">
-            <div class="profile-avatar" :class="{ fallback: !avatar }">
-              <img v-if="avatar" :src="avatar" alt="Avatar" />
-              <span v-else>{{ getUserDisplayName(user).charAt(0).toUpperCase() }}</span>
-            </div>
-            <div v-if="userRank" class="profile-rank-badge">
-              #{{ userRank }}
-            </div>
+            <UiAvatar
+              :src="avatarUrl || undefined"
+              :alt="getUserDisplayName(user).charAt(0)"
+              :size="120"
+              :border="avatarConfig.border"
+              :avatar-color="avatarConfig.avatarColor"
+              :effect="avatarConfig.effect"
+              :shadow="avatarConfig.shadow"
+            />
           </div>
           <div class="profile-info">
             <div class="name-row">
@@ -356,7 +356,7 @@ onUnmounted(() => {
             <h2 class="daily-heading">Desafio Diário</h2>
             <p class="daily-sub-head">Uma pergunta por dia mantém o streak ativo!</p>
           </div>
-          <div class="streak-pill" :class="{ 'streak-pill--hot': dailyStreak >= 2 }">
+          <div v-if="dailyStatus !== 'locked'" class="streak-pill" :class="{ 'streak-pill--hot': dailyStreak >= 2 }">
             <FireIcon class="streak-pill-icon" aria-hidden="true" />
             <strong>{{ dailyStreak }}</strong>
           </div>
@@ -398,9 +398,15 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-else-if="dailyStatus === 'locked'" class="daily-body daily-empty">
-          <BookOpenIcon class="daily-empty-icon" aria-hidden="true" />
-          <p>Desbloqueia ao atingir o nível {{ DAILY_UNLOCK_LEVEL }}.</p>
+        <div v-else-if="dailyStatus === 'locked'" class="daily-body daily-locked">
+          <div class="daily-locked-icon-wrap">
+            <LockClosedIcon class="daily-locked-icon" aria-hidden="true" />
+          </div>
+          <h3 class="daily-locked-title">Ainda bloqueado</h3>
+          <p class="daily-locked-desc">Os desafios diários desbloqueiam ao atingires o <strong>nível {{ DAILY_UNLOCK_LEVEL }}</strong>. Completa exercícios nos módulos para subir de nível!</p>
+          <RouterLink to="/collection">
+            <UiButton variant="outline" size="sm">Explorar livros</UiButton>
+          </RouterLink>
         </div>
 
         <div v-else class="daily-body daily-empty">
@@ -573,47 +579,9 @@ onUnmounted(() => {
 }
 
 .profile-avatar-wrapper {
-  position: relative;
-  width: 150px;
-  height: 150px;
   flex-shrink: 0;
-}
-
-.profile-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 22px;
-  overflow: hidden;
-  background: var(--color-deep-600);
-  color: #fff;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 22px;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 3px 3px 0 var(--color-shadow);
-}
-
-.profile-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.profile-rank-badge {
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--color-deep-500);
-  color: #fff;
-  padding: 4px 16px;
-  border-radius: 999px;
-  font-weight: 900;
-  font-size: 15px;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  z-index: 10;
 }
 
 .profile-info {
@@ -967,6 +935,46 @@ onUnmounted(() => {
   margin: 0;
   font-size: 14px;
   color: var(--color-mirage-500);
+}
+
+.daily-locked {
+  place-items: center;
+  text-align: center;
+  padding: var(--space-400);
+  gap: var(--space-300);
+}
+
+.daily-locked-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-wild-200);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.daily-locked-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--color-mirage-400);
+  stroke-width: 1.5;
+}
+
+.daily-locked-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-mirage-700);
+}
+
+.daily-locked-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  line-height: 1.5;
+  max-width: 220px;
 }
 
 /* ── RESUME CARD ────────────────────────────────────────── */
