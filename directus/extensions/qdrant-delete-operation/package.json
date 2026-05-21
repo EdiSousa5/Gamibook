@@ -1,0 +1,43 @@
+{
+	"name": "qdrant-delete-operation",
+	"description": "Directus Flow Operation to delete points from a Qdrant collection based on a parent ID.",
+	"icon": "extension",
+	"version": "1.0.0",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-operation"
+	],
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"directus:extension": {
+		"type": "operation",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"source": {
+			"app": "src/app.ts",
+			"api": "src/api.ts"
+		},
+		"host": "^10.10.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build -w --no-minify",
+		"link": "directus-extension link",
+		"validate": "directus-extension validate"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "17.0.3",
+		"@types/node": "^24.10.1",
+		"typescript": "^5.9.3",
+		"vue": "^3.5.25"
+	},
+	"dependencies": {
+		"@qdrant/js-client-rest": "^1.17.0",
+		"@qdrant/qdrant-js": "^1.16.1"
+	}
+}
