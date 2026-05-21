@@ -43,3 +43,9 @@ directus/uploads/
 
 # Flowise dados gerados automaticamente
 docker/flowise_data/
+
+# Ollama modelos (ficheiros grandes)
+docker/ollama_data/
+
+# Variáveis de ambiente
+.env
