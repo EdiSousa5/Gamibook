@@ -1,14 +1,24 @@
 name: gamibook
 
 services:
-  # 1. Serviço de Inteligência Artificial
+  # 1. Ollama — Modelos de Embeddings
+  ollama:
+    image: ollama/ollama
+    container_name: gamibook-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./docker/ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # 2. Serviço de Inteligência Artificial
   flowise:
     image: flowiseai/flowise
     container_name: gamibook-flowise
     ports:
       - "3000:3000"
-    # environment:
-    #   OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+    depends_on:
+      - ollama
     volumes:
       - ./docker/flowise_data:/root/.flowise
     restart: unless-stopped
@@ -22,6 +32,8 @@ services:
     volumes:
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
+    env_file:
+      - .env
     environment:
       KEY: "gamibook-vue-2026-supersecret"
       SECRET: "gamibook-directus-vue-project2026"

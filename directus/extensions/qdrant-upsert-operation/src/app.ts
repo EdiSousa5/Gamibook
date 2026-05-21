@@ -1,4 +1,4 @@
-import { defineOperationApp } from '@directus/extensions-sdk';
+﻿import { defineOperationApp } from '@directus/extensions-sdk';
 
 export default defineOperationApp({
 	id: 'qdrant-upsert-operation',
@@ -46,14 +46,8 @@ export default defineOperationApp({
 				interface: 'select-dropdown',
 				options: {
 					choices: [
-						{ value: 'courses', text: 'Course' },
-						{ value: 'resources', text: 'Resource' },
-						{ value: 'tools', text: 'Tool' },
-						{ value: 'best-practices', text: 'Best Practice' },
-						{ value: 'case-studies', text: 'Case Study' },
-						{ value: 'communities', text: 'Community' },
-						{ value: 'pedagogical-methods', text: 'Pedagogical Method' },
-					],
+					{ value: 'modules', text: 'Module' },
+				],
 				}
 			}
 		},

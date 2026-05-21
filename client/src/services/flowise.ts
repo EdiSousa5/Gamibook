@@ -89,14 +89,12 @@ export async function gerarExercicios(params: GerarExerciciosParams): Promise<Fl
     .map((m) => `- [ID: ${m.id}] ${m.titulo}` + (m.descricao ? ` (Descrição: ${m.descricao})` : ''))
     .join('\n')
 
-  const question = `LIVRO: ${params.titulo_livro}\nMÓDULOS A COBRIR:\n${modulosFormatados}`
+  const question = [
+    `LIVRO: ${params.titulo_livro}`,
+    `NÚMERO DE PERGUNTAS POR MÓDULO: ${params.numero_perguntas}`,
+    `BLACKLIST (perguntas existentes que não podes repetir):\n${params.perguntas_existentes}`,
+    `MÓDULOS A COBRIR:\n${modulosFormatados}`,
+  ].join('\n\n')
 
-  return callFlowise(
-    CHATFLOW_ID,
-    {
-      numero_perguntas: params.numero_perguntas,
-      perguntas_existentes: params.perguntas_existentes,
-    },
-    question,
-  )
+  return callFlowise(CHATFLOW_ID, {}, question)
 }
