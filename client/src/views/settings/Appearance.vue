@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CheckIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
+import { CheckIcon, LockClosedIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { updateUser } from '@/services/auth'
 import { useToast } from '@/composables/useToast'
@@ -50,12 +50,12 @@ const staticBackgrounds: Background[] = [
 const animatedBackgrounds: Background[] = [
   { id: 'bg-10', name: 'Ondas Suaves', minLevel: 12 },
   { id: 'bg-11', name: 'Brisa Quente', minLevel: 15 },
-  { id: 'bg-12', name: 'Aurora Suave', minLevel: 18 },
-  { id: 'bg-18', name: 'Doce Carmesim', minLevel: 18 },
-  { id: 'bg-13', name: 'Flutuar', minLevel: 20 },
-  { id: 'bg-17', name: 'Respiração', minLevel: 20 },
-  { id: 'bg-30', name: 'Fogo Boreal', minLevel: 22 },
-  { id: 'bg-31', name: 'Pulso Marinho', minLevel: 25 },
+  { id: 'bg-12', name: 'Aurora Suave', minLevel: 14 },
+  { id: 'bg-18', name: 'Doce Carmesim', minLevel: 14 },
+  { id: 'bg-13', name: 'Flutuar', minLevel: 16 },
+  { id: 'bg-17', name: 'Respiração', minLevel: 16 },
+  { id: 'bg-30', name: 'Fogo Boreal', minLevel: 18 },
+  { id: 'bg-31', name: 'Pulso Marinho', minLevel: 20 },
 ]
 
 function isUnlocked(bg: Background): boolean {
@@ -85,26 +85,28 @@ const avatarEffect = ref<AvatarEffect>('none')
 const avatarShadow = ref<AvatarShadow>('default')
 const isSaving = ref(false)
 
-onMounted(() => {
+// Carrega as opções guardadas sempre que o utilizador estiver disponível (cobre
+// o caso de voltar à página com o store já carregado, e o de carregar pela 1ª vez).
+watch(user, (u) => {
   currentBg.value = document.documentElement.getAttribute('data-bg') || localStorage.getItem('gb_bg') || 'bg-1'
 
   avatarBorder.value =
-    (user.value?.avatar_border as AvatarBorder) ||
+    (u?.avatar_border as AvatarBorder) ||
     (localStorage.getItem('gb_av_border') as AvatarBorder) ||
     'default'
-  avatarColor.value =
-    (user.value?.avatar_color as AvatarColor) ||
-    (localStorage.getItem('gb_av_color') as AvatarColor) ||
-    null
+  // null é válido (sem cor) — só cai no localStorage se o campo não estiver no user
+  avatarColor.value = u
+    ? ((u.avatar_color as AvatarColor) ?? null)
+    : ((localStorage.getItem('gb_av_color') as AvatarColor) ?? null)
   avatarEffect.value =
-    (user.value?.avatar_effect as AvatarEffect) ||
+    (u?.avatar_effect as AvatarEffect) ||
     (localStorage.getItem('gb_av_effect') as AvatarEffect) ||
     'none'
   avatarShadow.value =
-    (user.value?.avatar_shadow as AvatarShadow) ||
+    (u?.avatar_shadow as AvatarShadow) ||
     (localStorage.getItem('gb_av_shadow') as AvatarShadow) ||
     'default'
-})
+}, { immediate: true })
 
 async function saveAvatarConfig() {
   const userId = user.value?.id
@@ -135,34 +137,34 @@ async function saveAvatarConfig() {
   }
 }
 
-const BORDER_OPTIONS: { id: AvatarBorder; label: string }[] = [
-  { id: 'default', label: 'Padrão' },
-  { id: 'minimal', label: 'Mínimo' },
-  { id: 'heavy', label: 'Pesada' },
-  { id: 'ring', label: 'Anel' },
+const BORDER_OPTIONS: { id: AvatarBorder; label: string; minLevel: number }[] = [
+  { id: 'default', label: 'Padrão', minLevel: 1 },
+  { id: 'minimal', label: 'Mínimo', minLevel: 3 },
+  { id: 'heavy', label: 'Pesada', minLevel: 7 },
+  { id: 'ring', label: 'Anel', minLevel: 10 },
 ]
 
-const COLOR_OPTIONS: { id: AvatarColor; label: string; hex: string }[] = [
-  { id: 'teal', label: 'Teal', hex: '#4e9d98' },
-  { id: 'teal-dark', label: 'Teal Esc.', hex: '#075056' },
-  { id: 'teal-light', label: 'Teal Claro', hex: '#a7d2cf' },
-  { id: 'amber', label: 'Âmbar', hex: '#ff8a50' },
-  { id: 'amber-dark', label: 'Âmbar Esc.', hex: '#e8611e' },
-  { id: 'pumpkin', label: 'Abóbora', hex: '#ffa74f' },
-  { id: 'crimson', label: 'Carmesim', hex: '#d85252' },
-  { id: 'crimson-dark', label: 'Carm. Esc.', hex: '#9e2828' },
-  { id: 'slate', label: 'Ardósia', hex: '#52656f' },
-  { id: 'slate-dark', label: 'Ard. Esc.', hex: '#22313a' },
+const COLOR_OPTIONS: { id: AvatarColor; label: string; hex: string; minLevel: number }[] = [
+  { id: 'teal', label: 'Teal', hex: '#4e9d98', minLevel: 1 },
+  { id: 'teal-light', label: 'Teal Claro', hex: '#a7d2cf', minLevel: 2 },
+  { id: 'teal-dark', label: 'Teal Esc.', hex: '#075056', minLevel: 5 },
+  { id: 'amber', label: 'Âmbar', hex: '#ff8a50', minLevel: 5 },
+  { id: 'pumpkin', label: 'Abóbora', hex: '#ffa74f', minLevel: 8 },
+  { id: 'amber-dark', label: 'Âmbar Esc.', hex: '#e8611e', minLevel: 8 },
+  { id: 'crimson', label: 'Carmesim', hex: '#d85252', minLevel: 10 },
+  { id: 'slate', label: 'Ardósia', hex: '#52656f', minLevel: 10 },
+  { id: 'crimson-dark', label: 'Carm. Esc.', hex: '#9e2828', minLevel: 15 },
+  { id: 'slate-dark', label: 'Ard. Esc.', hex: '#22313a', minLevel: 14 },
 ]
 
-const EFFECT_OPTIONS: { id: AvatarEffect; label: string }[] = [
-  { id: 'none', label: 'Nenhum' },
-  { id: 'glow', label: 'Brilho' },
-  { id: 'shine', label: 'Lustro' },
-  { id: 'sombra', label: 'Sombra' },
-  { id: 'retro', label: 'Retro' },
-  { id: 'mono', label: 'Mono' },
-  { id: 'vivid', label: 'Vívido' },
+const EFFECT_OPTIONS: { id: AvatarEffect; label: string; minLevel: number }[] = [
+  { id: 'none', label: 'Nenhum', minLevel: 1 },
+  { id: 'glow', label: 'Brilho', minLevel: 5 },
+  { id: 'sombra', label: 'Sombra', minLevel: 5 },
+  { id: 'shine', label: 'Lustro', minLevel: 8 },
+  { id: 'mono', label: 'Mono', minLevel: 10 },
+  { id: 'vivid', label: 'Vívido', minLevel: 12 },
+  { id: 'retro', label: 'Retro', minLevel: 14 },
 ]
 
 const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
@@ -170,12 +172,60 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
   { id: 'small', label: 'Pequena' },
   { id: 'none', label: 'Sem sombra' },
 ]
+
+function isAvatarOptionUnlocked(minLevel: number): boolean {
+  return isAdmin.value || devUnlockAll.value || userLevel.value >= minLevel
+}
+
+/* ── Tabela de desbloqueios ──────────────────────── */
+
+type UnlockRow = { label: string; category: string; minLevel: number; hex?: string; gradVar?: string }
+
+const ALL_UNLOCKABLES = computed<UnlockRow[]>(() => {
+  const rows: UnlockRow[] = [
+    ...BORDER_OPTIONS.filter(b => b.minLevel > 1).map(b => ({ label: b.label, category: 'Borda', minLevel: b.minLevel })),
+    ...COLOR_OPTIONS.filter(c => c.minLevel > 1).map(c => ({ label: c.label, category: 'Cor', minLevel: c.minLevel, hex: c.hex })),
+    ...EFFECT_OPTIONS.filter(e => e.minLevel > 1).map(e => ({ label: e.label, category: 'Efeito', minLevel: e.minLevel })),
+    ...solidBackgrounds.filter(b => b.minLevel > 1).map(b => ({ label: b.name, category: 'Fundo Sólido', minLevel: b.minLevel, gradVar: b.id.replace('bg-', '--grad-') })),
+    ...staticBackgrounds.filter(b => b.minLevel > 1).map(b => ({ label: b.name, category: 'Gradiente', minLevel: b.minLevel, gradVar: b.id.replace('bg-', '--grad-') })),
+    ...animatedBackgrounds.map(b => ({ label: b.name, category: 'Fundo Animado', minLevel: b.minLevel, gradVar: b.id.replace('bg-', '--grad-') })),
+  ]
+  return rows.sort((a, b) => a.minLevel - b.minLevel)
+})
+
+const unlockModalOpen = ref(false)
+const filterCategory = ref('')
+const filterLevel = ref<'all' | 'unlocked' | 'locked'>('all')
+
+const CATEGORIES = computed(() => {
+  const cats = new Set(ALL_UNLOCKABLES.value.map(r => r.category))
+  return [...cats]
+})
+
+const filteredUnlockables = computed(() => {
+  return ALL_UNLOCKABLES.value.filter(row => {
+    const catOk = !filterCategory.value || row.category === filterCategory.value
+    const isRowUnlocked = isUnlocked({ id: '', name: '', minLevel: row.minLevel })
+    const levelOk =
+      filterLevel.value === 'all' ? true :
+      filterLevel.value === 'unlocked' ? isRowUnlocked :
+      !isRowUnlocked
+    return catOk && levelOk
+  })
+})
 </script>
 
 <template>
   <div class="settings-section">
-    <h2>Aparência</h2>
-    <p class="description">Personaliza o aspeto do GamiBook para se adaptar ao teu estilo.</p>
+    <div class="section-heading">
+      <div>
+        <h2>Aparência</h2>
+        <p class="description">Personaliza o aspeto do GamiBook para se adaptar ao teu estilo.</p>
+      </div>
+      <button class="info-btn" @click="unlockModalOpen = true" title="Ver tabela de desbloqueios" aria-label="Ver tabela de desbloqueios">
+        <InformationCircleIcon class="info-btn-icon" aria-hidden="true" />
+      </button>
+    </div>
 
     <!-- Avatar -->
     <div class="setting-group">
@@ -206,9 +256,15 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
                   v-for="b in BORDER_OPTIONS"
                   :key="b.id"
                   class="av-pill"
-                  :class="{ active: avatarBorder === b.id }"
-                  @click="avatarBorder = b.id"
-                >{{ b.label }}</button>
+                  :class="{ active: avatarBorder === b.id, locked: !isAvatarOptionUnlocked(b.minLevel) }"
+                  :title="isAvatarOptionUnlocked(b.minLevel) ? b.label : `${b.label} — Nível ${b.minLevel}`"
+                  :aria-disabled="!isAvatarOptionUnlocked(b.minLevel)"
+                  @click="isAvatarOptionUnlocked(b.minLevel) && (avatarBorder = b.id)"
+                >
+                  <LockClosedIcon v-if="!isAvatarOptionUnlocked(b.minLevel)" class="pill-lock-icon" aria-hidden="true" />
+                  {{ b.label }}
+                  <span v-if="!isAvatarOptionUnlocked(b.minLevel)" class="pill-lock-level">{{ b.minLevel }}</span>
+                </button>
               </div>
             </div>
 
@@ -225,11 +281,17 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
                   v-for="c in COLOR_OPTIONS"
                   :key="c.id"
                   class="av-swatch"
-                  :class="{ active: avatarColor === c.id }"
+                  :class="{ active: avatarColor === c.id, locked: !isAvatarOptionUnlocked(c.minLevel) }"
                   :style="{ background: c.hex }"
-                  :title="c.label"
-                  @click="avatarColor = c.id"
-                />
+                  :title="isAvatarOptionUnlocked(c.minLevel) ? c.label : `${c.label} — Nível ${c.minLevel}`"
+                  :aria-disabled="!isAvatarOptionUnlocked(c.minLevel)"
+                  @click="isAvatarOptionUnlocked(c.minLevel) && (avatarColor = c.id)"
+                >
+                  <span v-if="!isAvatarOptionUnlocked(c.minLevel)" class="swatch-lock-overlay">
+                    <LockClosedIcon class="icon-lock-sm" aria-hidden="true" />
+                    <span class="lock-level">{{ c.minLevel }}</span>
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -240,9 +302,15 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
                   v-for="e in EFFECT_OPTIONS"
                   :key="e.id"
                   class="av-pill"
-                  :class="{ active: avatarEffect === e.id }"
-                  @click="avatarEffect = e.id"
-                >{{ e.label }}</button>
+                  :class="{ active: avatarEffect === e.id, locked: !isAvatarOptionUnlocked(e.minLevel) }"
+                  :title="isAvatarOptionUnlocked(e.minLevel) ? e.label : `${e.label} — Nível ${e.minLevel}`"
+                  :aria-disabled="!isAvatarOptionUnlocked(e.minLevel)"
+                  @click="isAvatarOptionUnlocked(e.minLevel) && (avatarEffect = e.id)"
+                >
+                  <LockClosedIcon v-if="!isAvatarOptionUnlocked(e.minLevel)" class="pill-lock-icon" aria-hidden="true" />
+                  {{ e.label }}
+                  <span v-if="!isAvatarOptionUnlocked(e.minLevel)" class="pill-lock-level">{{ e.minLevel }}</span>
+                </button>
               </div>
             </div>
 
@@ -351,7 +419,60 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
         </div>
       </div>
     </div>
+
   </div>
+
+  <!-- Modal de desbloqueios -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="unlockModalOpen" class="unlock-modal-overlay" @click.self="unlockModalOpen = false">
+        <div class="unlock-modal">
+          <div class="unlock-modal__header">
+            <div>
+              <p class="unlock-modal__eyebrow">Aparência</p>
+              <h3>Desbloqueios por nível</h3>
+            </div>
+          </div>
+
+          <div class="unlock-modal__filters">
+            <select v-model="filterCategory" class="filter-select">
+              <option value="">Todas as categorias</option>
+              <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
+            <div class="filter-pills">
+              <button class="filter-pill" :class="{ active: filterLevel === 'all' }" @click="filterLevel = 'all'">Todos</button>
+              <button class="filter-pill" :class="{ active: filterLevel === 'unlocked' }" @click="filterLevel = 'unlocked'">Desbloqueados</button>
+              <button class="filter-pill" :class="{ active: filterLevel === 'locked' }" @click="filterLevel = 'locked'">Bloqueados</button>
+            </div>
+          </div>
+
+          <div class="unlock-modal__body">
+            <div
+              v-for="row in filteredUnlockables"
+              :key="row.category + row.label"
+              class="unlock-row"
+              :class="{ 'unlock-row--done': isUnlocked({ id: '', name: '', minLevel: row.minLevel }) }"
+            >
+              <span class="unlock-row__level">{{ row.minLevel }}</span>
+              <span class="unlock-row__category">{{ row.category }}</span>
+              <div class="unlock-row__item">
+                <span v-if="row.hex" class="table-swatch" :style="{ background: row.hex }" />
+                <span v-else-if="row.gradVar" class="table-bg-preview" :style="{ background: `var(${row.gradVar})` }" />
+                <span class="unlock-row__name">{{ row.label }}</span>
+              </div>
+              <CheckIcon v-if="isUnlocked({ id: '', name: '', minLevel: row.minLevel })" class="unlock-row__check" aria-hidden="true" />
+              <LockClosedIcon v-else class="unlock-row__lock" aria-hidden="true" />
+            </div>
+            <p v-if="filteredUnlockables.length === 0" class="unlock-empty">Nenhum item encontrado com esses filtros.</p>
+          </div>
+
+          <div class="unlock-modal__footer">
+            <UiButton variant="outline" @click="unlockModalOpen = false">Fechar</UiButton>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -360,6 +481,45 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
   display: flex;
   flex-direction: column;
   gap: var(--space-400);
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
+}
+
+.info-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+  margin-top: 4px;
+}
+
+.info-btn:hover {
+  background: var(--color-deep-100);
+  transform: translateY(-1px);
+}
+
+.info-btn:active {
+  transform: translate(1px, 2px);
+  box-shadow: 1px 1px 0 var(--color-shadow);
+}
+
+.info-btn-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-deep-700);
+  stroke-width: 2;
 }
 
 h2 {
@@ -563,6 +723,70 @@ h2 {
   outline-offset: 3px;
 }
 
+.av-pill.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.av-pill.locked:hover {
+  background: var(--color-wild-100);
+}
+
+.av-pill.locked:active {
+  transform: none;
+  box-shadow: 2px 2px 0 var(--color-deep-300);
+}
+
+.pill-lock-icon {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+}
+
+.pill-lock-level {
+  font-size: 9px;
+  font-weight: 800;
+  background: var(--color-wild-300);
+  padding: 1px 4px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.av-swatch.locked {
+  cursor: not-allowed;
+  opacity: 0.6;
+  position: relative;
+}
+
+.av-swatch.locked:hover {
+  outline-color: transparent;
+  outline-offset: 0;
+}
+
+.swatch-lock-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(232, 245, 244, 0.6);
+  backdrop-filter: blur(2px);
+  border-radius: 50%;
+}
+
+.icon-lock-sm {
+  width: 12px;
+  height: 12px;
+  color: var(--color-deep-800);
+  stroke-width: 2.5;
+}
+
 .av-group--save {
   padding-bottom: 0;
   display: flex;
@@ -753,6 +977,258 @@ h2 {
   border: 1.5px solid var(--color-deep-600);
   box-shadow: 2px 2px 0 var(--color-deep-300);
   line-height: 1;
+}
+
+/* ── Modal de desbloqueios ───────────────────────────── */
+
+.unlock-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(10, 20, 25, 0.6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 4vw, 32px);
+}
+
+.unlock-modal {
+  width: min(560px, 100%);
+  max-height: 85vh;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 20px;
+  box-shadow: 8px 8px 0 var(--color-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unlock-modal__header {
+  padding: 22px 24px 14px;
+  border-bottom: 2px solid var(--color-wild-400);
+  flex-shrink: 0;
+}
+
+.unlock-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-deep-600);
+  font-weight: 800;
+}
+
+.unlock-modal__header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-mirage-800);
+}
+
+/* ── Filtros ─────────────────────────────────────────── */
+
+.unlock-modal__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--color-wild-400);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-base);
+  color: var(--color-mirage-700);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  cursor: pointer;
+  outline: none;
+}
+
+.filter-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.filter-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-base);
+  color: var(--color-mirage-600);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  transition: background 0.12s ease;
+}
+
+.filter-pill:hover { background: var(--color-wild-200); }
+
+.filter-pill.active {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+  color: var(--color-deep-700);
+}
+
+/* ── Lista de itens ──────────────────────────────────── */
+
+.unlock-modal__body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+
+.unlock-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--color-wild-300);
+  transition: background 0.1s;
+}
+
+.unlock-row:last-child { border-bottom: none; }
+
+.unlock-row:hover { background: var(--color-wild-200); }
+
+.unlock-row--done { background: var(--color-deep-50, #f0faf9); }
+.unlock-row--done:hover { background: var(--color-deep-100); }
+
+.unlock-row__level {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--color-deep-700);
+  font-family: var(--font-display);
+}
+
+.unlock-row--done .unlock-row__level {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+}
+
+.unlock-row__category {
+  flex-shrink: 0;
+  width: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unlock-row__item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.unlock-row__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-mirage-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-mirage-600);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.table-bg-preview {
+  width: 28px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--color-mirage-600);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.unlock-row__check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-deep-600);
+  stroke-width: 2.5;
+}
+
+.unlock-row__lock {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--color-mirage-400);
+  stroke-width: 2;
+}
+
+.unlock-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+
+.unlock-modal__footer {
+  padding: 14px 24px;
+  border-top: 2px solid var(--color-wild-400);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-active .unlock-modal,
+.modal-fade-leave-active .unlock-modal {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+}
+
+.modal-fade-enter-from .unlock-modal {
+  transform: scale(0.92) translateY(12px);
+  opacity: 0;
+}
+
+.modal-fade-leave-to .unlock-modal {
+  transform: scale(0.96) translateY(6px);
+  opacity: 0;
 }
 
 /* ── Keyframes ───────────────────────────────────────── */

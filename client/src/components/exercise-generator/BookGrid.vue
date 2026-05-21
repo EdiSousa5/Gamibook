@@ -30,7 +30,10 @@ defineEmits<{ select: [number] }>()
                 <div class="info">
                     <h3>{{ book.title || `Livro ${book.book_id}` }}</h3>
                     <p class="meta">{{ (book as any).editora?.nome_editora || 'Sem editora' }}</p>
-                    <p class="status" :class="{ 'is-approved': book.is_approved }">Estado: {{ book.is_approved ?'Aprovado' : 'Por aprovar' }}</p>
+                    <span class="status-badge" :class="{ 'is-approved': book.is_approved }">
+                        <span class="status-dot" />
+                        {{ book.is_approved ? 'Aprovado' : 'Por aprovar' }}
+                    </span>
                 </div>
             </UiCard>
         </div>
@@ -138,14 +141,31 @@ defineEmits<{ select: [number] }>()
     margin-bottom: 2px;
 }
 
-.status {
-    font-size: 11px !important;
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
     font-weight: 700;
-    color: var(--color-amber-600) !important;
-    margin-top: auto !important;
+    background: #fff3e0;
+    color: #b45309;
+    border: 1.5px solid #f59e0b;
 }
 
-.status.is-approved {
-    color: var(--color-teal-600) !important;
+.status-badge.is-approved {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #10b981;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
 }
 </style>

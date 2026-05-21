@@ -65,6 +65,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const LEVELS_WITH_UNLOCKS = new Set([2, 3, 5, 7, 8, 10, 12, 14, 15, 16, 18, 20])
+
   const syncUserLevelFromPoints = async (userId: string) => {
     try {
       const totalPoints = points.value
@@ -77,13 +79,23 @@ export const useAuthStore = defineStore('auth', () => {
         user.value.level = newLevel
 
         if (newLevel > oldLevel) {
+          triggerLevelUp(oldLevel, newLevel, totalPoints)
           const { useNotificationsStore } = await import('./notifications')
-          useNotificationsStore().add({
+          const notifStore = useNotificationsStore()
+          notifStore.add({
             user: userId,
             title: `Nível ${newLevel} atingido!`,
             message: `Subiste do nível ${oldLevel} para o nível ${newLevel}. Continua assim!`,
             type: 'achievement',
           })
+          if (LEVELS_WITH_UNLOCKS.has(newLevel)) {
+            notifStore.add({
+              user: userId,
+              title: 'Novas customizações desbloqueadas!',
+              message: `O nível ${newLevel} trouxe novos itens de personalização. Experimenta-os nas definições de aparência.`,
+              type: 'new_content',
+            })
+          }
         }
       }
     } catch {

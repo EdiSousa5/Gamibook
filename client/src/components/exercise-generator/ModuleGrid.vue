@@ -31,8 +31,11 @@ defineEmits<{ toggle: [number]; active: [number] }>()
                 <UiChip :label="String(moduleItem.order_number || '-')" variant="filled" />
                 <div class="info">
                     <h3>{{ moduleItem.module_title || `Modulo ${moduleItem.modules_id}` }}</h3>
-                    <p>{{ moduleItem.additional_description || 'Sem descricao' }}</p>
-                    <p class="meta">Estado: {{ moduleItem.minimum_exercises ? 'Aprovado' : 'Por aprovar' }}</p>
+                    <p class="desc">{{ moduleItem.additional_description || 'Sem descricao' }}</p>
+                    <span class="status-badge" :class="{ 'is-approved': moduleItem.minimum_exercises }">
+                        <span class="status-dot" />
+                        {{ moduleItem.minimum_exercises ? 'Aprovado' : 'Por aprovar' }}
+                    </span>
                 </div>
                 <div class="check" aria-hidden="true">
                     <span v-if="selectedModuleIds.includes(moduleItem.modules_id)">✓</span>
@@ -112,9 +115,38 @@ defineEmits<{ toggle: [number]; active: [number] }>()
     font-size: 12px;
 }
 
-.info .meta {
-    color: #3a3a3a;
-    font-weight: 600;
+.desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fff3e0;
+    color: #b45309;
+    border: 1.5px solid #f59e0b;
+}
+
+.status-badge.is-approved {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #10b981;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
 }
 
 .check {
