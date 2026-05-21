@@ -1,0 +1,47 @@
+{
+	"name": "qdrant-upsert-operation",
+	"description": "Directus Flow Operation to chunk, embed, and upsert content to Qdrant using Ollama.",
+	"icon": "extension",
+	"version": "1.0.0",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-operation"
+	],
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"license": "MIT",
+	"directus:extension": {
+		"type": "operation",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"source": {
+			"app": "src/app.ts",
+			"api": "src/api.ts"
+		},
+		"host": "^10.10.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build -w --no-minify",
+		"link": "directus-extension link",
+		"validate": "directus-extension validate"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "17.0.3",
+		"@types/node": "^24.10.1",
+		"typescript": "^5.9.3",
+		"vue": "^3.5.25"
+	},
+	"dependencies": {
+		"@langchain/textsplitters": "^1.0.1",
+		"@qdrant/js-client-rest": "^1.17.0",
+		"@qdrant/qdrant-js": "^1.16.0",
+		"langchain": "^1.1.0",
+		"ollama": "^0.6.3"
+	}
+}

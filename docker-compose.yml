@@ -21,6 +21,7 @@ services:
       - "8055:8055"
     volumes:
       - ./directus/uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions
     environment:
       KEY: "gamibook-vue-2026-supersecret"
       SECRET: "gamibook-directus-vue-project2026"
