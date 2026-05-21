@@ -94,15 +94,18 @@ const isGenerating = ref(false)
 const elapsedSeconds = ref(0)
 let elapsedTimer: number | null = null
 const progressLabel = ref('')
+const generationHalfTime = ref(20)
 const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
 const statusFilter = ref<'all' | 'approved' | 'unapproved'>('all')
 const publisherFilter = ref<string>('all')
 
-const elapsedLabel = computed(() => {
-    const minutes = Math.floor(elapsedSeconds.value / 60)
-    const seconds = elapsedSeconds.value % 60
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+// Progresso simulado: curva exponencial que satura em ~95% enquanto aguarda resposta
+const generationProgress = computed(() => {
+    if (!isGenerating.value) return 0
+    const t = elapsedSeconds.value
+    const h = generationHalfTime.value
+    return Math.min(95, Math.round(95 * (1 - Math.exp(-t / h))))
 })
 
 const typeLabels: Record<ExerciseType, string> = {
@@ -454,6 +457,8 @@ const handleGenerate = async () => {
 
     isGenerating.value = true
     elapsedSeconds.value = 0
+    // halfTime: tempo (em segundos) para atingir 50% do progresso simulado
+    generationHalfTime.value = Math.max(15, generatableModules.length * Math.min(countPerModule.value, maxPerModule.value) * 1.8)
     if (elapsedTimer) window.clearInterval(elapsedTimer)
     elapsedTimer = window.setInterval(() => {
         elapsedSeconds.value += 1
@@ -747,7 +752,7 @@ onMounted(async () => {
         </div>
 
         <GeneratorLoadingOverlay :is-generating="isGenerating" :progress-label="progressLabel"
-            :elapsed-label="elapsedLabel" />
+            :progress="generationProgress" />
     </div>
 </template>
 

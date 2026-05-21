@@ -433,9 +433,6 @@ watch(
               <UiChip v-else-if="moduleStatus(moduleItem.modules_id) === 'progress'" label="Em progresso"
                 variant="soft" />
             </div>
-            <p v-if="moduleItem.additional_description" class="module-desc">
-              {{ moduleItem.additional_description }}
-            </p>
             <div class="module-progress">
               <div class="prog-track">
                 <div class="prog-fill" :style="{ width: `${completionPercent(moduleItem.modules_id)}%` }" />
@@ -1092,13 +1089,6 @@ watch(
   font-size: 18px;
   font-weight: 700;
   color: var(--color-mirage-800);
-}
-
-.module-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-mirage-500);
-  line-height: 1.5;
 }
 
 /* Progress inside card */
