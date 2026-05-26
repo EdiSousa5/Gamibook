@@ -72,8 +72,9 @@ async function selectBg(bg: Background) {
   try {
     await updateUser(String(userId), { background_theme: bg.id })
     if (authStore.user) authStore.user.background_theme = bg.id
+    toast.success(`Fundo "${bg.name}" aplicado com sucesso.`)
   } catch {
-    // falha silenciosa — o fundo já foi aplicado localmente
+    toast.error('Não foi possível guardar o fundo. Tenta novamente.')
   }
 }
 
@@ -115,13 +116,13 @@ async function saveAvatarConfig() {
   try {
     await updateUser(String(userId), {
       avatar_border: avatarBorder.value,
-      avatar_color: avatarColor.value ?? undefined,
+      avatar_color: avatarColor.value,
       avatar_effect: avatarEffect.value,
       avatar_shadow: avatarShadow.value,
     })
     if (authStore.user) {
       authStore.user.avatar_border = avatarBorder.value
-      authStore.user.avatar_color = avatarColor.value ?? undefined
+      authStore.user.avatar_color = avatarColor.value
       authStore.user.avatar_effect = avatarEffect.value
       authStore.user.avatar_shadow = avatarShadow.value
     }

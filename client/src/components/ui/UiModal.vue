@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ inheritAttrs: false })
+
 defineProps<{
   visible: boolean
   closeOnOverlay?: boolean
@@ -15,6 +17,7 @@ const emit = defineEmits<{ close: [] }>()
         class="ui-modal-overlay"
         role="dialog"
         aria-modal="true"
+        v-bind="$attrs"
         @click.self="closeOnOverlay ? emit('close') : undefined"
       >
         <slot />
