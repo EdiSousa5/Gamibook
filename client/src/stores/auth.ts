@@ -88,6 +88,14 @@ export const useAuthStore = defineStore('auth', () => {
             message: `Subiste do nível ${oldLevel} para o nível ${newLevel}. Continua assim!`,
             type: 'achievement',
           })
+          if (newLevel === 3) {
+            notifStore.add({
+              user: userId,
+              title: 'Desafios diários desbloqueados!',
+              message: 'Chegaste ao nível 3! Os desafios diários estão agora disponíveis. Completa um por dia para manteres a tua sequência.',
+              type: 'new_content',
+            })
+          }
           if (LEVELS_WITH_UNLOCKS.has(newLevel)) {
             notifStore.add({
               user: userId,

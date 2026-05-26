@@ -25,6 +25,12 @@ import UiToast from '@/components/ui/UiToast.vue'
 import UiStatCard from '@/components/ui/UiStatCard.vue'
 import UiResultPill from '@/components/ui/UiResultPill.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
+import LevelUpModal from '@/components/ui/LevelUpModal.vue'
+import BadgeUnlockModal from '@/components/ui/BadgeUnlockModal.vue'
+import BookUnlockModal from '@/components/ui/BookUnlockModal.vue'
+import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
+import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
+import type { Book } from '@/types'
 import wintonUrl from '@/assets/images/winton.webp'
 import { AVATAR_FRAMES } from '@/types/avatar'
 import type { AvatarFrame, AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
@@ -130,6 +136,25 @@ const sliderValue = ref(35)
 const segmentedValue = ref('grid')
 const searchValue = ref('')
 const modalOpen = ref(false)
+
+/* ── Animation modals ────────────────────────────────────── */
+const levelUpVisible = ref(false)
+const badgeUnlockVisible = ref(false)
+const badgeTierDemo = ref<BookBadgeTier>('bronze')
+const bookUnlockVisible = ref(false)
+const confirmModalVisible = ref(false)
+
+const mockBook: Book = {
+  book_id: 0,
+  title: 'O Principezinho',
+  description: 'Uma história sobre a amizade e a imaginação de um pequeno príncipe que viaja pelos planetas.',
+  cover_img: null,
+}
+
+function openBadge(tier: BookBadgeTier) {
+  badgeTierDemo.value = tier
+  badgeUnlockVisible.value = true
+}
 
 const selectOptions = [
   { label: 'Opção 1', value: 'opt-1' },
@@ -286,7 +311,7 @@ function isDark(hex: string): boolean {
     </header>
 
     <!-- ━━━ 01 TIPOGRAFIA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">01</span>
         <h2>Tipografia</h2>
@@ -381,7 +406,7 @@ function isDark(hex: string): boolean {
     </section>
 
     <!-- ━━━ 02 PALETE DE CORES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">02</span>
         <h2>Palete de Cores</h2>
@@ -433,7 +458,7 @@ function isDark(hex: string): boolean {
     </section>
 
     <!-- ━━━ 03 BOTÕES & ACÇÕES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">03</span>
         <h2>Botões & Acções</h2>
@@ -610,7 +635,7 @@ function isDark(hex: string): boolean {
     </section>
 
     <!-- ━━━ 06 FEEDBACK & ESTADO ━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">06</span>
         <h2>Feedback & Estado</h2>
@@ -670,7 +695,7 @@ function isDark(hex: string): boolean {
     </section>
 
     <!-- ━━━ 07 NOTIFICAÇÕES & ALERTAS ━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">07</span>
         <h2>Notificações & Alertas</h2>
@@ -760,7 +785,7 @@ function isDark(hex: string): boolean {
       <div class="av-custom-sections">
 
         <!-- Bordas -->
-        <UiCard>
+        <UiCard v-once>
           <h3 class="card-h">Bordas</h3>
           <p class="card-desc">Estilos de borda desbloqueáveis por nível. Todos usam apenas as cores do design system.
           </p>
@@ -773,7 +798,7 @@ function isDark(hex: string): boolean {
         </UiCard>
 
         <!-- Cores -->
-        <UiCard class="card-wide">
+        <UiCard v-once class="card-wide">
           <h3 class="card-h">Cores</h3>
           <p class="card-desc">12 cores do design system + 4 cores especiais. As cores alteram a borda, não o avatar.
           </p>
@@ -792,7 +817,7 @@ function isDark(hex: string): boolean {
         </UiCard>
 
         <!-- Efeitos -->
-        <UiCard>
+        <UiCard v-once>
           <h3 class="card-h">Efeitos</h3>
           <p class="card-desc">Animações e efeitos visuais que funcionam independentemente da borda e cor escolhidas.
           </p>
@@ -806,7 +831,7 @@ function isDark(hex: string): boolean {
         </UiCard>
 
         <!-- Sombras -->
-        <UiCard>
+        <UiCard v-once>
           <h3 class="card-h">Sombra</h3>
           <p class="card-desc">Intensidade da sombra offset, independente da borda e cor escolhidas.</p>
           <div class="av-custom-row">
@@ -819,7 +844,7 @@ function isDark(hex: string): boolean {
         </UiCard>
 
         <!-- Crachás -->
-        <UiCard class="card-wide">
+        <UiCard v-once class="card-wide">
           <h3 class="card-h">Crachás</h3>
           <p class="card-desc">Um crachá de cada vez — mostra classificação, exercícios, streak, nível ou o melhor badge
             conquistado.</p>
@@ -962,7 +987,7 @@ function isDark(hex: string): boolean {
     </section>
 
     <!-- ━━━ 10 ESTANTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-    <section class="kit-section">
+    <section v-once class="kit-section">
       <div class="kit-section-head">
         <span class="kit-section-num">10</span>
         <h2>Estantes — BookShelf</h2>
@@ -995,7 +1020,7 @@ function isDark(hex: string): boolean {
         <h2>Gamificação</h2>
       </div>
       <div class="grid">
-        <UiCard class="card-wide">
+        <UiCard v-once class="card-wide">
           <h3 class="card-h">BookBadge & BookMockup</h3>
           <div class="mockup-row">
             <div class="mockup-item">
@@ -1122,7 +1147,7 @@ function isDark(hex: string): boolean {
           </div>
         </UiCard>
 
-        <UiCard class="card-wide">
+        <UiCard v-once class="card-wide">
           <h3 class="card-h">RankingListItem</h3>
           <ul class="ranking-demo">
             <RankingListItem :position="1" display-name="Guilherme Santos" :points="4820" :level="14"
@@ -1134,6 +1159,61 @@ function isDark(hex: string): boolean {
           </ul>
         </UiCard>
       </div>
+    </section>
+
+    <!-- ━━━ 12 MODAIS & ANIMAÇÕES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section class="kit-section">
+      <div class="kit-section-head">
+        <span class="kit-section-num">12</span>
+        <h2>Modais & Animações</h2>
+      </div>
+
+      <!-- UiConfirmModal -->
+      <div class="grid">
+        <UiCard>
+          <h3 class="card-h">UiConfirmModal</h3>
+          <p class="card-desc">Modal de confirmação genérico com título, mensagem e botões de acção.</p>
+          <UiPillButton variant="primary" @click="confirmModalVisible = true">Abrir confirmação</UiPillButton>
+        </UiCard>
+      </div>
+
+      <!-- Animações de recompensa -->
+      <UiCard class="card-standalone">
+        <h3 class="card-h">Animações de Recompensa</h3>
+        <p class="card-desc">Clica nos botões para pré-visualizar cada animação de gamificação com confetti e transições.</p>
+
+        <div class="anim-blocks">
+          <div class="anim-block">
+            <span class="tag">Subir de Nível</span>
+            <p class="anim-desc">Dispara ao subir de nível. Inclui barra de progresso animada e lista de cosméticos desbloqueados quando o nível tem novidades (ex.: nível 5).</p>
+            <div class="row">
+              <UiButton variant="primary" @click="levelUpVisible = true">
+                Nível 4 → 5 (com cosméticos)
+              </UiButton>
+            </div>
+          </div>
+
+          <div class="anim-block">
+            <span class="tag">Badges de Livro</span>
+            <p class="anim-desc">Dispara ao atingir uma nova percentagem de conclusão do livro. Cada tier tem mensagem própria; Galaxy celebra o quiz final.</p>
+            <div class="anim-badge-row">
+              <button class="anim-badge-btn anim-badge-btn--bronze" @click="openBadge('bronze')">Bronze</button>
+              <button class="anim-badge-btn anim-badge-btn--silver" @click="openBadge('silver')">Prata</button>
+              <button class="anim-badge-btn anim-badge-btn--gold" @click="openBadge('gold')">Ouro</button>
+              <button class="anim-badge-btn anim-badge-btn--diamond" @click="openBadge('diamond')">Diamante</button>
+              <button class="anim-badge-btn anim-badge-btn--galaxy" @click="openBadge('galaxy')">Galáxia</button>
+            </div>
+          </div>
+
+          <div class="anim-block">
+            <span class="tag">Desbloquear Livro</span>
+            <p class="anim-desc">Dispara ao desbloquear um livro via código QR. Mostra a capa, título e descrição com confetti verde.</p>
+            <div class="row">
+              <UiButton variant="outline" @click="bookUnlockVisible = true">Desbloquear Livro</UiButton>
+            </div>
+          </div>
+        </div>
+      </UiCard>
     </section>
 
   </div>
@@ -1152,6 +1232,38 @@ function isDark(hex: string): boolean {
       </div>
     </div>
   </div>
+
+  <!-- Modais de animação ─────────────────────────────────── -->
+  <UiConfirmModal
+    :visible="confirmModalVisible"
+    title="Confirmar acção"
+    message="Tens a certeza que queres realizar esta acção? Esta operação não pode ser desfeita."
+    confirm-label="Sim, confirmar"
+    cancel-label="Cancelar"
+    @confirm="confirmModalVisible = false"
+    @cancel="confirmModalVisible = false"
+  />
+
+  <LevelUpModal
+    :visible="levelUpVisible"
+    :old-level="4"
+    :new-level="5"
+    :current-points="590"
+    @close="levelUpVisible = false"
+  />
+
+  <BadgeUnlockModal
+    :visible="badgeUnlockVisible"
+    :tier="badgeTierDemo"
+    book-title="O Principezinho"
+    @close="badgeUnlockVisible = false"
+  />
+
+  <BookUnlockModal
+    :visible="bookUnlockVisible"
+    :book="mockBook"
+    @close="bookUnlockVisible = false"
+  />
 </template>
 
 <style scoped>
@@ -2530,6 +2642,93 @@ code.semantic-token {
   align-items: center;
   gap: var(--space-300);
   font-weight: 700;
+}
+
+/* ── Modais & Animações ──────────────────────────────────── */
+
+.anim-blocks {
+  display: grid;
+  gap: var(--space-500);
+  margin-top: var(--space-300);
+}
+
+.anim-block {
+  display: grid;
+  gap: var(--space-200);
+  padding: var(--space-400);
+  border-radius: 14px;
+  border: 2px solid var(--color-wild-600);
+  background: var(--color-wild-200);
+}
+
+.anim-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  line-height: 1.55;
+}
+
+.anim-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-200);
+  align-items: center;
+}
+
+.anim-badge-btn {
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.anim-badge-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+}
+
+.anim-badge-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-shadow);
+}
+
+.anim-badge-btn--bronze {
+  background: #cd7f32;
+  color: #fff;
+  border-color: #8b5a1a;
+  box-shadow: 3px 3px 0 #8b5a1a;
+}
+
+.anim-badge-btn--silver {
+  background: #b0b8c1;
+  color: #1a262e;
+  border-color: #6e7f8a;
+  box-shadow: 3px 3px 0 #6e7f8a;
+}
+
+.anim-badge-btn--gold {
+  background: #f5c518;
+  color: #5a3a00;
+  border-color: #b8860b;
+  box-shadow: 3px 3px 0 #b8860b;
+}
+
+.anim-badge-btn--diamond {
+  background: #a8d8f0;
+  color: #1a3a4a;
+  border-color: #4a90b8;
+  box-shadow: 3px 3px 0 #4a90b8;
+}
+
+.anim-badge-btn--galaxy {
+  background: linear-gradient(135deg, #6a1b9a, #1565c0, #00838f);
+  color: #fff;
+  border-color: #1a0a2e;
+  box-shadow: 3px 3px 0 #1a0a2e;
 }
 
 /* ── Responsive ──────────────────────────────────────────── */

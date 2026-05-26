@@ -65,20 +65,21 @@ const loadProfile = async () => {
 
 const saveProfile = async () => {
     if (!user.value?.id) return
+    const userId = String(user.value.id)
     const trimmedName = name.value.trim()
     const [firstName, ...rest] = trimmedName.split(' ').filter(Boolean)
     const lastName = rest.join(' ') || undefined
 
     isSaving.value = true
     try {
-        user.value = await updateUser(user.value.id, {
+        await updateUser(userId, {
             first_name: firstName || undefined,
             last_name: lastName,
         })
         if (avatarFile.value) {
             try {
-                const avatarId = await uploadUserAvatar(String(user.value.id), avatarFile.value)
-                user.value = { ...user.value, avatar: avatarId }
+                const avatarId = await uploadUserAvatar(userId, avatarFile.value)
+                if (user.value) user.value.avatar = avatarId
                 avatarFile.value = null
                 avatarPreview.value = ''
                 fileName.value = 'Nenhum ficheiro escolhido'
