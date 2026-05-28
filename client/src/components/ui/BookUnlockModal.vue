@@ -81,11 +81,11 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.55);
   display: grid;
   place-items: center;
   padding: clamp(16px, 4vw, 32px);
+  will-change: opacity;
 }
 
 .unlock-card {
@@ -99,11 +99,12 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   text-align: center;
   box-shadow: 6px 6px 0 var(--color-shadow);
   overflow: hidden;
-  animation: card-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: card-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes card-pop {
-  from { transform: scale(0.65) translateY(24px); opacity: 0; }
+  from { transform: scale(0.82) translateY(20px); opacity: 0; }
   to   { transform: scale(1)    translateY(0);    opacity: 1; }
 }
 
@@ -121,14 +122,14 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   left: var(--l);
   background: var(--c);
   border-radius: 2px;
-  transform: rotate(var(--r));
+  will-change: transform, opacity;
   animation: fall var(--dur) var(--d) ease-in forwards;
 }
 
 @keyframes fall {
   0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateY(700px) rotate(900deg); opacity: 0; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(600px) rotate(360deg); opacity: 0; }
 }
 
 /* Label */
@@ -145,11 +146,12 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
 .cover-wrap {
   margin: 0 auto 28px;
   width: 140px;
-  animation: cover-reveal 0.8s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: cover-reveal 0.5s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes cover-reveal {
-  from { transform: scale(0.4) translateY(20px) rotate(-6deg); opacity: 0; }
+  from { transform: scale(0.6) translateY(16px) rotate(-4deg); opacity: 0; }
   to   { transform: scale(1)   translateY(0)    rotate(0deg);  opacity: 1; }
 }
 
