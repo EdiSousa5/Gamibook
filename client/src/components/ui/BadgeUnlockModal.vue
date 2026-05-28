@@ -88,11 +88,12 @@ const confetti = generateConfetti()
   display: grid;
   gap: 16px;
   place-items: center;
-  animation: card-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: card-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes card-pop {
-  from { transform: scale(0.65) translateY(24px); opacity: 0; }
+  from { transform: scale(0.82) translateY(20px); opacity: 0; }
   to   { transform: scale(1)    translateY(0);    opacity: 1; }
 }
 
@@ -110,24 +111,25 @@ const confetti = generateConfetti()
   left: var(--l);
   background: var(--c);
   border-radius: 2px;
-  transform: rotate(var(--r));
+  will-change: transform, opacity;
   animation: fall var(--dur) var(--d) ease-in forwards;
 }
 
 @keyframes fall {
   0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateY(700px) rotate(900deg); opacity: 0; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(600px) rotate(360deg); opacity: 0; }
 }
 
 /* Badge icon */
 .badge-icon-wrap {
-  animation: badge-bounce 0.7s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: badge-bounce 0.5s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes badge-bounce {
-  from { transform: scale(0) rotate(-20deg); opacity: 0; }
-  to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);   opacity: 1; }
 }
 
 /* Labels */

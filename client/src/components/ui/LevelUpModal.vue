@@ -251,11 +251,12 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   text-align: center;
   box-shadow: 6px 6px 0 var(--color-shadow);
   overflow: hidden;
-  animation: card-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: card-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes card-pop {
-  from { transform: scale(0.65) translateY(24px); opacity: 0; }
+  from { transform: scale(0.82) translateY(20px); opacity: 0; }
   to   { transform: scale(1)    translateY(0);    opacity: 1; }
 }
 
@@ -273,14 +274,14 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   left: var(--l);
   background: var(--c);
   border-radius: 2px;
-  transform: rotate(var(--r));
+  will-change: transform, opacity;
   animation: fall var(--dur) var(--d) ease-in forwards;
 }
 
 @keyframes fall {
   0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
-  80%  { opacity: 1; }
-  100% { transform: translateY(700px) rotate(900deg); opacity: 0; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(600px) rotate(360deg); opacity: 0; }
 }
 
 /* Trophy */
@@ -294,12 +295,13 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   box-shadow: 4px 4px 0 var(--color-shadow);
   display: grid;
   place-items: center;
-  animation: trophy-bounce 0.7s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: trophy-bounce 0.5s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes trophy-bounce {
-  from { transform: scale(0) rotate(-20deg); opacity: 0; }
-  to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);   opacity: 1; }
 }
 
 .trophy-icon {
@@ -414,7 +416,8 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   border: 2px solid var(--color-deep-600);
   box-shadow: 3px 3px 0 var(--color-shadow);
   text-align: left;
-  animation: fade-in-up 0.4s 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: fade-in-up 0.3s ease both;
+  will-change: transform, opacity;
 }
 
 @keyframes fade-in-up {

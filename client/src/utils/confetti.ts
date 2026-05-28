@@ -4,7 +4,7 @@ const CONFETTI_COLORS = [
   '#059669', '#6ee7b7',
 ]
 
-export const generateConfetti = (count = 32) =>
+export const generateConfetti = (count = 24) =>
   Array.from({ length: count }, (_, i) => ({
     id: i,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length]!,

@@ -31,15 +31,15 @@ const emit = defineEmits<{ close: [] }>()
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.55);
   display: grid;
   place-items: center;
   padding: 24px;
+  will-change: opacity;
 }
 
-.overlay-fade-enter-active { animation: overlay-in 0.3s ease both; }
-.overlay-fade-leave-active { animation: overlay-in 0.2s ease reverse both; }
+.overlay-fade-enter-active { animation: overlay-in 0.25s ease both; }
+.overlay-fade-leave-active { animation: overlay-in 0.18s ease reverse both; }
 
 @keyframes overlay-in {
   from { opacity: 0; }

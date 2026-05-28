@@ -24,8 +24,8 @@ type Props = {
   isAdmin?: boolean
 }
 
-// Only URLs matching /unlock/<uuid> are accepted — raw UUIDs and other URLs are rejected
 const UNLOCK_URL_RE = /\/unlock\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-owned' | 'not-found' | 'error'
 
@@ -86,8 +86,11 @@ const progressLabel = computed(() => {
 })
 
 const extractUuid = (text: string): string | null => {
-  const match = text.match(UNLOCK_URL_RE)
-  return match?.[1] ?? null
+  const t = text.trim()
+  const urlMatch = t.match(UNLOCK_URL_RE)
+  if (urlMatch?.[1]) return urlMatch[1]
+  if (UUID_RE.test(t)) return t
+  return null
 }
 
 const stopScanner = () => {
@@ -97,7 +100,9 @@ const stopScanner = () => {
 
 const processResult = async (rawText: string) => {
   stopScanner()
+  console.log('[QR] rawText:', JSON.stringify(rawText))
   const uuid = extractUuid(rawText)
+  console.log('[QR] uuid extraído:', uuid)
   if (!uuid) {
     scanState.value = 'not-found'
     return
@@ -164,6 +169,40 @@ const openFileMode = () => {
   nextTick(() => fileInputRef.value?.click())
 }
 
+const decodeQrFromFile = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = async () => {
+      // Tenta vários tamanhos de canvas com pixels nítidos (sem interpolação)
+      // para evitar ChecksumException causado por scaling com blur
+      const sizes = [img.naturalWidth, 800, 512, 300]
+      let lastErr: unknown
+      for (const size of sizes) {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = size
+          canvas.height = size
+          const ctx = canvas.getContext('2d')!
+          ctx.imageSmoothingEnabled = false
+          ctx.drawImage(img, 0, 0, size, size)
+          const dataUrl = canvas.toDataURL('image/png')
+          const reader = new BrowserQRCodeReader()
+          const result = await reader.decodeFromImageUrl(dataUrl)
+          URL.revokeObjectURL(objectUrl)
+          resolve(result.getText())
+          return
+        } catch (e) {
+          lastErr = e
+        }
+      }
+      URL.revokeObjectURL(objectUrl)
+      reject(lastErr)
+    }
+    img.onerror = (e) => { URL.revokeObjectURL(objectUrl); reject(e) }
+    img.src = objectUrl
+  })
+
 const onFileSelected = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!fileInputRef.value) return
@@ -171,15 +210,14 @@ const onFileSelected = async (event: Event) => {
   if (!file) return
 
   scanState.value = 'processing'
-  const objectUrl = URL.createObjectURL(file)
   try {
-    const reader = new BrowserQRCodeReader()
-    const result = await reader.decodeFromImageUrl(objectUrl)
-    await processResult(result.getText())
-  } catch {
-    scanState.value = 'not-found'
-  } finally {
-    URL.revokeObjectURL(objectUrl)
+    const text = await decodeQrFromFile(file)
+    console.log('[QR] decode ok, texto bruto:', JSON.stringify(text))
+    await processResult(text)
+  } catch (e) {
+    console.error('[QR] erro ao ler imagem:', e)
+    scanState.value = 'error'
+    scanError.value = 'Não foi possível ler o QR Code. Tenta com uma imagem mais nítida.'
   }
 }
 
