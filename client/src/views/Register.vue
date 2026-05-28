@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiFilePicker from '@/components/ui/UiFilePicker.vue'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
 import { loginUser, registerUser, uploadUserAvatar } from '../services/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -21,15 +22,11 @@ const showPassword = ref(false)
 const error = ref('')
 const isLoading = ref(false)
 
-const onAvatarChange = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+const onAvatarFilePick = (file: File | null) => {
   avatarFile.value = file
+  if (!file) { avatarPreview.value = ''; return }
   const reader = new FileReader()
-  reader.onload = () => {
-    avatarPreview.value = String(reader.result || '')
-  }
+  reader.onload = () => { avatarPreview.value = String(reader.result || '') }
   reader.readAsDataURL(file)
 }
 
@@ -120,10 +117,7 @@ const submit = async () => {
           </div>
         </label>
 
-        <label class="file">
-          Avatar
-          <input type="file" accept="image/*" @change="onAvatarChange" />
-        </label>
+        <UiFilePicker label="Avatar (opcional)" accept="image/*" :model-value="avatarFile" @update:model-value="onAvatarFilePick" />
 
         <div v-if="avatarPreview" class="avatar">
           <img :src="avatarPreview" alt="Avatar preview" />
@@ -166,19 +160,6 @@ form {
   display: grid;
   gap: 14px;
   margin-top: 16px;
-}
-
-.file {
-  display: grid;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.file input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
 }
 
 .avatar {
