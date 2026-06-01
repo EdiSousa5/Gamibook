@@ -18,6 +18,7 @@ import {
   QuestionMarkCircleIcon,
   SparklesIcon,
   LockClosedIcon,
+  TrophyIcon,
 } from '@heroicons/vue/24/outline'
 import { fetchUserBooks, fetchModule } from '../services/books'
 import { fetchUsers, getUserDisplayName, updateUser } from '../services/auth'
@@ -59,6 +60,8 @@ const recentBadge = computed<BookBadgeTier | undefined>(() => {
 const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 const bestStreak = computed(() => user.value?.best_exercises_daily_streak ?? 0)
 const booksObtained = computed(() => userBooks.value.length)
+const currentRank = ref<number | null>(null)
+const bestRank = computed(() => user.value?.best_rank ?? null)
 
 const progressPct = computed(() =>
   progress.value.nextLevelXp
@@ -66,9 +69,8 @@ const progressPct = computed(() =>
     : 0,
 )
 
-
-
 const TIER_RANK: Record<BookBadgeTier, number> = { bronze: 0, silver: 1, gold: 2, diamond: 3, galaxy: 4 }
+const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
 
 const badgeCounts = computed(() => {
   const counts: Record<BookBadgeTier, number> = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
@@ -82,6 +84,14 @@ const badgeCounts = computed(() => {
   }
   return counts
 })
+
+const totalBadgeScore = computed(() =>
+  userBooks.value.reduce((sum, ub) => {
+    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!badge || badge === 'default') return sum
+    return sum + (BADGE_WEIGHTS[badge] ?? 0)
+  }, 0)
+)
 
 const totalBadges = computed(() =>
   userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
@@ -167,28 +177,35 @@ const checkLeaderboardNotification = async (userId: string) => {
       .sort((a, b) => b.totalPoints - a.totalPoints)
 
     const idx = sorted.findIndex((u) => u.id === userId)
-    const currentRank = idx >= 0 ? idx + 1 : null
-    if (!currentRank) return
+    const rank = idx >= 0 ? idx + 1 : null
+    if (!rank) return
+    currentRank.value = rank
 
     const storedKey = `gb_last_rank_${userId}`
     const prevRankStr = localStorage.getItem(storedKey)
     const prevRank = prevRankStr ? parseInt(prevRankStr, 10) : null
-    localStorage.setItem(storedKey, String(currentRank))
+    localStorage.setItem(storedKey, String(rank))
 
-    if (prevRank === null || prevRank === currentRank) return
+    const storedBestRank = auth.user?.best_rank ?? null
+    if (storedBestRank === null || rank < storedBestRank) {
+      await updateUser(userId, { best_rank: rank })
+      if (auth.user) auth.user.best_rank = rank
+    }
 
-    if (currentRank < prevRank) {
+    if (prevRank === null || prevRank === rank) return
+
+    if (rank < prevRank) {
       notifStore.add({
         user: userId,
         title: 'Subiste no ranking!',
-        message: `Passaste da posição ${prevRank} para a posição ${currentRank} na tabela de classificação.`,
+        message: `Passaste da posição ${prevRank} para a posição ${rank} na tabela de classificação.`,
         type: 'achievement',
       })
     } else {
       notifStore.add({
         user: userId,
         title: 'Desceste no ranking',
-        message: `Passaste da posição ${prevRank} para a posição ${currentRank} na tabela de classificação.`,
+        message: `Passaste da posição ${prevRank} para a posição ${rank} na tabela de classificação.`,
         type: 'system',
       })
     }
@@ -261,82 +278,94 @@ onUnmounted(() => {
 
     <!-- ── PROFILE CARD ───────────────────────────────────── -->
     <section class="profile-card">
-      <div class="profile-left">
-        <template v-if="isLoadingProfile && !user">
-          <UiSkeleton width="150px" height="150px" radius="22px" />
-          <div class="profile-info">
-            <UiSkeleton height="28px" width="180px" radius="8px" />
-            <div class="profile-stats">
-              <UiSkeleton height="64px" radius="14px" />
-              <UiSkeleton height="64px" radius="14px" />
-              <UiSkeleton height="64px" radius="14px" />
-            </div>
-            <UiSkeleton height="10px" radius="999px" />
+      <template v-if="isLoadingProfile && !user">
+        <div class="profile-head">
+          <UiSkeleton width="72px" height="72px" radius="50%" />
+          <div style="flex:1;display:grid;gap:10px">
+            <UiSkeleton height="22px" width="160px" radius="6px" />
+            <UiSkeleton height="10px" width="100%" radius="999px" />
           </div>
-        </template>
+        </div>
+        <div class="stats-grid">
+          <UiSkeleton v-for="n in 6" :key="n" height="56px" radius="10px" />
+        </div>
+      </template>
 
-        <template v-else>
-          <div class="profile-avatar-wrapper">
-            <UiAvatar
-              :src="avatarUrl || undefined"
-              :alt="getUserDisplayName(user).charAt(0)"
-              :size="120"
-              :border="avatarConfig.border"
-              :avatar-color="avatarConfig.avatarColor"
-              :effect="avatarConfig.effect"
-              :shadow="avatarConfig.shadow"
-            />
-          </div>
-          <div class="profile-info">
+      <template v-else>
+        <div class="profile-head">
+          <UiAvatar
+            :src="avatarUrl || undefined"
+            :alt="getUserDisplayName(user).charAt(0)"
+            :size="72"
+            :border="avatarConfig.border"
+            :avatar-color="avatarConfig.avatarColor"
+            :effect="avatarConfig.effect"
+            :shadow="avatarConfig.shadow"
+          />
+          <div class="profile-head-info">
             <div class="name-row">
               <h2>{{ getUserDisplayName(user) }}</h2>
-              <RouterLink to="/settings/conta" aria-label="Editar perfil">
+              <RouterLink to="/settings/conta" aria-label="Editar perfil" class="edit-link">
                 <UiIconButton variant="outline">
                   <PencilSquareIcon class="icon" aria-hidden="true" />
                 </UiIconButton>
               </RouterLink>
+              <div class="level-chip">Nível {{ progress.level }}</div>
             </div>
-            <div class="profile-stats">
-              <div class="mini-stat" :class="{ 'mini-stat--hot': bestStreak >= 2 }">
-                <div class="mini-icon">
-                  <FireIcon class="icon" aria-hidden="true" />
-                </div>
-                <div class="mini-text">
-                  <strong>{{ bestStreak }}</strong>
-                  <span>Melhor Streak</span>
-                </div>
-              </div>
-              <div class="mini-stat">
-                <div class="mini-icon">
-                  <BookOpenIcon class="icon" aria-hidden="true" />
-                </div>
-                <div class="mini-text">
-                  <strong>{{ booksObtained }}</strong>
-                  <span>Livros obtidos</span>
-                </div>
-              </div>
-              <div class="mini-stat">
-                <div class="mini-icon">
-                  <SparklesIcon class="icon" aria-hidden="true" />
-                </div>
-                <div class="mini-text">
-                  <strong>{{ totalBadges }}</strong>
-                  <span>Badges ganhos</span>
-                </div>
-              </div>
-            </div>
-            <div class="profile-progress">
-              <div class="progress-info">
-                <span>Nível {{ progress.level }}</span>
-                <span>{{ progress.progress }}/{{ progress.nextLevelXp }} XP</span>
-              </div>
+            <div class="xp-row">
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${progressPct}%` }" />
               </div>
+              <span class="xp-label">{{ progress.progress }} / {{ progress.nextLevelXp }} XP</span>
             </div>
           </div>
-        </template>
-      </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="mini-stat" :class="{ 'mini-stat--hot': dailyStreak >= 2 }">
+            <div class="mini-icon"><FireIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ dailyStreak }}</strong>
+              <span>Streak atual</span>
+            </div>
+          </div>
+          <div class="mini-stat" :class="{ 'mini-stat--hot': bestStreak >= 2 }">
+            <div class="mini-icon"><FireIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ bestStreak }}</strong>
+              <span>Melhor streak</span>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><TrophyIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ currentRank != null ? `#${currentRank}` : '—' }}</strong>
+              <span>Posição atual</span>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><TrophyIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ bestRank != null ? `#${bestRank}` : '—' }}</strong>
+              <span>Melhor posição</span>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><BookOpenIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ booksObtained }}</strong>
+              <span>Livros</span>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><SparklesIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ totalBadges }}</strong>
+              <span>Badges</span>
+            </div>
+          </div>
+        </div>
+      </template>
     </section>
 
     <!-- ── DAILY + RESUME ─────────────────────────────────── -->
@@ -562,118 +591,69 @@ onUnmounted(() => {
   padding: var(--space-500);
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.profile-left {
   display: grid;
-  grid-template-columns: auto 1fr;
   gap: var(--space-400);
+}
+
+.profile-head {
+  display: flex;
   align-items: center;
+  gap: var(--space-400);
 }
 
-.profile-avatar-wrapper {
-  flex-shrink: 0;
+.profile-head-info {
+  flex: 1;
+  min-width: 0;
   display: grid;
-  place-items: center;
-}
-
-.profile-info {
-  display: grid;
-  gap: var(--space-300);
+  gap: var(--space-200);
 }
 
 .name-row {
   display: flex;
   align-items: center;
-  gap: var(--space-200);
+  gap: var(--space-150);
 }
 
 .name-row h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.profile-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-200);
-}
-
-.mini-stat {
-  display: flex;
-  align-items: center;
-  gap: var(--space-300);
-  padding: var(--space-200) var(--space-300);
-  border-radius: 14px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  transition: background 0.2s ease;
-}
-
-.mini-stat--hot {
-  background: var(--color-deep-100);
-  border-color: var(--color-deep-600);
-}
-
-.mini-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  display: grid;
-  place-items: center;
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  flex-shrink: 0;
-}
-
-.mini-stat--hot .mini-icon {
-  background: var(--color-deep-500);
-  border-color: var(--color-deep-600);
-}
-
-.mini-stat--hot .icon {
-  color: #fff;
-}
-
-.mini-text {
-  display: grid;
-  gap: 3px;
-}
-
-.mini-stat strong {
-  display: block;
   font-size: 20px;
   font-weight: 800;
   color: var(--color-mirage-800);
-  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.mini-stat span {
-  display: block;
-  font-size: 12px;
-  color: var(--color-mirage-500);
-  font-weight: 600;
+.name-row .level-chip {
+  margin-left: auto;
 }
 
-.profile-progress {
-  display: grid;
-  gap: 8px;
+.edit-link {
+  flex-shrink: 0;
 }
 
-.progress-info {
+.level-chip {
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-deep-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-deep-700);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.xp-row {
   display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--color-mirage-600);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  align-items: center;
+  gap: var(--space-200);
 }
 
 .progress-bar {
+  flex: 1;
   height: 12px;
   border-radius: 999px;
   overflow: hidden;
@@ -687,6 +667,84 @@ onUnmounted(() => {
   background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-500));
   border-radius: inherit;
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.xp-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-500);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-200);
+}
+
+.mini-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-250, 10px);
+  padding: var(--space-200) var(--space-300);
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  transition: background 0.15s ease;
+}
+
+.mini-stat--hot {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+}
+
+.mini-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.mini-stat--hot .mini-icon {
+  background: var(--color-deep-500);
+  border-color: var(--color-deep-700);
+}
+
+.mini-stat--hot .icon {
+  color: #fff;
+}
+
+.mini-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mini-stat strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--color-mirage-800);
+  line-height: 1;
+  font-family: var(--font-display);
+}
+
+.mini-stat span {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-mirage-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .icon {
@@ -1284,25 +1342,11 @@ onUnmounted(() => {
   .hero-visual {
     display: none;
   }
-
-  .profile-left {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-  }
-
-  .name-row {
-    justify-content: center;
-  }
-
-  .profile-stats {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 @media (max-width: 600px) {
-  .profile-stats {
-    grid-template-columns: 1fr;
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .timer-value {

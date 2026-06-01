@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { HomeIcon } from '@heroicons/vue/24/outline'
-import UiButton from '@/components/ui/UiButton.vue'
+import { HomeIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 </script>
@@ -9,13 +8,23 @@ const router = useRouter()
 <template>
   <div class="not-found">
     <div class="card">
-      <p class="code">404</p>
-      <h1>Página não encontrada</h1>
-      <p class="desc">O endereço que tentaste aceder não existe ou foi removido.</p>
-      <UiButton variant="primary" @click="router.push('/')">
-        <HomeIcon class="icon" aria-hidden="true" />
-        Voltar ao início
-      </UiButton>
+      <div class="code-block">
+        <span class="code">404</span>
+      </div>
+      <div class="content">
+        <h1>Página não encontrada</h1>
+        <p>O endereço que tentaste aceder não existe ou foi removido.</p>
+        <div class="actions">
+          <button class="btn-back" @click="router.back()">
+            <ArrowLeftIcon class="icon" aria-hidden="true" />
+            Voltar
+          </button>
+          <button class="btn-home" @click="router.push('/')">
+            <HomeIcon class="icon" aria-hidden="true" />
+            Ir para o início
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -26,46 +35,128 @@ const router = useRouter()
   display: grid;
   place-items: center;
   padding: var(--space-500);
+  background: var(--bg-app);
+  background-size: var(--bg-size);
+  animation: var(--bg-animation);
+  background-attachment: fixed;
 }
 
 .card {
-  display: grid;
-  place-items: center;
-  gap: var(--space-300);
-  text-align: center;
-  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-600);
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
   border-radius: var(--radius-400);
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  padding: var(--space-700) var(--space-700);
+  max-width: 680px;
+  width: 100%;
+}
+
+.code-block {
+  flex-shrink: 0;
+  width: 140px;
+  height: 140px;
+  display: grid;
+  place-items: center;
+  background: var(--color-deep-600);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: var(--radius-400);
   box-shadow: 4px 4px 0 var(--color-shadow);
-  padding: var(--space-700) var(--space-600);
 }
 
 .code {
-  margin: 0;
   font-family: var(--font-display);
-  font-size: 80px;
+  font-size: 56px;
   font-weight: 900;
+  color: #fff;
   line-height: 1;
-  color: var(--color-deep-600);
+  letter-spacing: -2px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
 }
 
 h1 {
   margin: 0;
   font-size: 22px;
+  font-weight: 800;
   color: var(--color-mirage-800);
+  line-height: 1.2;
 }
 
-.desc {
+p {
   margin: 0;
   font-size: 14px;
   color: var(--color-mirage-500);
   line-height: 1.6;
 }
 
+.actions {
+  display: flex;
+  gap: var(--space-200);
+  flex-wrap: wrap;
+}
+
+.btn-back,
+.btn-home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-200);
+  border: 2px solid var(--color-mirage-800);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-base);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.btn-back {
+  background: var(--color-wild-200);
+  color: var(--color-mirage-700);
+}
+
+.btn-home {
+  background: var(--color-deep-600);
+  color: #fff;
+  border-color: var(--color-deep-700);
+  box-shadow: 3px 3px 0 var(--color-deep-800);
+}
+
+.btn-back:hover  { background: var(--color-wild-300); }
+.btn-home:hover  { background: var(--color-deep-700); }
+
+.btn-back:active,
+.btn-home:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-shadow);
+}
+
 .icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   stroke-width: var(--icon-stroke);
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-600) var(--space-500);
+    gap: var(--space-400);
+  }
+
+  .actions {
+    justify-content: center;
+  }
 }
 </style>

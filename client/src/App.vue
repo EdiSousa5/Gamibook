@@ -79,7 +79,18 @@ function clearBg() {
   document.documentElement.removeAttribute('data-bg')
 }
 
+function applyAccessibilitySettings() {
+  const html = document.documentElement
+  const fontSz = localStorage.getItem('gb_a11y_font') || 'normal'
+  const colorMd = localStorage.getItem('gb_a11y_color') || 'none'
+  const contrastVal = localStorage.getItem('gb_a11y_contrast') || 'normal'
+  if (fontSz !== 'normal') html.setAttribute('data-font-size', fontSz)
+  if (colorMd !== 'none') html.setAttribute('data-color-mode', colorMd)
+  if (contrastVal !== 'normal') html.setAttribute('data-contrast', contrastVal)
+}
+
 onMounted(() => {
+  applyAccessibilitySettings()
   if (!showLanding.value) applyUserBg()
 
   setUnauthorizedHandler(() => router.push('/login'))
@@ -118,7 +129,7 @@ watch(
 watch(
   () => auth.user?.level,
   (newLevel, oldLevel) => {
-    if (!newLevel || !oldLevel || newLevel <= oldLevel) return
+    if (!newLevel || !oldLevel || newLevel <= oldLevel || auth.isInitialLoad) return
     const userId = auth.user?.id ? String(auth.user.id) : null
     if (!userId) return
     notifStore.add({
@@ -166,6 +177,26 @@ watch(
       </TransitionGroup>
     </div>
   </Teleport>
+  <!-- SVG color blindness filters (hidden) -->
+  <svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <filter id="cb-deuteranopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.700 0.300 0 0 0  0 0.300 0.700 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="cb-protanopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="cb-tritanopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.950 0.050 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0" />
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="skip-links" aria-label="Navegação rápida">
+    <a class="skip-link" href="#main-content">Saltar para o conteúdo principal</a>
+    <a class="skip-link" href="#main-nav">Saltar para a navegação</a>
+  </div>
+
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
       <AppSidebar :items="navItems" :username="displayName" :avatar-asset-id="avatarAssetId" @action="onNavClick" />
@@ -173,7 +204,7 @@ watch(
         <AppTopbar :username="displayName" :avatar-asset-id="avatarAssetId" :level="progress.level"
           :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
           :is-admin="isAdmin" @action="onNavClick" @book-unlocked="handleBookUnlocked" />
-        <main class="main">
+        <main id="main-content" class="main">
           <RouterView />
         </main>
       </div>
@@ -193,6 +224,73 @@ watch(
 </template>
 
 <style>
+/* ── Skip links ─────────────────────────────────────── */
+.skip-links {
+  position: fixed;
+  top: -100px;
+  left: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.skip-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--color-deep-700);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-base);
+  border-radius: 8px;
+  text-decoration: none;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: top 0.15s ease, opacity 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  opacity: 1;
+  pointer-events: auto;
+  position: static;
+}
+
+
+/* ── Font size ───────────────────────────────────────── */
+html[data-font-size="large"] {
+  zoom: 1.125;
+}
+
+html[data-font-size="xl"] {
+  zoom: 1.25;
+}
+
+/* ── Color blindness filters ─────────────────────────── */
+html[data-color-mode="deuteranopia"] .app {
+  filter: url('#cb-deuteranopia');
+}
+
+html[data-color-mode="protanopia"] .app {
+  filter: url('#cb-protanopia');
+}
+
+html[data-color-mode="tritanopia"] .app {
+  filter: url('#cb-tritanopia');
+}
+
+/* ── Alto Contraste ──────────────────────────────────── */
+/* Aplicado no body (camada acima de .app) para não entrar
+   em conflito com os filtros SVG de daltonismo em .app */
+html[data-contrast="high"] body {
+  filter: contrast(1.3) saturate(0.85);
+}
+
+/* ── Toast ───────────────────────────────────────────── */
 .toast-container {
   position: fixed;
   bottom: 24px;

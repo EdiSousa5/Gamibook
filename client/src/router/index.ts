@@ -111,6 +111,11 @@ const router = createRouter({
           name: 'settings-privacidade',
           component: () => import('../views/settings/Privacy.vue'),
         },
+        {
+          path: 'acessibilidade',
+          name: 'settings-acessibilidade',
+          component: () => import('../views/settings/Accessibility.vue'),
+        },
       ],
     },
     {
@@ -141,6 +146,7 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/NotFound.vue'),
+      meta: { layout: 'landing' },
     },
   ],
 })

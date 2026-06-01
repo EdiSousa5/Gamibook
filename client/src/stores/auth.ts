@@ -10,6 +10,7 @@ import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/ty
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const points = ref(0)
+  const isInitialLoad = ref(false)
 
   const levelUpVisible = ref(false)
   const levelUpOld = ref(1)
@@ -40,12 +41,15 @@ export const useAuthStore = defineStore('auth', () => {
         fetchUserById(storedId),
         fetchUserPointsFromHistory(storedId).catch(() => 0),
       ])
+      isInitialLoad.value = true
       user.value = userData
       points.value = totalPoints
       await syncUserLevelFromPoints(storedId)
     } catch {
       user.value = null
       points.value = 0
+    } finally {
+      isInitialLoad.value = false
     }
   }
 
@@ -75,7 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
         const oldLevel = currentLevel
         await updateUser(userId, { level: newLevel })
         user.value.level = newLevel
-        if (newLevel > oldLevel) {
+        if (newLevel > oldLevel && !isInitialLoad.value) {
           triggerLevelUp(oldLevel, newLevel, totalPoints)
         }
       }
@@ -117,6 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
     avatarConfig,
     points,
     progress,
+    isInitialLoad,
     loadUser,
     refreshPoints,
     syncUserLevelFromPoints,
