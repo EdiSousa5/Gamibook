@@ -78,9 +78,6 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const loggedUserId = authStore.user?.id ? String(authStore.user.id) : ''
-
-
-
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
