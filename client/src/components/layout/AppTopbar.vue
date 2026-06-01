@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
-import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
 import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
@@ -35,7 +34,6 @@ const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book] }>()
 const notifStore = useNotificationsStore()
 const authStore = useAuthStore()
 
-const query = ref('')
 const menuOpen = ref(false)
 const bellOpen = ref(false)
 const qrOpen = ref(false)
@@ -55,9 +53,6 @@ let cameraStartedAt = 0
 const isDraggingOver = ref(false)
 let dragCounter = 0
 
-const showSearch = computed(() =>
-  route.path.startsWith('/collection') || route.path.startsWith('/exercise-generator'),
-)
 const showBack = computed(() => route.path !== '/app')
 
 const getParentRoute = (): string => {
@@ -309,19 +304,6 @@ onBeforeUnmount(() => {
   stopScanner()
 })
 
-watch(query, (val) => {
-  if (!showSearch.value) return
-  router.replace({ query: { ...route.query, q: val || undefined } })
-})
-
-watch(
-  () => route.query.q,
-  (val) => {
-    const q = (val ?? '').toString()
-    if (q !== query.value) query.value = q
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
@@ -333,9 +315,6 @@ watch(
       </UiPillButton>
     </div>
     <div v-else class="back-spacer"></div>
-    <div v-if="showSearch" class="search">
-      <UiSearch :model-value="query" @update="query = $event" />
-    </div>
     <div class="actions">
       <div class="bell-anchor" ref="bellRef">
         <UiIconButton variant="outline" size="lg" aria-label="Notificações" @click="toggleBell">
@@ -561,8 +540,6 @@ watch(
   font-size: 11px;
   padding: 4px 12px;
 }
-
-.search { flex: 1; min-width: 220px; }
 
 .actions {
   display: flex;

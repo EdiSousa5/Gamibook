@@ -15,6 +15,7 @@ export type Book = {
   publisher?: string
   editora?: Editora | null
   is_approved?: boolean | null
+  has_minimum_content?: boolean | null
   qr_code?: string | null
   date_created?: string | null
   date_updated?: string | null
