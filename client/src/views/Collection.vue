@@ -15,7 +15,7 @@ import {
   fetchUserBooks,
 } from '../services/books'
 import { fetchUserById, isAdminUser } from '../services/auth'
-import { getAssetUrl } from '../services/client'
+import { getAssetUrl, getStoredUserId } from '../services/client'
 import type { Book, User, UserBook } from '@/types'
 
 const userBooks = ref<UserBook[]>([])
@@ -207,7 +207,7 @@ onMounted(async () => {
     resizeObserver.observe(collectionRef.value)
   }
 
-  const storedId = localStorage.getItem('gb_user_id')
+  const storedId = getStoredUserId()
   if (!storedId) return
   error.value = ''
   isLoading.value = true

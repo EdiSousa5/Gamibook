@@ -25,7 +25,7 @@ import { getAssetUrl } from '../services/client'
 import {
   fetchLatestUserDailyExercise,
   fetchLatestUserExercise,
-  fetchUserPointsFromHistory,
+  fetchAllUsersPoints,
 } from '../services/exercises'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -160,14 +160,10 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
 
 const checkLeaderboardNotification = async (userId: string) => {
   try {
-    const users = await fetchUsers(100)
-    const pointsMap = new Map<string, number>()
-    await Promise.all(users.map(async (u) => {
-      const id = String(u.id ?? '')
-      if (!id) return
-      try { pointsMap.set(id, await fetchUserPointsFromHistory(id)) }
-      catch { pointsMap.set(id, 0) }
-    }))
+    const [users, pointsMap] = await Promise.all([
+      fetchUsers(100),
+      fetchAllUsersPoints(),
+    ])
 
     const sorted = users
       .map((u) => ({ id: String(u.id ?? ''), totalPoints: pointsMap.get(String(u.id ?? '')) ?? 0 }))

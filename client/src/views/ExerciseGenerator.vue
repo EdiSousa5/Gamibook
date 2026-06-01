@@ -5,7 +5,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
-import { gerarExercicios } from '@/services/flowise.ts'
+import { gerarExercicios } from '@/services/flowise'
 import { useAuthStore } from '@/stores/auth'
 import {
     ChevronDownIcon,
@@ -77,10 +77,7 @@ let exerciseSeed = 0
 const authStore = useAuthStore()
 const router = useRouter()
 
-const loggedUserId = localStorage.getItem('gb_user_id') ?? ''
-
-
-
+const loggedUserId = authStore.user?.id ? String(authStore.user.id) : ''
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
