@@ -20,7 +20,8 @@ const route = useRoute()
 const auth = useAuthStore()
 const notifStore = useNotificationsStore()
 const { toasts, dismiss } = useToast()
-const { isAuthed, displayName, isAdmin, avatarUrl, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
+const { isAuthed, displayName, isAdmin, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
+const avatarAssetId = computed(() => auth.user?.avatar ?? null)
 
 const showLanding = computed(() => route.meta.layout === 'landing')
 const canGoBack = ref(false)
@@ -37,8 +38,8 @@ const navItems = computed(() => {
   if (isAdmin.value) {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
-      { label: 'Estatísticas', to: '/admin/stats', icon: 'stats' },
       { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate' },
+      { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
     ]
@@ -135,9 +136,9 @@ watch(
   </Teleport>
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
-      <AppSidebar :items="navItems" :username="displayName" :avatar-url="avatarUrl" @action="onNavClick" />
+      <AppSidebar :items="navItems" :username="displayName" :avatar-asset-id="avatarAssetId" @action="onNavClick" />
       <div class="content">
-        <AppTopbar :username="displayName" :avatar-url="avatarUrl" :level="progress.level"
+        <AppTopbar :username="displayName" :avatar-asset-id="avatarAssetId" :level="progress.level"
           :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
           :is-admin="isAdmin" @action="onNavClick" @book-unlocked="handleBookUnlocked" />
         <main class="main">

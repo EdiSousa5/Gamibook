@@ -13,6 +13,7 @@ import {
   Squares2X2Icon,
   SparklesIcon,
   TrophyIcon,
+  AcademicCapIcon,
 } from '@heroicons/vue/24/outline'
 
 type Props = {
@@ -54,6 +55,8 @@ const iconComponent = computed(() => {
       return ChartBarIcon
     case 'ui':
       return Squares2X2Icon
+    case 'guide':
+      return AcademicCapIcon
     default:
       return null
   }

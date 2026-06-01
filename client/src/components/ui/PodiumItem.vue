@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { EyeIcon } from '@heroicons/vue/24/outline'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 const props = defineProps<{
@@ -10,17 +11,29 @@ const props = defineProps<{
     avatarUrl?: string | null
     displayName: string
     elementId?: string
+    userId?: string | null
     avatarBorder?: AvatarBorder
     avatarColor?: AvatarColor
     avatarEffect?: AvatarEffect
     avatarShadow?: AvatarShadow
 }>()
 
+const emit = defineEmits<{ 'click-user': [string] }>()
+
 const isFirst = computed(() => props.position === 1)
 </script>
 
 <template>
-    <div class="podium-item" :class="`place-${position}`" :id="elementId">
+    <div
+      class="podium-item"
+      :class="[`place-${position}`, { 'is-clickable': !!userId }]"
+      :id="elementId"
+      :role="userId ? 'button' : undefined"
+      :tabindex="userId ? 0 : undefined"
+      :aria-label="userId ? `Ver perfil de ${displayName}` : undefined"
+      @click="userId && emit('click-user', userId)"
+      @keydown.enter="userId && emit('click-user', userId)"
+    >
         <div class="podium-header">
             <div class="avatar-wrap">
                 <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
@@ -31,6 +44,9 @@ const isFirst = computed(() => props.position === 1)
                     :shadow="avatarShadow" />
                 <div class="place-badge">#{{ position }}</div>
                 <div class="level-pill">Nível {{ level }}</div>
+                <div v-if="userId" class="avatar-eye-overlay" aria-hidden="true">
+                  <EyeIcon class="avatar-eye-icon" />
+                </div>
             </div>
             <p class="name">{{ displayName }}</p>
             <div class="points-pill">
@@ -56,6 +72,40 @@ const isFirst = computed(() => props.position === 1)
     align-items: center;
     width: 100%;
     position: relative;
+}
+
+.podium-item.is-clickable {
+    cursor: pointer;
+}
+
+.podium-item.is-clickable:focus-visible {
+    outline: 3px solid var(--color-deep-500);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+.avatar-eye-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(2, 29, 32, 0.45);
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+.avatar-eye-icon {
+    width: 32px;
+    height: 32px;
+    color: #fff;
+    stroke-width: 2;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+
+.is-clickable:hover .avatar-eye-overlay {
+    opacity: 1;
 }
 
 .podium-header {

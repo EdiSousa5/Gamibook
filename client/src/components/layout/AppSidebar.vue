@@ -19,7 +19,7 @@ type NavEntry = {
 type Props = {
   items: NavEntry[]
   username: string
-  avatarUrl?: string
+  avatarAssetId?: string | null
 }
 
 const props = defineProps<Props>()
@@ -50,7 +50,7 @@ const initials = computed(() => {
       <UiAvatar
         :alt="initials"
         :size="56"
-        :src="avatarUrl"
+        :asset-id="avatarAssetId"
         :border="avatarConfig.border"
         :avatar-color="avatarConfig.avatarColor"
         :effect="avatarConfig.effect"

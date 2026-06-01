@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import PodiumItem from '@/components/ui/PodiumItem.vue'
 import RankingListItem from '@/components/ui/RankingListItem.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { StarIcon } from '@heroicons/vue/24/outline'
+import { FireIcon } from '@heroicons/vue/24/solid'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   fetchUsers,
@@ -16,6 +20,9 @@ import { getAssetUrl, getStoredUserId } from '../services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { useToast } from '@/composables/useToast'
 import type { User } from '@/types'
+import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
+
+const router = useRouter()
 
 const toast = useToast()
 
@@ -42,6 +49,9 @@ const error = ref('')
 const isLoading = ref(false)
 const isInitialLoad = ref(true)
 const timeFilter = ref<TimeFilter>('all')
+
+type PeekEntry = LeaderboardEntry & { globalRank: number }
+const peekEntry = ref<PeekEntry | null>(null)
 
 onMounted(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }))
 const displayUserName = (entry?: User | null) => {
@@ -88,6 +98,25 @@ const remainingUsersList = computed(() => topGlobal.value.slice(3))
 
 const isUserInTop = computed(() => topGlobal.value.some(u => String(u.id) === String(currentUserId)))
 const showUserBelowList = computed(() => !isUserInTop.value && currentUserEntry.value !== null)
+
+const goToProfile = (userId: string) => {
+  const all = [...topGlobal.value]
+  const idx = all.findIndex(u => String(u.id) === String(userId))
+  if (idx !== -1) {
+    peekEntry.value = { ...all[idx]!, globalRank: idx + 1 }
+  } else if (currentUserEntry.value && String(currentUserEntry.value.id) === String(userId)) {
+    peekEntry.value = currentUserEntry.value
+  } else {
+    router.push(`/user/${userId}`)
+  }
+}
+
+const closePeek = () => { peekEntry.value = null }
+const navigateToProfile = () => {
+  const id = peekEntry.value?.id
+  closePeek()
+  if (id) router.push(`/user/${id}`)
+}
 
 const scrollToMe = () => {
   if (!currentUserId) return
@@ -173,10 +202,12 @@ watch(timeFilter, () => {
             :level="podiumUsers[1].level" :avatarUrl="getAvatarUrl(podiumUsers[1])"
             :displayName="displayUserName(podiumUsers[1])"
             :elementId="`user-${podiumUsers[1].id}`"
+            :userId="String(podiumUsers[1].id)"
             :avatarBorder="podiumUsers[1].avatar_border as any"
             :avatarColor="podiumUsers[1].avatar_color as any"
             :avatarEffect="podiumUsers[1].avatar_effect as any"
-            :avatarShadow="podiumUsers[1].avatar_shadow as any" />
+            :avatarShadow="podiumUsers[1].avatar_shadow as any"
+            @click-user="goToProfile" />
         </div>
 
         <!-- 1º Lugar -->
@@ -185,10 +216,12 @@ watch(timeFilter, () => {
             :level="podiumUsers[0].level" :avatarUrl="getAvatarUrl(podiumUsers[0])"
             :displayName="displayUserName(podiumUsers[0])"
             :elementId="`user-${podiumUsers[0].id}`"
+            :userId="String(podiumUsers[0].id)"
             :avatarBorder="podiumUsers[0].avatar_border as any"
             :avatarColor="podiumUsers[0].avatar_color as any"
             :avatarEffect="podiumUsers[0].avatar_effect as any"
-            :avatarShadow="podiumUsers[0].avatar_shadow as any" />
+            :avatarShadow="podiumUsers[0].avatar_shadow as any"
+            @click-user="goToProfile" />
         </div>
 
         <!-- 3º Lugar -->
@@ -197,10 +230,12 @@ watch(timeFilter, () => {
             :level="podiumUsers[2].level" :avatarUrl="getAvatarUrl(podiumUsers[2])"
             :displayName="displayUserName(podiumUsers[2])"
             :elementId="`user-${podiumUsers[2].id}`"
+            :userId="String(podiumUsers[2].id)"
             :avatarBorder="podiumUsers[2].avatar_border as any"
             :avatarColor="podiumUsers[2].avatar_color as any"
             :avatarEffect="podiumUsers[2].avatar_effect as any"
-            :avatarShadow="podiumUsers[2].avatar_shadow as any" />
+            :avatarShadow="podiumUsers[2].avatar_shadow as any"
+            @click-user="goToProfile" />
         </div>
       </section>
 
@@ -211,10 +246,12 @@ watch(timeFilter, () => {
               :id="`user-${user.id}`" :position="index + 4" :points="user.totalPoints" :level="user.level"
               :badgeCounts="user.badgeCounts" :isCurrentUser="String(user.id) === String(currentUserId)"
               :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)"
+              :userId="String(user.id)"
               :avatarBorder="user.avatar_border as any"
               :avatarColor="user.avatar_color as any"
               :avatarEffect="user.avatar_effect as any"
-              :avatarShadow="user.avatar_shadow as any" />
+              :avatarShadow="user.avatar_shadow as any"
+              @click-user="goToProfile" />
           </ul>
 
           <template v-if="showUserBelowList && currentUserEntry">
@@ -231,10 +268,12 @@ watch(timeFilter, () => {
                 :isCurrentUser="true"
                 :avatarUrl="getAvatarUrl(currentUserEntry)"
                 :displayName="displayUserName(currentUserEntry)"
+                :userId="String(currentUserEntry.id)"
                 :avatarBorder="currentUserEntry.avatar_border as any"
                 :avatarColor="currentUserEntry.avatar_color as any"
                 :avatarEffect="currentUserEntry.avatar_effect as any"
                 :avatarShadow="currentUserEntry.avatar_shadow as any"
+                @click-user="goToProfile"
               />
             </ul>
           </template>
@@ -248,6 +287,49 @@ watch(timeFilter, () => {
       <UiButton variant="primary" class="fab-button" @click="scrollToMe">O Meu Lugar</UiButton>
     </div>
   </section>
+
+  <!-- Profile peek popup -->
+  <Teleport to="body">
+    <Transition name="peek-fade">
+      <div v-if="peekEntry" class="peek-overlay" @click.self="closePeek">
+        <div class="peek-card" role="dialog" aria-modal="true" aria-label="Pré-visualização do perfil">
+
+          <UiAvatar
+            :src="getAvatarUrl(peekEntry)"
+            :alt="displayUserName(peekEntry).charAt(0).toUpperCase()"
+            :size="80"
+            :border="peekEntry.avatar_border as AvatarBorder"
+            :avatar-color="peekEntry.avatar_color as AvatarColor"
+            :effect="peekEntry.avatar_effect as AvatarEffect"
+            :shadow="peekEntry.avatar_shadow as AvatarShadow"
+          />
+
+          <div class="peek-name-block">
+            <h2 class="peek-name">{{ displayUserName(peekEntry) }}</h2>
+            <div class="peek-level-chip">Nível {{ peekEntry.level }}</div>
+          </div>
+
+          <div class="peek-stats">
+            <div class="peek-stat">
+              <StarIcon class="peek-stat-icon pts" aria-hidden="true" />
+              <span class="peek-stat-value">{{ peekEntry.totalPoints.toLocaleString('pt-PT') }}</span>
+              <span class="peek-stat-label">Pontos</span>
+            </div>
+            <div class="peek-stat-divider" />
+            <div class="peek-stat">
+              <span class="peek-rank-num">#{{ peekEntry.globalRank }}</span>
+              <span class="peek-stat-label">Classificação</span>
+            </div>
+          </div>
+
+          <div class="peek-actions">
+            <UiButton variant="secondary" style="flex:1" @click="closePeek">Fechar</UiButton>
+            <UiButton variant="primary" style="flex:1" @click="navigateToProfile">Ver perfil</UiButton>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -386,5 +468,147 @@ watch(timeFilter, () => {
     bottom: 16px;
     right: 16px;
   }
+}
+
+/* ── Profile peek ── */
+.peek-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 29, 32, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.peek-card {
+  position: relative;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 24px;
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  padding: 36px 24px 24px;
+  width: min(360px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  animation: peek-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes peek-pop {
+  from { transform: scale(0.88) translateY(16px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.peek-name-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.peek-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.peek-level-chip {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mirage-700);
+}
+
+.peek-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  background: var(--color-wild-200);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 14px;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.peek-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+}
+
+.peek-stat-divider {
+  width: 2px;
+  height: 40px;
+  background: var(--color-mirage-800);
+}
+
+.peek-stat-icon {
+  width: 18px;
+  height: 18px;
+  margin-bottom: 2px;
+}
+
+.peek-stat-icon.pts {
+  color: var(--color-deep-600);
+  stroke-width: 1.5;
+}
+
+.peek-stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+  line-height: 1;
+}
+
+.peek-rank-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+  line-height: 1;
+}
+
+.peek-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-mirage-500);
+}
+
+.peek-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.peek-actions > * {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+/* Transition */
+.peek-fade-enter-active,
+.peek-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.peek-fade-enter-from,
+.peek-fade-leave-to {
+  opacity: 0;
 }
 </style>

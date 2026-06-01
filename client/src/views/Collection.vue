@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
+import UiSearch from '@/components/ui/UiSearch.vue'
 import BookShelf from '@/components/ui/BookShelf.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
@@ -17,8 +17,6 @@ import {
 import { fetchUserById, isAdminUser } from '../services/auth'
 import { getAssetUrl } from '../services/client'
 import type { Book, User, UserBook } from '@/types'
-
-const route = useRoute()
 
 const userBooks = ref<UserBook[]>([])
 const allBooks = ref<Book[]>([])
@@ -48,7 +46,7 @@ const sortOptions = [
   { label: 'Data de publicação', value: 'date' },
 ]
 
-const searchQuery = computed(() => (route.query.q ?? '').toString().toLowerCase().trim())
+const searchQuery = ref('')
 
 const ownedBooks = computed(() => {
   const list = userBooks.value
@@ -123,8 +121,9 @@ const publisherOptions = computed(() => [
 
 const applyBookFilters = (books: Book[]) => {
   let list = books
-  if (searchQuery.value) {
-    list = list.filter((b) => b.title?.toLowerCase().includes(searchQuery.value))
+  const q = searchQuery.value.toLowerCase().trim()
+  if (q) {
+    list = list.filter((b) => b.title?.toLowerCase().includes(q))
   }
   if (publisherFilter.value !== 'all') {
     list = list.filter((b) => b.editora?.nome_editora === publisherFilter.value)
@@ -276,6 +275,9 @@ onUnmounted(() => {
     <template v-else-if="ownedBooks.length || missingBooks.length">
       <!-- Filter bar -->
       <div class="filters-bar">
+        <div class="filter-item filter-item--search">
+          <UiSearch :model-value="searchQuery" @update="searchQuery = $event" />
+        </div>
         <div class="filter-item">
           <UiSelect :model-value="viewFilter" :options="viewOptions" @update="viewFilter = $event as any" />
         </div>
@@ -407,6 +409,11 @@ onUnmounted(() => {
 
 .filter-item {
   min-width: 180px;
+}
+
+.filter-item--search {
+  flex: 1;
+  min-width: 220px;
 }
 
 .cartao-principal {

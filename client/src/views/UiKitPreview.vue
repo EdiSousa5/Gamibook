@@ -13,6 +13,7 @@ import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
 import UiProgress from '@/components/ui/UiProgress.vue'
+import UiScrollArea from '@/components/ui/UiScrollArea.vue'
 import UiRadio from '@/components/ui/UiRadio.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
@@ -656,6 +657,28 @@ function isDark(hex: string): boolean {
               <UiChip label="Filled" variant="filled" />
               <UiChip label="Outline" variant="outline" />
             </div>
+          </div>
+        </UiCard>
+
+        <UiCard>
+          <h3 class="card-h">ScrollArea</h3>
+          <div class="column">
+            <span class="tag">Eixo vertical (max-height)</span>
+            <UiScrollArea max-height="120px">
+              <div style="padding:4px 2px;display:flex;flex-direction:column;gap:8px;">
+                <div v-for="n in 8" :key="n" style="padding:10px 12px;background:var(--color-wild-200);border:2px solid var(--color-mirage-800);border-radius:8px;box-shadow:2px 2px 0 var(--color-shadow);font-size:13px;font-weight:700;color:var(--color-mirage-700);">
+                  Linha {{ n }}
+                </div>
+              </div>
+            </UiScrollArea>
+            <span class="tag">Eixo horizontal</span>
+            <UiScrollArea axis="x">
+              <div style="display:flex;gap:10px;padding:4px 2px;">
+                <div v-for="n in 10" :key="n" style="flex-shrink:0;width:80px;height:60px;background:var(--color-wild-200);border:2px solid var(--color-mirage-800);border-radius:8px;box-shadow:2px 2px 0 var(--color-shadow);display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--color-mirage-700);">
+                  {{ n }}
+                </div>
+              </div>
+            </UiScrollArea>
           </div>
         </UiCard>
 

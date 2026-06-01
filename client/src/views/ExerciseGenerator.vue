@@ -1,18 +1,33 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import { gerarExercicios } from '@/services/flowise.ts'
-import { ChevronDownIcon, ClipboardDocumentIcon, ClipboardDocumentCheckIcon } from '@heroicons/vue/24/outline'
+import { useAuthStore } from '@/stores/auth'
+import {
+    ChevronDownIcon,
+    ClipboardDocumentIcon,
+    ClipboardDocumentCheckIcon,
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+    GlobeAltIcon,
+    EyeSlashIcon,
+    ExclamationTriangleIcon,
+    TrashIcon,
+} from '@heroicons/vue/24/outline'
 import {
     fetchBooks,
     fetchModulesByBook,
     fetchModules,
     updateModuleApproval,
     updateBookApproval,
+    updateBookMinimumContent,
 } from '@/services/books'
+import UiModal from '@/components/ui/UiModal.vue'
+import UiSearch from '@/components/ui/UiSearch.vue'
 import {
     createExercise,
     deleteExercise,
@@ -21,7 +36,6 @@ import {
 import { getAssetUrl } from '@/services/client'
 import type { Book, Exercise, Module } from '@/types'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
-import BookMockup from '@/components/ui/BookMockup.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
 import GeneratedExercisesList from '@/components/exercise-generator/GeneratedExercisesList.vue'
 import GeneratorConfigPanel from '@/components/exercise-generator/GeneratorConfigPanel.vue'
@@ -60,10 +74,13 @@ const MAX_SELECTED_MODULES = 4
 const MAX_MODULE_EXERCISES = 15
 let exerciseSeed = 0
 
+const authStore = useAuthStore()
+const router = useRouter()
+
 const loggedUserId = localStorage.getItem('gb_user_id') ?? ''
 
 
-const route = useRoute()
+
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
@@ -97,8 +114,16 @@ const progressLabel = ref('')
 const generationHalfTime = ref(20)
 const approvingMap = ref<Record<string, boolean>>({})
 const expandedModules = ref<Record<number, boolean>>({})
-const statusFilter = ref<'all' | 'approved' | 'unapproved'>('all')
+const statusFilter = ref<'all' | 'published' | 'ready' | 'incomplete'>('all')
 const publisherFilter = ref<string>('all')
+const bookSearch = ref('')
+const showApprovalModal = ref(false)
+const isApprovingBook = ref(false)
+const showClearExercisesModal = ref(false)
+const showRegenerateModal = ref(false)
+const showDiscardModal = ref(false)
+let discardConfirmCallback: (() => void) | null = null
+let confirmedLeave = false
 
 // Progresso simulado: curva exponencial que satura em ~95% enquanto aguarda resposta
 const generationProgress = computed(() => {
@@ -131,22 +156,23 @@ const publisherOptions = computed(() => {
 
 const statusOptions = [
     { label: 'Todos os estados', value: 'all' },
-    { label: 'Aprovados', value: 'approved' },
-    { label: 'Por aprovar', value: 'unapproved' }
+    { label: 'Publicados no site', value: 'published' },
+    { label: 'Prontos a publicar', value: 'ready' },
+    { label: 'Em desenvolvimento', value: 'incomplete' },
 ]
 
 const filteredBooks = computed(() => {
     let list = books.value
 
-    const searchParams = (route.query.q || route.query.search || '').toString().toLowerCase()
-    if (searchParams) {
-        list = list.filter(b => b.title?.toLowerCase().includes(searchParams))
-    }
+    const q = bookSearch.value.toLowerCase().trim()
+    if (q) list = list.filter(b => b.title?.toLowerCase().includes(q))
 
-    if (statusFilter.value === 'approved') {
+    if (statusFilter.value === 'published') {
         list = list.filter(b => b.is_approved)
-    } else if (statusFilter.value === 'unapproved') {
-        list = list.filter(b => !b.is_approved)
+    } else if (statusFilter.value === 'ready') {
+        list = list.filter(b => b.has_minimum_content && !b.is_approved)
+    } else if (statusFilter.value === 'incomplete') {
+        list = list.filter(b => !b.has_minimum_content)
     }
 
     if (publisherFilter.value !== 'all') {
@@ -302,6 +328,18 @@ const setLocalModuleApproval = (moduleId: number, isApproved: boolean) => {
     )
 }
 
+const setLocalBookMinimumContent = (bookId: number, hasMinimumContent: boolean) => {
+    books.value = books.value.map((book) =>
+        book.book_id === bookId ? { ...book, has_minimum_content: hasMinimumContent } : book,
+    )
+}
+
+const setLocalBookApproval = (bookId: number, isApproved: boolean) => {
+    books.value = books.value.map((book) =>
+        book.book_id === bookId ? { ...book, is_approved: isApproved } : book,
+    )
+}
+
 const syncModuleApproval = async (moduleId: number, approvedCount: number) => {
     const isApproved = approvedCount >= APPROVAL_THRESHOLD
     try {
@@ -309,21 +347,42 @@ const syncModuleApproval = async (moduleId: number, approvedCount: number) => {
         setLocalModuleApproval(moduleId, isApproved)
         const moduleItem = modules.value.find((item) => item.modules_id === moduleId)
         if (moduleItem?.id_book) {
-            await syncBookApproval(moduleItem.id_book)
+            await syncBookMinimumContent(moduleItem.id_book)
         }
     } catch (err) {
         console.error(err)
     }
 }
 
-const syncBookApproval = async (bookId: number) => {
+const syncBookMinimumContent = async (bookId: number) => {
     try {
         const moduleList = await fetchModulesByBook(bookId)
         const hasModules = moduleList.length > 0
-        const isApproved = hasModules && moduleList.every((item) => item.minimum_exercises === true)
-        await updateBookApproval(bookId, isApproved)
+        const hasMinContent = hasModules && moduleList.every((item) => item.minimum_exercises === true)
+        await updateBookMinimumContent(bookId, hasMinContent)
+        setLocalBookMinimumContent(bookId, hasMinContent)
     } catch (err) {
         console.error(err)
+    }
+}
+
+const handlePublishBook = () => {
+    showApprovalModal.value = true
+}
+
+const handleConfirmPublish = async () => {
+    if (!selectedBookId.value) return
+    isApprovingBook.value = true
+    try {
+        await updateBookApproval(selectedBookId.value, true)
+        setLocalBookApproval(selectedBookId.value, true)
+        showApprovalModal.value = false
+        toast.info('Livro publicado com sucesso.')
+    } catch (err) {
+        console.error(err)
+        toast.error('Não foi possível publicar o livro.')
+    } finally {
+        isApprovingBook.value = false
     }
 }
 
@@ -424,20 +483,7 @@ const generateForModules = async (count: number, modulesToUse = selectedModules.
     return { items, receivedCount: items.length, rawResponse }
 }
 
-const handleGenerate = async () => {
-    if (!selectedModules.value.length) {
-        toast.error('Seleciona pelo menos um módulo primeiro.')
-        return
-    }
-    if (countPerModule.value <= 0) {
-        toast.error('Define uma quantidade maior que zero.')
-        return
-    }
-    if (isOverMaxTotal.value) {
-        toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
-        return
-    }
-
+const doGenerate = async () => {
     const fullModules = selectedModules.value.filter(
         (m) => (approvedExercisesByModule.value[m.modules_id] ?? []).length >= MAX_MODULE_EXERCISES,
     )
@@ -475,7 +521,7 @@ const handleGenerate = async () => {
             toast.error('A IA não devolveu exercícios. Tenta novamente.')
             return
         }
-        generatedExercises.value = [...generatedExercises.value, ...result.items]
+        generatedExercises.value = result.items
         toast.info('Exercícios gerados. Revê e aprova os melhores.')
     } catch (err) {
         console.error(err)
@@ -488,6 +534,68 @@ const handleGenerate = async () => {
             elapsedTimer = null
         }
     }
+}
+
+const handleGenerate = async () => {
+    if (!selectedModules.value.length) {
+        toast.error('Seleciona pelo menos um módulo primeiro.')
+        return
+    }
+    if (countPerModule.value <= 0) {
+        toast.error('Define uma quantidade maior que zero.')
+        return
+    }
+    if (isOverMaxTotal.value) {
+        toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
+        return
+    }
+
+    if (generatedExercises.value.length > 0) {
+        showRegenerateModal.value = true
+        return
+    }
+
+    await doGenerate()
+}
+
+const confirmRegenerate = async () => {
+    showRegenerateModal.value = false
+    generatedExercises.value = []
+    await doGenerate()
+}
+
+const handleClearExercises = () => {
+    showClearExercisesModal.value = true
+}
+
+const confirmClearExercises = () => {
+    generatedExercises.value = []
+    showClearExercisesModal.value = false
+    toast.info('Lista de exercícios limpa.')
+}
+
+const requestDiscard = (onConfirm: () => void) => {
+    if (generatedExercises.value.length === 0) {
+        onConfirm()
+        return
+    }
+    discardConfirmCallback = onConfirm
+    showDiscardModal.value = true
+}
+
+const handleChangeBook = () => {
+    requestDiscard(() => { selectedBookId.value = null })
+}
+
+const confirmDiscard = () => {
+    showDiscardModal.value = false
+    discardConfirmCallback?.()
+    discardConfirmCallback = null
+}
+
+const cancelDiscard = () => {
+    showDiscardModal.value = false
+    discardConfirmCallback = null
 }
 
 const removeGenerated = (localId: string) => {
@@ -582,6 +690,16 @@ watch(selectedBookId, () => {
     rawFlowiseRequest.value = ''
 })
 
+onBeforeRouteLeave((to) => {
+    if (generatedExercises.value.length > 0 && !confirmedLeave) {
+        requestDiscard(() => {
+            confirmedLeave = true
+            router.push(to.fullPath)
+        })
+        return false
+    }
+})
+
 onMounted(async () => {
     await loadInitialData()
 })
@@ -604,43 +722,92 @@ onMounted(async () => {
 
         <div class="workspace">
             <div class="main-column">
-                <UiCard class="workspace-panel" :class="{ 'is-completed': selectedBookId }">
-                    <div class="panel-header">
+                <UiCard class="workspace-panel step1-panel">
+                    <div class="panel-header" :class="{ 'panel-header--selected': !!selectedBookId }">
                         <div class="step-indicator">1</div>
                         <div class="header-text">
-                            <h2>Escolhe um Livro</h2>
-                            <p v-if="selectedBookId" class="meta-selected">
-                                Livro selecionado: <strong>{{ selectedBook?.title }}</strong>
-                                <button class="text-button" @click="selectedBookId = null">Alterar</button>
-                            </p>
-                            <p v-else class="meta">Começa por selecionar o livro onde queres trabalhar.</p>
+                            <template v-if="!selectedBookId">
+                                <h2>Escolhe um Livro</h2>
+                                <p class="meta">Seleciona o livro onde queres trabalhar.</p>
+                            </template>
+                            <div v-else class="sbp-inline">
+                                <div class="sbp-cover">
+                                    <img v-if="selectedBook?.cover_img"
+                                        :src="getAssetUrl(selectedBook.cover_img)"
+                                        :alt="selectedBook?.title || ''" />
+                                    <span v-else class="sbp-cover-placeholder">
+                                        {{ selectedBook?.title?.[0]?.toUpperCase() || '?' }}
+                                    </span>
+                                </div>
+                                <div class="sbp-text">
+                                    <span class="sbp-name">{{ selectedBook?.title }}</span>
+                                    <span class="sbp-meta">{{ selectedBook?.editora?.nome_editora || 'Sem editora' }}</span>
+                                </div>
+                                <button class="alterar-btn" @click="handleChangeBook">Alterar</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="panel-body" v-show="!selectedBookId">
-                        <div class="filters-bar">
-                            <div class="filter-item">
-                                <UiSelect :model-value="statusFilter" :options="statusOptions"
-                                    @update="statusFilter = $event as any" />
+
+                    <div v-if="!selectedBookId" class="panel-body">
+                        <div class="book-list-filters">
+                            <div class="filter-search">
+                                <UiSearch :model-value="bookSearch" placeholder="Pesquisar livro..."
+                                    @update="bookSearch = $event" />
                             </div>
-                            <div class="filter-item">
-                                <UiSelect :model-value="publisherFilter" :options="publisherOptions"
-                                    @update="publisherFilter = $event as any" />
-                            </div>
+                            <UiSelect :model-value="statusFilter" :options="statusOptions"
+                                @update="statusFilter = $event as any" />
+                            <UiSelect :model-value="publisherFilter" :options="publisherOptions"
+                                @update="publisherFilter = $event as any" />
                         </div>
-                        <div class="books-grid">
-                            <div v-for="book in filteredBooks" :key="book.book_id" class="book-item"
-                                :class="{ 'is-selected': selectedBookId === book.book_id }"
-                                @click="selectedBookId = book.book_id" tabindex="0" role="button">
-                                <BookMockup :cover-url="book.cover_img ? getAssetUrl(book.cover_img) : null"
-                                    :title="book.title || 'Livro'" size="sm" />
-                                <div class="book-info">
-                                    <h4 class="book-title">{{ book.title }}</h4>
-                                    <UiChip :label="book.is_approved ? 'Aprovado' : 'Por aprovar'"
-                                        :variant="book.is_approved ? 'filled' : 'outline'" size="sm" />
+
+                        <div class="book-grid-wrapper">
+                                <div class="book-cards-grid">
+                                    <button v-for="book in filteredBooks" :key="book.book_id"
+                                        class="book-card" type="button"
+                                        @click="selectedBookId = book.book_id">
+                                        <div class="book-card-cover">
+                                            <img v-if="book.cover_img"
+                                                :src="getAssetUrl(book.cover_img)"
+                                                :alt="book.title || ''" />
+                                            <span v-else class="book-card-cover-placeholder">
+                                                {{ book.title?.[0]?.toUpperCase() || '?' }}
+                                            </span>
+                                        </div>
+                                        <div class="book-card-info">
+                                            <span class="book-card-title">{{ book.title }}</span>
+                                            <span class="book-card-publisher">
+                                                {{ book.editora?.nome_editora || 'Sem editora' }}
+                                            </span>
+                                            <div class="book-card-chips">
+                                                <UiChip
+                                                    :label="book.has_minimum_content ? 'Conteúdo completo' : 'Conteúdo em falta'"
+                                                    :variant="book.has_minimum_content ? 'filled' : 'outline'" />
+                                                <UiChip
+                                                    :label="book.is_approved ? 'Publicado no site' : 'Não publicado'"
+                                                    :variant="book.is_approved ? 'filled' : 'outline'" />
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <p v-if="!filteredBooks.length" class="book-cards-empty">
+                                        Nenhum livro encontrado com os filtros atuais.
+                                    </p>
                                 </div>
-                            </div>
-                            <p v-if="!filteredBooks.length" class="meta">Nenhum livro encontrado com os filtros atuais.
-                            </p>
+
+                                <div class="book-grid-legend">
+                                    <p class="bgl-title">Etiquetas</p>
+                                    <div class="bgl-row">
+                                        <UiChip label="Conteúdo completo" variant="filled" />
+                                        <span class="bgl-sep">/</span>
+                                        <UiChip label="Conteúdo em falta" variant="outline" />
+                                        <span class="bgl-desc">— todos os módulos têm exercícios suficientes ou não</span>
+                                    </div>
+                                    <div class="bgl-row">
+                                        <UiChip label="Publicado no site" variant="filled" />
+                                        <span class="bgl-sep">/</span>
+                                        <UiChip label="Não publicado" variant="outline" />
+                                        <span class="bgl-desc">— livro visível ou não para os utilizadores</span>
+                                    </div>
+                                </div>
                         </div>
                     </div>
                 </UiCard>
@@ -665,8 +832,8 @@ onMounted(async () => {
 
                 <section v-if="approvedSummaries.length" class="approved-section">
                     <div class="workspace-section-header">
-                        <h2>Estado das Aprovações</h2>
-                        <p class="meta">Acompanha o progresso de cada módulo selecionado.</p>
+                        <h2>Exercícios Aprovados</h2>
+                        <p class="meta">Lista de exercícios já aprovados em cada módulo selecionado.</p>
                     </div>
                     <div class="approved-grid">
                         <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
@@ -706,10 +873,71 @@ onMounted(async () => {
                     </div>
                 </section>
 
+                <UiModal v-if="authStore.isAdmin" :visible="showApprovalModal" :close-on-overlay="true" @close="showApprovalModal = false">
+                    <div class="approval-modal-card">
+                        <div class="approval-modal-header">
+                            <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                            <h3>Publicar livro</h3>
+                        </div>
+                        <div class="approval-modal-body">
+                            <p>Ao confirmar, <strong>{{ selectedBook?.title }}</strong> ficará imediatamente visível para todos os utilizadores na plataforma.</p>
+                            <p class="modal-note">Esta ação pode ser revertida manualmente no Directus.</p>
+                        </div>
+                        <div class="approval-modal-actions">
+                            <UiButton variant="outline" size="sm" @click="showApprovalModal = false">Cancelar</UiButton>
+                            <UiButton variant="primary" size="sm" :loading="isApprovingBook" :disabled="isApprovingBook" @click="handleConfirmPublish">Confirmar publicação</UiButton>
+                        </div>
+                    </div>
+                </UiModal>
+
+                <UiModal :visible="showRegenerateModal" :close-on-overlay="true" @close="showRegenerateModal = false">
+                    <div class="approval-modal-card">
+                        <div class="approval-modal-header">
+                            <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                            <h3>Gerar novos exercícios</h3>
+                        </div>
+                        <div class="approval-modal-body">
+                            <p>Já existem exercícios gerados. Ao continuar, os <strong>exercícios anteriores serão apagados</strong> e substituídos pelos novos.</p>
+                            <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                        </div>
+                        <div class="approval-modal-actions">
+                            <UiButton variant="outline" size="sm" @click="showRegenerateModal = false">Cancelar</UiButton>
+                            <UiButton variant="primary" size="sm" @click="confirmRegenerate">Gerar na mesma</UiButton>
+                        </div>
+                    </div>
+                </UiModal>
+
+                <UiModal :visible="showClearExercisesModal" :close-on-overlay="true" @close="showClearExercisesModal = false">
+                    <div class="approval-modal-card">
+                        <div class="approval-modal-header">
+                            <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                            <h3>Limpar exercícios</h3>
+                        </div>
+                        <div class="approval-modal-body">
+                            <p>Tens a certeza que queres remover todos os exercícios gerados? Esta ação não pode ser revertida.</p>
+                            <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                        </div>
+                        <div class="approval-modal-actions">
+                            <UiButton variant="outline" size="sm" @click="showClearExercisesModal = false">Cancelar</UiButton>
+                            <UiButton variant="danger" size="sm" :style="{ '--btn-shadow': '#fca5a5' }" @click="confirmClearExercises">Limpar exercícios</UiButton>
+                        </div>
+                    </div>
+                </UiModal>
+
                 <div v-if="groupedSections.length" class="generated-section">
                     <div class="workspace-section-header">
-                        <h2>Exercícios Gerados pela IA</h2>
-                        <p class="meta">Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
+                        <div class="section-header-flex">
+                            <div>
+                                <h2>Exercícios Gerados pela IA</h2>
+                                <p class="meta">Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
+                            </div>
+                            <UiButton variant="outline" size="sm" @click="handleClearExercises">
+                                <template #icon-left>
+                                    <TrashIcon style="width: 15px; height: 15px; flex-shrink: 0;" aria-hidden="true" />
+                                </template>
+                                Limpar exercícios
+                            </UiButton>
+                        </div>
                     </div>
                     <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels"
                         :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
@@ -748,11 +976,69 @@ onMounted(async () => {
                     :max-total-questions="MAX_TOTAL_QUESTIONS"
                     @update:count-per-module="countPerModule = Math.max(1, Number($event) || 1)"
                     @generate="handleGenerate" />
+
+                <Transition name="fade-slide">
+                    <div v-if="selectedBookId" class="status-sidebar">
+                        <UiCard class="status-card">
+                            <h4 class="status-card-title">Publicação do Livro</h4>
+                            <div class="sc-row">
+                                <div class="sc-row-info">
+                                    <CheckCircleIcon v-if="selectedBook?.has_minimum_content"
+                                        class="sc-icon sc-icon--ok" aria-hidden="true" />
+                                    <ExclamationCircleIcon v-else
+                                        class="sc-icon sc-icon--warn" aria-hidden="true" />
+                                    <span class="sc-label">Conteúdo mínimo</span>
+                                </div>
+                                <UiChip
+                                    :label="selectedBook?.has_minimum_content ? 'Completo' : 'Incompleto'"
+                                    :variant="selectedBook?.has_minimum_content ? 'filled' : 'outline'" size="sm" />
+                            </div>
+                            <div class="sc-row">
+                                <div class="sc-row-info">
+                                    <GlobeAltIcon v-if="selectedBook?.is_approved"
+                                        class="sc-icon sc-icon--ok" aria-hidden="true" />
+                                    <EyeSlashIcon v-else
+                                        class="sc-icon sc-icon--neutral" aria-hidden="true" />
+                                    <span class="sc-label">No site</span>
+                                </div>
+                                <UiChip
+                                    :label="selectedBook?.is_approved ? 'Publicado' : 'Não publicado'"
+                                    :variant="selectedBook?.is_approved ? 'filled' : 'outline'" size="sm" />
+                            </div>
+                            <button
+                                v-if="authStore.isAdmin && !selectedBook?.is_approved"
+                                class="publish-btn publish-btn--full"
+                                :class="{ 'is-disabled': !selectedBook?.has_minimum_content }"
+                                :disabled="!selectedBook?.has_minimum_content"
+                                @click="handlePublishBook">
+                                Publicar livro
+                            </button>
+                        </UiCard>
+
+                    </div>
+                </Transition>
             </div>
         </div>
 
         <GeneratorLoadingOverlay :is-generating="isGenerating" :progress-label="progressLabel"
             :progress="generationProgress" />
+
+        <UiModal :visible="showDiscardModal" :close-on-overlay="true" @close="cancelDiscard">
+            <div class="approval-modal-card">
+                <div class="approval-modal-header">
+                    <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                    <h3>Exercícios não guardados</h3>
+                </div>
+                <div class="approval-modal-body">
+                    <p>Tens exercícios gerados que ainda não foram aprovados. Se continuares, <strong>os exercícios serão perdidos</strong>.</p>
+                    <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                </div>
+                <div class="approval-modal-actions">
+                    <UiButton variant="outline" size="sm" @click="cancelDiscard">Cancelar</UiButton>
+                    <UiButton variant="primary" size="sm" @click="confirmDiscard">Continuar</UiButton>
+                </div>
+            </div>
+        </UiModal>
     </div>
 </template>
 
@@ -831,9 +1117,6 @@ onMounted(async () => {
     flex-direction: column;
 }
 
-.workspace-panel.is-completed {
-    border-color: var(--color-deep-400);
-}
 
 .panel-header {
     display: flex;
@@ -844,10 +1127,21 @@ onMounted(async () => {
     margin-bottom: var(--space-400);
 }
 
+.panel-header--selected {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
 .workspace-panel.is-completed .panel-header {
     border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 0;
+}
+
+.header-text {
+    flex: 1;
+    min-width: 0;
 }
 
 .step-indicator {
@@ -877,59 +1171,258 @@ onMounted(async () => {
     min-width: 200px;
 }
 
-.books-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: var(--space-500);
-    max-height: 480px;
-    overflow-y: auto;
-    padding: var(--space-200);
-    scrollbar-width: thin;
+/* Livro selecionado inline no header */
+.sbp-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--space-400);
 }
 
-.book-item {
+.sbp-cover {
+    width: 52px;
+    height: 72px;
+    flex-shrink: 0;
+    border-radius: 3px 6px 6px 3px;
+    overflow: hidden;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: -3px 0 6px rgba(0,0,0,0.12) inset, 3px 3px 8px rgba(0,0,0,0.18);
+}
+
+.sbp-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.sbp-cover-placeholder {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-mirage-600);
+}
+
+.sbp-text {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-300);
-    padding: var(--space-300);
-    border-radius: 16px;
-    border: 2px solid transparent;
+    gap: 4px;
+}
+
+.sbp-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-mirage-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sbp-meta {
+    font-size: 13px;
+    color: var(--color-mirage-500);
+    font-weight: 600;
+}
+
+.alterar-btn {
+    flex-shrink: 0;
+    padding: var(--space-150) var(--space-300);
+    border-radius: var(--radius-200);
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-200);
+    color: var(--color-mirage-800);
+    font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-    text-align: center;
+    box-shadow: 2px 2px 0 var(--color-shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.book-item:hover {
-    background: var(--color-wild-200);
-    transform: translateY(-6px);
+.alterar-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-.book-item.is-selected {
-    background: var(--color-wild-200);
-    border-color: var(--color-deep-600);
-    box-shadow: 4px 4px 0 var(--color-shadow);
-    transform: translateY(-4px);
+.alterar-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--color-shadow);
 }
 
-.book-info {
+/* Lista de livros */
+.book-list-filters {
+    display: flex;
+    gap: var(--space-300);
+    margin-bottom: var(--space-300);
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.filter-search {
+    flex: 1;
+    min-width: 180px;
+}
+
+/* Grid de livros */
+.book-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-400);
+}
+
+.book-cards-grid {
     display: grid;
-    gap: 6px;
-    place-items: center;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-300);
 }
 
-.book-title {
-    margin: 0;
+.book-card {
+    display: flex;
+    gap: var(--space-300);
+    align-items: center;
+    padding: var(--space-300);
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    border-radius: 14px;
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 4px 6px 0 var(--color-shadow);
+    background: var(--color-wild-200);
+}
+
+.book-card:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0 0 0 var(--color-shadow);
+    background: var(--color-deep-100);
+    border-color: var(--color-deep-600);
+}
+
+.book-card-cover {
+    width: 52px;
+    height: 72px;
+    flex-shrink: 0;
+    border-radius: 3px 6px 6px 3px;
+    overflow: hidden;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: -4px 0 8px rgba(0,0,0,0.12) inset, 2px 2px 6px rgba(0,0,0,0.15);
+    align-self: center;
+}
+
+.book-card-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.book-card-cover-placeholder {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-mirage-600);
+}
+
+.book-card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-100);
+}
+
+.book-card-title {
     font-size: 13px;
     font-weight: 800;
-    color: var(--color-mirage-800);
+    color: var(--color-mirage-900);
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.3;
+}
+
+.book-card-publisher {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-mirage-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.book-card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-100);
+    margin-top: var(--space-100);
+}
+
+.book-card-chips :deep(.ui-chip) {
+    font-size: 10px;
+    padding: 1px var(--space-200);
+    box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.book-cards-empty {
+    grid-column: 1 / -1;
+    padding: var(--space-500);
+    text-align: center;
+    color: var(--color-mirage-400);
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Legenda */
+.book-grid-legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-200);
+    padding: var(--space-300) var(--space-400);
+    border-radius: 12px;
+    border: 2px solid var(--color-mirage-900);
+    background: var(--color-wild-200);
+    box-shadow: 3px 3px 0 var(--color-shadow);
+}
+
+.bgl-title {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-mirage-500);
+}
+
+.bgl-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-200);
+    flex-wrap: wrap;
+}
+
+.bgl-sep {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-mirage-400);
+}
+
+.bgl-desc {
+    font-size: 12px;
+    color: var(--color-mirage-600);
 }
 
 .header-text h2 {
@@ -943,12 +1436,6 @@ onMounted(async () => {
     font-size: 14px;
 }
 
-.header-text .meta-selected {
-    margin: 4px 0 0;
-    font-size: 15px;
-    color: var(--color-deep-700);
-}
-
 .text-button {
     background: none;
     border: none;
@@ -956,7 +1443,7 @@ onMounted(async () => {
     font-weight: 700;
     text-decoration: underline;
     cursor: pointer;
-    padding: 0 0 0 8px;
+    padding: 0;
     font-size: 14px;
 }
 
@@ -979,6 +1466,14 @@ onMounted(async () => {
     color: var(--color-mirage-600);
     font-size: 14px;
 }
+
+.section-header-flex {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-400);
+}
+
 
 .approved-grid {
     display: grid;
@@ -1080,6 +1575,162 @@ onMounted(async () => {
 .approved-list-container {
     padding: var(--space-400);
     border-top: 1px solid var(--color-mirage-200);
+}
+
+/* Sidebar de estado */
+.status-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-400);
+}
+
+.status-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-300);
+}
+
+.status-card-title {
+    margin: 0 0 var(--space-100);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-mirage-500);
+}
+
+.sc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-200);
+}
+
+.sc-row-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-200);
+}
+
+.sc-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.sc-icon--ok { color: var(--color-teal-600); }
+.sc-icon--warn { color: var(--color-amber-500); }
+.sc-icon--neutral { color: var(--color-mirage-400); }
+
+.sc-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-mirage-800);
+}
+
+.publish-btn--full {
+    width: 100%;
+    margin-top: var(--space-100);
+    justify-content: center;
+}
+
+.publish-btn {
+    padding: var(--space-200) var(--space-400);
+    border-radius: var(--radius-200);
+    border: 2px solid var(--color-mirage-900);
+    background: var(--color-deep-600);
+    color: var(--color-wild-100);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    white-space: nowrap;
+}
+
+.publish-btn:hover:not(.is-disabled) {
+    transform: translateY(-2px);
+    box-shadow: 5px 5px 0 var(--color-shadow);
+}
+
+.publish-btn:active:not(.is-disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--color-shadow);
+}
+
+.publish-btn.is-disabled {
+    background: var(--color-mirage-300);
+    border-color: var(--color-mirage-400);
+    color: var(--color-mirage-500);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.approval-modal-card {
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-900);
+    border-radius: var(--radius-400);
+    box-shadow: 6px 6px 0 var(--color-shadow);
+    padding: var(--space-600);
+    max-width: 480px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-500);
+}
+
+.approval-modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-300);
+}
+
+.approval-modal-header h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-mirage-900);
+}
+
+.modal-warning-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--color-amber-500);
+    flex-shrink: 0;
+}
+
+.approval-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-200);
+}
+
+.approval-modal-body p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--color-mirage-700);
+    line-height: 1.5;
+}
+
+.modal-note {
+    font-size: 13px !important;
+    color: var(--color-mirage-400) !important;
+}
+
+.approval-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-300);
+}
+
+
+.modal-btn--confirm:disabled {
+    background: var(--color-mirage-300);
+    border-color: var(--color-mirage-400);
+    color: var(--color-mirage-500);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .raw-panel {
