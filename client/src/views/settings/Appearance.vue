@@ -90,23 +90,10 @@ const isSaving = ref(false)
 // o caso de voltar à página com o store já carregado, e o de carregar pela 1ª vez).
 watch(user, (u) => {
   currentBg.value = document.documentElement.getAttribute('data-bg') || localStorage.getItem('gb_bg') || 'bg-1'
-
-  avatarBorder.value =
-    (u?.avatar_border as AvatarBorder) ||
-    (localStorage.getItem('gb_av_border') as AvatarBorder) ||
-    'default'
-  // null é válido (sem cor) — só cai no localStorage se o campo não estiver no user
-  avatarColor.value = u
-    ? ((u.avatar_color as AvatarColor) ?? null)
-    : ((localStorage.getItem('gb_av_color') as AvatarColor) ?? null)
-  avatarEffect.value =
-    (u?.avatar_effect as AvatarEffect) ||
-    (localStorage.getItem('gb_av_effect') as AvatarEffect) ||
-    'none'
-  avatarShadow.value =
-    (u?.avatar_shadow as AvatarShadow) ||
-    (localStorage.getItem('gb_av_shadow') as AvatarShadow) ||
-    'default'
+  avatarBorder.value = (u?.avatar_border as AvatarBorder) || 'default'
+  avatarColor.value = u ? ((u.avatar_color as AvatarColor) ?? null) : null
+  avatarEffect.value = (u?.avatar_effect as AvatarEffect) || 'none'
+  avatarShadow.value = (u?.avatar_shadow as AvatarShadow) || 'default'
 }, { immediate: true })
 
 async function saveAvatarConfig() {
@@ -126,10 +113,6 @@ async function saveAvatarConfig() {
       authStore.user.avatar_effect = avatarEffect.value
       authStore.user.avatar_shadow = avatarShadow.value
     }
-    localStorage.setItem('gb_av_border', avatarBorder.value)
-    avatarColor.value ? localStorage.setItem('gb_av_color', avatarColor.value) : localStorage.removeItem('gb_av_color')
-    localStorage.setItem('gb_av_effect', avatarEffect.value)
-    localStorage.setItem('gb_av_shadow', avatarShadow.value)
     toast.success('Avatar guardado com sucesso.')
   } catch {
     toast.error('Não foi possível guardar. Tenta novamente.')

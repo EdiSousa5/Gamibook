@@ -9,6 +9,7 @@ import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, 
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
+import { getStoredUserId } from '@/services/storage'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAuthStore } from '@/stores/auth'
 import NotificationPanel from '@/components/ui/NotificationPanel.vue'
@@ -109,7 +110,7 @@ const processResult = async (rawText: string) => {
 
   scanState.value = 'processing'
   try {
-    const userId = localStorage.getItem('gb_user_id')
+    const userId = getStoredUserId()
     if (!userId) {
       scanState.value = 'error'
       scanError.value = 'Sessão expirada. Faz login novamente.'

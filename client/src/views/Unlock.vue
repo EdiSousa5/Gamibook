@@ -5,6 +5,7 @@ import { CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicon
 import UiButton from '@/components/ui/UiButton.vue'
 import BookUnlockModal from '@/components/ui/BookUnlockModal.vue'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
+import { getStoredUserId } from '@/services/storage'
 import type { Book } from '@/types'
 
 type State = 'loading' | 'success' | 'already-owned' | 'not-found' | 'error'
@@ -18,7 +19,7 @@ const errorMsg = ref('')
 
 onMounted(async () => {
   const code = route.params.code as string
-  const userId = localStorage.getItem('gb_user_id')
+  const userId = getStoredUserId()
   if (!userId) {
     router.replace({ path: '/login', query: { redirect: `/unlock/${code}` } })
     return
