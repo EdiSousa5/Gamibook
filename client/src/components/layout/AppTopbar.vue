@@ -16,7 +16,7 @@ import type { Book } from '@/types'
 
 type Props = {
   username: string
-  avatarUrl?: string
+  avatarAssetId?: string | null
   level?: number | null
   progressValue?: number
   progressTotal?: number
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
           <UiAvatar
               :alt="initials"
               :size="44"
-              :src="avatarUrl"
+              :asset-id="avatarAssetId"
               :border="authStore.avatarConfig.border"
               :avatar-color="authStore.avatarConfig.avatarColor"
               :effect="authStore.avatarConfig.effect"

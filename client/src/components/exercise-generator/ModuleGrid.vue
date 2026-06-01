@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UiCard from '@/components/ui/UiCard.vue'
 import UiChip from '@/components/ui/UiChip.vue'
-import { CheckCircleIcon, ClockIcon } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon } from '@heroicons/vue/24/outline'
 import type { Module } from '@/types'
 
 type Props = {
@@ -33,11 +33,6 @@ defineEmits<{ toggle: [number]; active: [number] }>()
                 <div class="info">
                     <h3>{{ moduleItem.module_title || `Módulo ${moduleItem.modules_id}` }}</h3>
                     <p class="desc">{{ moduleItem.additional_description || 'Sem descrição' }}</p>
-                    <span class="status-badge" :class="{ 'is-approved': moduleItem.minimum_exercises }">
-                        <CheckCircleIcon v-if="moduleItem.minimum_exercises" class="status-icon" aria-hidden="true" />
-                        <ClockIcon v-else class="status-icon" aria-hidden="true" />
-                        {{ moduleItem.minimum_exercises ? 'Aprovado' : 'Por aprovar' }}
-                    </span>
                 </div>
                 <div class="check" :class="{ 'check--selected': selectedModuleIds.includes(moduleItem.modules_id) }" aria-hidden="true">
                     <CheckCircleIcon v-if="selectedModuleIds.includes(moduleItem.modules_id)" class="check-icon" />
@@ -126,33 +121,6 @@ defineEmits<{ toggle: [number]; active: [number] }>()
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    border: 2px solid var(--color-mirage-800);
-    box-shadow: 2px 2px 0 var(--color-shadow);
-    background: var(--color-amber-100);
-    color: var(--color-amber-700);
-    width: fit-content;
-}
-
-.status-badge.is-approved {
-    background: var(--color-teal-100);
-    color: var(--color-teal-700);
-}
-
-.status-icon {
-    width: 12px;
-    height: 12px;
-    stroke-width: 2.5;
-    flex-shrink: 0;
 }
 
 .check {
