@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { FireIcon } from '@heroicons/vue/24/solid'
-import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon } from '@heroicons/vue/24/outline'
+import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, TrophyIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
@@ -45,8 +45,14 @@ const BADGE_TIERS: { tier: BookBadgeTier; label: string }[] = [
   { tier: 'galaxy', label: 'Galáxia' },
 ]
 
-const totalBadges = computed(() =>
-  BADGE_TIERS.reduce((sum, { tier }) => sum + badgeCounts.value[tier], 0),
+const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
+
+const totalBadgeScore = computed(() =>
+  userBooks.value.reduce((sum, ub) => {
+    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!badge || badge === 'default') return sum
+    return sum + (BADGE_WEIGHTS[badge] ?? 0)
+  }, 0)
 )
 
 const getBookCover = (ub: UserBook) => {
@@ -186,11 +192,6 @@ onMounted(async () => {
 
       <!-- Stats -->
       <div class="stats-grid">
-        <div class="card stat-card">
-          <StarIcon class="stat-icon pts" aria-hidden="true" />
-          <span class="stat-value">{{ points.toLocaleString('pt-PT') }}</span>
-          <span class="stat-label">Pontos</span>
-        </div>
         <div class="card stat-card" :class="{ 'stat-card--dim': !user?.exercises_daily_streak }">
           <FireIcon class="stat-icon streak" aria-hidden="true" />
           <span class="stat-value">{{ user?.exercises_daily_streak ?? 0 }}</span>
@@ -201,10 +202,25 @@ onMounted(async () => {
           <span class="stat-value">{{ user?.best_exercises_daily_streak ?? 0 }}</span>
           <span class="stat-label">Melhor streak</span>
         </div>
+        <div class="card stat-card" :class="{ 'stat-card--dim': !user?.best_rank }">
+          <TrophyIcon class="stat-icon rank" aria-hidden="true" />
+          <span class="stat-value">{{ user?.best_rank != null ? `#${user.best_rank}` : '—' }}</span>
+          <span class="stat-label">Melhor posição</span>
+        </div>
+        <div class="card stat-card">
+          <StarIcon class="stat-icon pts" aria-hidden="true" />
+          <span class="stat-value">{{ points.toLocaleString('pt-PT') }}</span>
+          <span class="stat-label">Pontos</span>
+        </div>
         <div class="card stat-card">
           <BookOpenIcon class="stat-icon books" aria-hidden="true" />
           <span class="stat-value">{{ userBooks.length }}</span>
           <span class="stat-label">Livros</span>
+        </div>
+        <div class="card stat-card">
+          <SparklesIcon class="stat-icon badges" aria-hidden="true" />
+          <span class="stat-value">{{ totalBadgeScore }}</span>
+          <span class="stat-label">Badges</span>
         </div>
       </div>
 
@@ -396,7 +412,7 @@ onMounted(async () => {
 /* ── Stats ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
@@ -423,7 +439,9 @@ onMounted(async () => {
 .stat-icon.pts        { stroke-width: 1.5; color: var(--color-deep-600); }
 .stat-icon.streak     { color: #f97316; }
 .stat-icon.best-streak { color: var(--color-amber-600); }
-.stat-icon.books      { stroke-width: 1.5; color: var(--color-deep-500); }
+.stat-icon.rank        { stroke-width: 1.5; color: var(--color-pumpkin-600); }
+.stat-icon.books       { stroke-width: 1.5; color: var(--color-deep-500); }
+.stat-icon.badges      { stroke-width: 1.5; color: var(--color-deep-600); }
 
 .stat-value {
   font-size: 22px;

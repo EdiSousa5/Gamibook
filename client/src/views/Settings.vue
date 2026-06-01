@@ -6,7 +6,8 @@ import {
   IdentificationIcon,
   BellIcon,
   PaintBrushIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  EyeIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -17,6 +18,7 @@ const sections = [
   { id: 'aparencia', label: 'Aparência', description: 'Temas e cores', path: '/settings/aparencia', icon: PaintBrushIcon },
   { id: 'notificacoes', label: 'Notificações', description: 'Alertas e resumos', path: '/settings/notificacoes', icon: BellIcon },
   { id: 'privacidade', label: 'Privacidade', description: 'Segurança e dados', path: '/settings/privacidade', icon: ShieldCheckIcon },
+  { id: 'acessibilidade', label: 'Acessibilidade', description: 'Letra, cores e teclado', path: '/settings/acessibilidade', icon: EyeIcon },
 ] as const
 
 const isActive = (path: string) => route.path === path

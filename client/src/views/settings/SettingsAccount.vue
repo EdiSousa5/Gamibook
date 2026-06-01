@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import { PaperClipIcon } from '@heroicons/vue/24/outline'
+import { PaperClipIcon, UserCircleIcon, KeyIcon } from '@heroicons/vue/24/outline'
 import {
     fetchUserById,
     getUserAvatarId,
@@ -19,12 +19,20 @@ const auth = useAuthStore()
 const { error: toastError, success: toastSuccess } = useToast()
 
 const user = ref<User | null>(null)
-const name = ref('')
 const isLoading = ref(false)
-const isSaving = ref(false)
+
+// Profile
+const name = ref('')
+const isSavingProfile = ref(false)
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
 const fileName = ref('Nenhum ficheiro escolhido')
+
+// Credentials
+const newEmail = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const isSavingCredentials = ref(false)
 
 const avatar = computed(() => {
     if (avatarPreview.value) return avatarPreview.value
@@ -38,19 +46,13 @@ const onAvatarChange = (event: Event) => {
     avatarFile.value = file
     fileName.value = file.name
     const reader = new FileReader()
-    reader.onload = () => {
-        avatarPreview.value = String(reader.result || '')
-    }
+    reader.onload = () => { avatarPreview.value = String(reader.result || '') }
     reader.readAsDataURL(file)
 }
 
 const loadProfile = async () => {
     const storedId = getStoredUserId()
-    if (!storedId) {
-        user.value = null
-        return
-    }
-
+    if (!storedId) { user.value = null; return }
     isLoading.value = true
     try {
         const me = await fetchUserById(storedId)
@@ -70,12 +72,9 @@ const saveProfile = async () => {
     const [firstName, ...rest] = trimmedName.split(' ').filter(Boolean)
     const lastName = rest.join(' ') || undefined
 
-    isSaving.value = true
+    isSavingProfile.value = true
     try {
-        await updateUser(userId, {
-            first_name: firstName || undefined,
-            last_name: lastName,
-        })
+        await updateUser(userId, { first_name: firstName || undefined, last_name: lastName })
         if (avatarFile.value) {
             try {
                 const avatarId = await uploadUserAvatar(userId, avatarFile.value)
@@ -94,7 +93,49 @@ const saveProfile = async () => {
     } catch {
         toastError('Não foi possível guardar o perfil.')
     } finally {
-        isSaving.value = false
+        isSavingProfile.value = false
+    }
+}
+
+const saveCredentials = async () => {
+    if (!user.value?.id) return
+    const hasEmail = newEmail.value.trim().length > 0
+    const hasPassword = newPassword.value.length > 0
+
+    if (!hasEmail && !hasPassword) {
+        toastError('Preenche pelo menos o email ou a palavra-passe.')
+        return
+    }
+    if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.value.trim())) {
+        toastError('Endereço de email inválido.')
+        return
+    }
+    if (hasPassword && newPassword.value.length < 8) {
+        toastError('A palavra-passe deve ter pelo menos 8 caracteres.')
+        return
+    }
+    if (hasPassword && newPassword.value !== confirmPassword.value) {
+        toastError('As palavras-passe não coincidem.')
+        return
+    }
+
+    isSavingCredentials.value = true
+    try {
+        const payload: Record<string, string> = {}
+        if (hasEmail) payload.email = newEmail.value.trim()
+        if (hasPassword) payload.password = newPassword.value
+
+        await updateUser(String(user.value.id), payload)
+        if (hasEmail && user.value) user.value.email = newEmail.value.trim()
+        newEmail.value = ''
+        newPassword.value = ''
+        confirmPassword.value = ''
+        await auth.loadUser()
+        toastSuccess('Credenciais atualizadas com sucesso.')
+    } catch {
+        toastError('Não foi possível atualizar as credenciais.')
+    } finally {
+        isSavingCredentials.value = false
     }
 }
 
@@ -105,63 +146,228 @@ onMounted(loadProfile)
     <div class="settings-section">
         <div class="section-header">
             <h2>Conta</h2>
-            <p class="meta">Atualiza o teu nome e avatar.</p>
+            <p class="meta">Gere o teu perfil e credenciais de acesso.</p>
         </div>
 
-        <div class="form">
-            <UiInput label="Nome" :model-value="name" @update="name = String($event)" />
-            <label class="file-field">
-                <span class="label">Avatar</span>
-                <div class="file-picker">
-                    <PaperClipIcon class="file-icon" aria-hidden="true" />
-                    <span class="file-name">{{ fileName }}</span>
-                    <span class="file-action">Selecionar</span>
-                    <input type="file" accept="image/*" @change="onAvatarChange" />
+        <p v-if="isLoading" class="state">A carregar perfil...</p>
+
+        <template v-else>
+            <!-- Perfil -->
+            <div class="account-group">
+                <div class="group-header">
+                    <div class="group-icon-wrap">
+                        <UserCircleIcon class="group-icon" aria-hidden="true" />
+                    </div>
+                    <div>
+                        <h3>Perfil</h3>
+                        <p>Nome de apresentação e fotografia.</p>
+                    </div>
                 </div>
-            </label>
-            <div v-if="avatar" class="avatar">
-                <UiAvatar
-                    :src="avatar"
-                    alt="Avatar"
-                    :size="96"
-                    :border="auth.avatarConfig.border"
-                    :avatar-color="auth.avatarConfig.avatarColor"
-                    :effect="auth.avatarConfig.effect"
-                    :shadow="auth.avatarConfig.shadow"
-                />
+                <div class="group-body">
+                    <div class="profile-editor">
+                        <!-- Avatar preview + uploader -->
+                        <div class="avatar-section">
+                            <div class="avatar-preview-wrap">
+                                <UiAvatar
+                                    v-if="avatar"
+                                    :src="avatar"
+                                    alt="Avatar"
+                                    :size="88"
+                                    :border="auth.avatarConfig.border"
+                                    :avatar-color="auth.avatarConfig.avatarColor"
+                                    :effect="auth.avatarConfig.effect"
+                                    :shadow="auth.avatarConfig.shadow"
+                                />
+                            </div>
+                            <label class="file-field">
+                                <div class="file-picker">
+                                    <PaperClipIcon class="file-icon" aria-hidden="true" />
+                                    <span class="file-name">{{ fileName }}</span>
+                                    <span class="file-action">Selecionar foto</span>
+                                    <input type="file" accept="image/*" @change="onAvatarChange" />
+                                </div>
+                                <span class="file-hint">JPG, PNG ou GIF · máx. 5 MB</span>
+                            </label>
+                        </div>
+                        <!-- Name input -->
+                        <div class="name-section">
+                            <UiInput label="Nome de apresentação" :model-value="name" @update="name = String($event)" />
+                        </div>
+                    </div>
+                    <div class="group-actions">
+                        <UiButton type="button" :loading="isSavingProfile" @click="saveProfile">
+                            Guardar perfil
+                        </UiButton>
+                    </div>
+                </div>
             </div>
-            <p v-if="isLoading" class="state">A carregar perfil...</p>
-            <UiButton type="button" class="cta" :loading="isSaving" @click="saveProfile">Guardar</UiButton>
-        </div>
+
+            <!-- Credenciais (email + palavra-passe juntos) -->
+            <div class="account-group">
+                <div class="group-header">
+                    <div class="group-icon-wrap">
+                        <KeyIcon class="group-icon" aria-hidden="true" />
+                    </div>
+                    <div>
+                        <h3>Credenciais de acesso</h3>
+                        <p>Email atual: <strong class="current-value">{{ user?.email || '—' }}</strong></p>
+                    </div>
+                </div>
+                <div class="group-body">
+                    <UiInput
+                        label="Novo email"
+                        type="email"
+                        placeholder="novo@email.com"
+                        :model-value="newEmail"
+                        @update="newEmail = String($event)"
+                    />
+
+                    <div class="creds-divider">
+                        <span>Palavra-passe</span>
+                    </div>
+
+                    <UiInput
+                        label="Nova palavra-passe"
+                        type="password"
+                        placeholder="Mínimo 8 caracteres"
+                        :model-value="newPassword"
+                        @update="newPassword = String($event)"
+                    />
+                    <UiInput
+                        label="Confirmar palavra-passe"
+                        type="password"
+                        placeholder="Repete a nova palavra-passe"
+                        :model-value="confirmPassword"
+                        @update="confirmPassword = String($event)"
+                    />
+
+                    <p class="creds-hint">Preenche apenas os campos que queres alterar.</p>
+
+                    <div class="group-actions">
+                        <UiButton
+                            type="button"
+                            :disabled="!newEmail.trim() && !newPassword"
+                            :loading="isSavingCredentials"
+                            @click="saveCredentials"
+                        >
+                            Guardar credenciais
+                        </UiButton>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 </template>
 
 <style scoped>
 .settings-section {
     display: grid;
+    gap: var(--space-400);
+    max-width: 680px;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-family: var(--font-display);
+}
+
+.meta {
+    margin: 0;
+    color: var(--color-mirage-500);
+    font-size: 13px;
+}
+
+.state {
+    font-weight: 600;
+    color: var(--color-mirage-500);
+}
+
+.account-group {
+    border: 2px solid var(--color-mirage-800);
+    border-radius: var(--radius-400);
+    box-shadow: 3px 3px 0 var(--color-shadow);
+    overflow: hidden;
+}
+
+.group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-300);
+    padding: var(--space-300) var(--space-400);
+    background: var(--color-wild-200);
+    border-bottom: 2px solid var(--color-mirage-800);
+}
+
+.group-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 2px solid var(--color-mirage-800);
+    background: var(--color-wild-100);
+    box-shadow: 2px 2px 0 var(--color-shadow);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.group-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--color-deep-700);
+    stroke-width: 2;
+}
+
+.group-header h3 {
+    margin: 0 0 2px;
+    font-size: 15px;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: var(--color-mirage-800);
+}
+
+.group-header p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-mirage-500);
+}
+
+.current-value {
+    color: var(--color-mirage-700);
+}
+
+.group-body {
+    padding: var(--space-400);
+    display: grid;
+    gap: var(--space-400);
+    background: var(--color-wild-100);
+}
+
+/* Profile editor layout */
+.profile-editor {
+    display: grid;
     gap: var(--space-300);
 }
 
-.section-header {
-    display: grid;
-    gap: 6px;
+.avatar-section {
+    display: flex;
+    align-items: center;
+    gap: var(--space-400);
+    padding: var(--space-300) var(--space-400);
+    background: var(--color-wild-200);
+    border: 2px solid var(--color-wild-500);
+    border-radius: 14px;
 }
 
-.form {
-    display: grid;
-    gap: 12px;
+.avatar-preview-wrap {
+    flex-shrink: 0;
 }
 
 .file-field {
+    flex: 1;
     display: grid;
     gap: var(--space-150);
-    font-weight: 600;
-    position: relative;
-}
-
-.label {
-    color: var(--color-mirage-600);
-    font-size: 12px;
+    cursor: pointer;
+    min-width: 0;
 }
 
 .file-picker {
@@ -186,14 +392,18 @@ onMounted(loadProfile)
 }
 
 .file-icon {
-    width: 18px;
-    height: 18px;
-    color: var(--color-mirage-700);
+    width: 16px;
+    height: 16px;
+    color: var(--color-mirage-600);
+    flex-shrink: 0;
 }
 
 .file-name {
-    font-size: 13px;
-    color: var(--color-mirage-600);
+    font-size: 12px;
+    color: var(--color-mirage-500);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .file-action {
@@ -201,9 +411,10 @@ onMounted(loadProfile)
     border-radius: 999px;
     border: 2px solid var(--color-mirage-800);
     background: var(--color-wild-100);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
-    box-shadow: 3px 3px 0 var(--color-shadow);
+    white-space: nowrap;
+    box-shadow: 2px 2px 0 var(--color-shadow);
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
 }
 
@@ -213,23 +424,53 @@ onMounted(loadProfile)
 
 .file-picker:active .file-action {
     transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 var(--color-shadow);
+    box-shadow: 0 0 0 var(--color-shadow);
 }
 
-.avatar {
-    width: fit-content;
-}
-
-.cta {
-    width: fit-content;
-}
-
-.meta {
-    color: var(--color-mirage-500);
-}
-
-.state {
+.file-hint {
+    font-size: 11px;
     font-weight: 600;
-    color: var(--color-mirage-500);
+    color: var(--color-mirage-400);
+}
+
+.name-section {
+    display: grid;
+}
+
+/* Credentials divider */
+.creds-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-200);
+    margin: var(--space-100) 0;
+}
+
+.creds-divider::before,
+.creds-divider::after {
+    content: '';
+    flex: 1;
+    height: 1.5px;
+    background: var(--color-wild-500);
+}
+
+.creds-divider span {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-mirage-400);
+    white-space: nowrap;
+}
+
+.creds-hint {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-mirage-400);
+}
+
+.group-actions {
+    display: flex;
+    gap: var(--space-200);
 }
 </style>

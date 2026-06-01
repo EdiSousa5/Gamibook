@@ -18,4 +18,6 @@ export type User = {
   avatar_effect?: string
   avatar_shadow?: string
   background_theme?: string
+  best_rank?: number | null
+  profile_private?: boolean | null
 }
