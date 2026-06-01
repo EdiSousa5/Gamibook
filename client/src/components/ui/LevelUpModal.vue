@@ -7,7 +7,7 @@ import UiScrollArea from './UiScrollArea.vue'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { generateConfetti } from '@/utils/confetti'
 
-type UnlockType = 'color' | 'bg' | 'effect' | 'border' | 'feature'
+type UnlockType = 'color' | 'bg' | 'effect' | 'border' | 'feature' | 'frame'
 
 type UnlockItem = {
   label: string
@@ -25,6 +25,7 @@ const UNLOCKS_BY_LEVEL: Record<number, UnlockItem[]> = {
     { label: 'Desafios Diários', type: 'feature', desc: 'Um desafio por dia, por livro' },
     { label: 'Borda Mínima', type: 'border' },
     { label: 'Água Clara', type: 'bg', gradVar: '--grad-3' },
+    { label: 'Contorno', type: 'frame', desc: 'A primeira marca de quem está a traçar o seu caminho' },
   ],
   5: [
     { label: 'Teal Escuro', type: 'color', hex: '#075056' },
@@ -35,15 +36,20 @@ const UNLOCKS_BY_LEVEL: Record<number, UnlockItem[]> = {
     { label: 'Âmbar Claro', type: 'bg', gradVar: '--grad-28' },
     { label: 'Amanhecer', type: 'bg', gradVar: '--grad-2' },
     { label: 'Pêssego', type: 'bg', gradVar: '--grad-9' },
+    { label: 'Relevo', type: 'frame', desc: 'Presença mais forte, como palavras gravadas a fundo' },
   ],
   7: [
     { label: 'Borda Pesada', type: 'border' },
+    { label: 'Duplo', type: 'frame', desc: 'Duas camadas, dois mundos — o da história e o teu' },
   ],
   8: [
     { label: 'Abóbora', type: 'color', hex: '#ffa74f' },
     { label: 'Âmbar Escuro', type: 'color', hex: '#e8611e' },
     { label: 'Efeito Lustro', type: 'effect' },
     { label: 'Menta', type: 'bg', gradVar: '--grad-6' },
+  ],
+  9: [
+    { label: 'Marca', type: 'frame', desc: 'Deixaste a tua marca na plataforma' },
   ],
   10: [
     { label: 'Carmesim', type: 'color', hex: '#d85252' },
@@ -65,10 +71,14 @@ const UNLOCKS_BY_LEVEL: Record<number, UnlockItem[]> = {
     { label: 'Aurora Suave', type: 'bg', gradVar: '--grad-12' },
     { label: 'Doce Carmesim', type: 'bg', gradVar: '--grad-18' },
   ],
+  11: [
+    { label: 'Destaque', type: 'frame', desc: 'Reconhecido entre os melhores leitores' },
+  ],
   15: [
     { label: 'Carmesim Escuro', type: 'color', hex: '#9e2828' },
     { label: 'Rosado', type: 'bg', gradVar: '--grad-14' },
     { label: 'Brisa Quente', type: 'bg', gradVar: '--grad-11' },
+    { label: 'Lenda', type: 'frame', desc: 'O cume — reservado para quem domina a arte da leitura' },
   ],
   16: [
     { label: 'Flutuar', type: 'bg', gradVar: '--grad-13' },
@@ -163,6 +173,9 @@ const unlockGroups = computed<UnlockGroup[]>(() => {
 
   const features = all.filter(u => u.type === 'feature')
   if (features.length) groups.push({ label: 'Funcionalidades', items: features })
+
+  const frames = all.filter(u => u.type === 'frame')
+  if (frames.length) groups.push({ label: 'Frames de Avatar', items: frames })
 
   const colors = all.filter(u => u.type === 'color')
   if (colors.length) groups.push({ label: 'Cores do Avatar', items: colors })
@@ -284,8 +297,8 @@ const borderClass = (item: UnlockItem) => {
             <div v-for="group in unlockGroups" :key="group.label" class="group">
               <p class="group-label">{{ group.label }}</p>
 
-              <!-- Features (funcionalidades) -->
-              <div v-if="group.items[0].type === 'feature'" class="feature-list">
+              <!-- Features (funcionalidades) e Frames -->
+              <div v-if="group.items[0].type === 'feature' || group.items[0].type === 'frame'" class="feature-list">
                 <div v-for="item in group.items" :key="item.label" class="feature-item">
                   <div class="feature-icon-wrap" aria-hidden="true">
                     <BoltIcon class="feature-icon" />

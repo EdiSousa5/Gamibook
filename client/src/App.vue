@@ -14,6 +14,7 @@ import { useNotificationsStore } from './stores/notifications'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
 import { setUnauthorizedHandler } from './services/client'
+import { DAILY_UNLOCK_LEVEL, LEVELS_WITH_UNLOCKS } from './utils/constants'
 
 const router = useRouter()
 const route = useRoute()
@@ -112,6 +113,37 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => auth.user?.level,
+  (newLevel, oldLevel) => {
+    if (!newLevel || !oldLevel || newLevel <= oldLevel) return
+    const userId = auth.user?.id ? String(auth.user.id) : null
+    if (!userId) return
+    notifStore.add({
+      user: userId,
+      title: `Nível ${newLevel} atingido!`,
+      message: `Subiste do nível ${oldLevel} para o nível ${newLevel}. Continua assim!`,
+      type: 'achievement',
+    })
+    if (newLevel === DAILY_UNLOCK_LEVEL) {
+      notifStore.add({
+        user: userId,
+        title: 'Desafios diários desbloqueados!',
+        message: 'Chegaste ao nível 3! Os desafios diários estão agora disponíveis. Completa um por dia para manteres a tua sequência.',
+        type: 'new_content',
+      })
+    }
+    if (LEVELS_WITH_UNLOCKS.has(newLevel)) {
+      notifStore.add({
+        user: userId,
+        title: 'Novas customizações desbloqueadas!',
+        message: `O nível ${newLevel} trouxe novos itens de personalização. Experimenta-os nas definições de aparência.`,
+        type: 'new_content',
+      })
+    }
+  },
 )
 </script>
 

@@ -119,10 +119,6 @@ const toggleAccordion = (key: string) => {
             <div class="step-body">
               <h3>Gera os exercícios</h3>
               <p>Clica em <strong>Gerar Exercícios</strong>. A IA irá criar as perguntas com base no conteúdo dos módulos. O processo pode demorar alguns segundos.</p>
-              <div class="warning-box">
-                <ExclamationTriangleIcon class="warning-icon" aria-hidden="true" />
-                <span>A geração consome da tua quota diária. O limite é de <strong>50 exercícios por dia</strong>.</span>
-              </div>
             </div>
           </div>
 
@@ -188,16 +184,6 @@ const toggleAccordion = (key: string) => {
                 <li>Máximo de <strong>40 perguntas no total</strong>.</li>
                 <li>Máximo de <strong>15 exercícios</strong> por módulo.</li>
               </ul>
-            </div>
-          </div>
-
-          <div class="rule-card">
-            <div class="rule-icon-wrap">
-              <SparklesIcon class="rule-icon" aria-hidden="true" />
-            </div>
-            <div class="rule-body">
-              <h4>Quota diária</h4>
-              <p>Cada editora/autor tem uma quota de <strong>50 exercícios gerados por dia</strong>. A quota reinicia à meia-noite.</p>
             </div>
           </div>
 

@@ -31,6 +31,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useNotificationsStore } from '@/stores/notifications'
 import { BADGE_TIERS, TIER_LABELS, TIER_DESCS } from '@/utils/badgeTiers'
+import { DAILY_UNLOCK_LEVEL } from '@/utils/constants'
 import type { Book, UserBook } from '@/types'
 
 const auth = useAuthStore()
@@ -47,10 +48,9 @@ const dailyLastQuestion = ref('')
 const dailyWasCorrect = ref<boolean | null>(null)
 let dailyTimer: number | null = null
 
-// ── Computed ──────────────────────────────────────────────────
 const recentUserBook = ref<UserBook | null>(null)
 const recentBook = computed(() => (recentUserBook.value?.book_id as Book) ?? null)
-const recentBookId = computed(() => (recentBook.value as any)?.book_id ?? null)
+const recentBookId = computed(() => recentBook.value?.book_id ?? null)
 const recentBadge = computed<BookBadgeTier | undefined>(() => {
   const b = recentUserBook.value?.current_badge
   return b && b !== 'default' ? (b as BookBadgeTier) : undefined
@@ -94,7 +94,6 @@ const formatDailyCooldown = computed(() => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
-// ── Methods ───────────────────────────────────────────────────
 const startDailyCooldownTimer = (lastDate: string) => {
   const nextTime = new Date(lastDate).getTime() + 24 * 60 * 60 * 1000
   const update = () => {
@@ -108,8 +107,6 @@ const startDailyCooldownTimer = (lastDate: string) => {
   update()
   dailyTimer = window.setInterval(update, 1000)
 }
-
-const DAILY_UNLOCK_LEVEL = 3
 
 const loadDailyStatus = async (userId: string, books: UserBook[]) => {
   try {
@@ -205,7 +202,7 @@ const loadRecentBook = async (userId: string) => {
       const moduleId = typeof latestEx.module_id === 'object' ? latestEx.module_id.modules_id : latestEx.module_id
       const modData = await fetchModule(moduleId).catch(() => null)
       if (modData?.id_book) {
-        const ub = userBooks.value.find(b => (b.book_id as any)?.book_id === modData.id_book)
+        const ub = userBooks.value.find(b => (b.book_id as Book)?.book_id === modData.id_book)
         if (ub) {
           recentUserBook.value = ub
           return

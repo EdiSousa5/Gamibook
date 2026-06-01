@@ -194,7 +194,12 @@ onMounted(async () => {
         <div class="card stat-card" :class="{ 'stat-card--dim': !user?.exercises_daily_streak }">
           <FireIcon class="stat-icon streak" aria-hidden="true" />
           <span class="stat-value">{{ user?.exercises_daily_streak ?? 0 }}</span>
-          <span class="stat-label">Dias seguidos</span>
+          <span class="stat-label">Streak atual</span>
+        </div>
+        <div class="card stat-card" :class="{ 'stat-card--dim': !user?.best_exercises_daily_streak }">
+          <FireIcon class="stat-icon best-streak" aria-hidden="true" />
+          <span class="stat-value">{{ user?.best_exercises_daily_streak ?? 0 }}</span>
+          <span class="stat-label">Melhor streak</span>
         </div>
         <div class="card stat-card">
           <BookOpenIcon class="stat-icon books" aria-hidden="true" />
@@ -391,7 +396,7 @@ onMounted(async () => {
 /* ── Stats ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
@@ -415,9 +420,10 @@ onMounted(async () => {
   margin-bottom: 2px;
 }
 
-.stat-icon.pts   { stroke-width: 1.5; color: var(--color-deep-600); }
-.stat-icon.streak { color: #f97316; }
-.stat-icon.books  { stroke-width: 1.5; color: var(--color-deep-500); }
+.stat-icon.pts        { stroke-width: 1.5; color: var(--color-deep-600); }
+.stat-icon.streak     { color: #f97316; }
+.stat-icon.best-streak { color: var(--color-amber-600); }
+.stat-icon.books      { stroke-width: 1.5; color: var(--color-deep-500); }
 
 .stat-value {
   font-size: 22px;
@@ -588,7 +594,7 @@ onMounted(async () => {
     grid-template-columns: repeat(3, 1fr);
   }
   .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
   .level-row {

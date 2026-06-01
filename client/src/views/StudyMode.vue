@@ -36,16 +36,13 @@ import {
 import type { Book, Module } from '@/types/book'
 import type { Exercise } from '@/types'
 
-// ── Route / auth ──────────────────────────────────────────────
 const route = useRoute()
 const auth = useAuthStore()
 const bookId = computed(() => Number(route.params.bookId))
 
-// ── Phases ────────────────────────────────────────────────────
 type Phase = 'config' | 'runner' | 'summary'
 const phase = ref<Phase>('config')
 
-// ── Exercise item type ────────────────────────────────────────
 type ExerciseStatus = 'correct' | 'wrong'
 type ExerciseItem = {
   exercise: Exercise
@@ -54,7 +51,6 @@ type ExerciseItem = {
   moduleId: number
 }
 
-// ── Config data ───────────────────────────────────────────────
 const book = ref<Book | null>(null)
 const modules = ref<Module[]>([])
 const allExercisesByModule = ref<Map<number, ExerciseItem[]>>(new Map())
@@ -62,22 +58,17 @@ const loadingConfig = ref(true)
 const loadingExercises = ref(false)
 const configError = ref('')
 
-// ── Filters ───────────────────────────────────────────────────
 const typeFilter = ref<'all' | 'multiple-choice' | 'true-false'>('all')
 const statusFilter = ref<'all' | 'correct' | 'wrong'>('all')
 
-// ── Order mode ────────────────────────────────────────────────
 const orderMode = ref<'random' | 'module' | 'manual'>('random')
 
-// ── Session options ───────────────────────────────────────────
 const timerSeconds = ref(0)
 const repeatWrong = ref(false)
 const showCorrectAnswer = ref(true)
 
-// ── Manual order modal ────────────────────────────────────────
 const showManualModal = ref(false)
 
-// ── Filtered items ────────────────────────────────────────────
 const filteredItemsByModule = computed<Map<number, ExerciseItem[]>>(() => {
   const result = new Map<number, ExerciseItem[]>()
   for (const mod of modules.value) {
@@ -101,7 +92,6 @@ const hasAnyExercises = computed(() => {
   return false
 })
 
-// ── Selection ─────────────────────────────────────────────────
 const orderedSelectedIds = ref<number[]>([])
 const exercisesEverLoaded = ref(false)
 
@@ -130,7 +120,6 @@ const selectAllExercises = () => {
 
 const clearExercises = () => { orderedSelectedIds.value = [] }
 
-// ── Module accordion ──────────────────────────────────────────
 const expandedModules = ref<Set<number>>(new Set())
 const toggleModuleExpand = (modId: number) => {
   const s = new Set(expandedModules.value)
@@ -139,7 +128,6 @@ const toggleModuleExpand = (modId: number) => {
 }
 const isModuleExpanded = (modId: number) => expandedModules.value.has(modId)
 
-// ── Module selection helpers ──────────────────────────────────
 const moduleExerciseIds = (modId: number) =>
   (filteredItemsByModule.value.get(modId) ?? [])
     .map((i) => Number(i.exercise.exercise_id))
@@ -171,7 +159,6 @@ const toggleModuleSelection = (modId: number) => {
   }
 }
 
-// ── Manual order drag-and-drop ────────────────────────────────
 const dragFromIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
 
@@ -207,7 +194,6 @@ const visibleModules = computed(() =>
   modules.value.filter((m) => (filteredItemsByModule.value.get(m.modules_id)?.length ?? 0) > 0),
 )
 
-// ── Data load ─────────────────────────────────────────────────
 ;(async () => {
   try {
     const [bookData, mods] = await Promise.all([fetchBook(bookId.value), fetchModulesByBook(bookId.value)])
@@ -256,7 +242,6 @@ const visibleModules = computed(() =>
   }
 })()
 
-// ── Runner data ───────────────────────────────────────────────
 type SessionResult = {
   exercise: Exercise
   questionText: string
@@ -305,7 +290,6 @@ const countCorrect = computed(() => sessionResults.value.filter((r) => r.isCorre
 const countWrong = computed(() => sessionResults.value.filter((r) => !r.isCorrect && !r.wasSkipped).length)
 const countSkipped = computed(() => sessionResults.value.filter((r) => r.wasSkipped).length)
 
-// ── Timer helpers ─────────────────────────────────────────────
 const stopTimer = () => {
   if (timerHandle) { clearInterval(timerHandle); timerHandle = null }
 }
@@ -319,7 +303,6 @@ const startTimer = () => {
   }, 1000)
 }
 
-// ── Start session ─────────────────────────────────────────────
 const getCorrectOption = (ex: Exercise) => buildOptions(ex).find((opt) => isOptionCorrect(ex, opt)) ?? ''
 
 const startSession = () => {
@@ -350,7 +333,6 @@ const startSession = () => {
   startTimer()
 }
 
-// ── Answer handling ───────────────────────────────────────────
 const resetQuestion = () => {
   stopTimer()
   selectedOption.value = null

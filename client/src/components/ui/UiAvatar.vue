@@ -6,16 +6,9 @@ import {
   TrophyIcon,
   AcademicCapIcon,
   FireIcon,
-  BoltIcon,
   StarIcon,
-  SparklesIcon,
-  GlobeAltIcon,
-  PencilIcon,
-  BookOpenIcon,
 } from '@heroicons/vue/24/solid'
 import { useAuthAsset } from '@/composables/useAuthAsset'
-
-type Frame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
 type Props = {
   src?: string
@@ -24,8 +17,6 @@ type Props = {
   size?: number
   status?: 'online' | 'away' | 'busy' | 'offline'
   ring?: boolean
-  tone?: 'primary' | 'accent' | 'neutral'
-  frame?: Frame
   border?: AvatarBorder
   avatarColor?: AvatarColor
   effect?: AvatarEffect
@@ -40,9 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   alt: 'avatar',
   size: 48,
   status: undefined,
-  tone: 'primary',
   ring: false,
-  frame: 'essence',
   border: undefined,
   avatarColor: undefined,
   effect: undefined,
@@ -58,34 +47,29 @@ const resolvedSrc = computed(() => props.assetId ? blobUrl.value : props.src)
 
 watch(resolvedSrc, () => { imgError.value = false })
 
-const CRACHA_ICONS: Record<NonNullable<Props['cracha']>, Component> = {
-  rank:      TrophyIcon,
-  exercises: BookOpenIcon,
-  streak:    FireIcon,
-  level:     StarIcon,
-  bronze:    AcademicCapIcon,
-  silver:    AcademicCapIcon,
-  gold:      AcademicCapIcon,
-  diamond:   AcademicCapIcon,
-  galaxy:    AcademicCapIcon,
+const CRACHA_ICONS: Record<AvatarCracha, Component> = {
+  rank:    TrophyIcon,
+  level:   StarIcon,
+  streak:  FireIcon,
+  bronze:  AcademicCapIcon,
+  silver:  AcademicCapIcon,
+  gold:    AcademicCapIcon,
+  diamond: AcademicCapIcon,
+  galaxy:  AcademicCapIcon,
 }
 
 const crachaIconComp = computed(() => props.cracha ? CRACHA_ICONS[props.cracha] : null)
 
 const classes = computed(() => {
-  const useNew = props.border !== undefined || props.avatarColor !== undefined || props.effect !== undefined
   const crachaClass = props.cracha ? 'has-cracha' : ''
-  if (useNew) {
-    return [
-      props.avatarColor ? `av-color-${props.avatarColor}` : '',
-      `av-border-${props.border ?? 'default'}`,
-      props.effect && props.effect !== 'none' ? `av-effect-${props.effect}` : '',
-      props.shadow !== 'default' ? `av-shadow-${props.shadow}` : '',
-      crachaClass,
-      { ring: props.ring },
-    ]
-  }
-  return [`tone-${props.tone}`, `frame-${props.frame}`, crachaClass, { ring: props.ring }]
+  return [
+    props.avatarColor ? `av-color-${props.avatarColor}` : '',
+    `av-border-${props.border ?? 'default'}`,
+    props.effect && props.effect !== 'none' ? `av-effect-${props.effect}` : '',
+    props.shadow !== 'default' ? `av-shadow-${props.shadow}` : '',
+    crachaClass,
+    { ring: props.ring },
+  ]
 })
 </script>
 
