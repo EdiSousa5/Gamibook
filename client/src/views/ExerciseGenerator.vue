@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import { gerarExercicios } from '@/services/flowise.ts'
@@ -14,6 +16,7 @@ import {
     GlobeAltIcon,
     EyeSlashIcon,
     ExclamationTriangleIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline'
 import {
     fetchBooks,
@@ -72,6 +75,7 @@ const MAX_MODULE_EXERCISES = 15
 let exerciseSeed = 0
 
 const authStore = useAuthStore()
+const router = useRouter()
 
 const loggedUserId = localStorage.getItem('gb_user_id') ?? ''
 
@@ -115,6 +119,11 @@ const publisherFilter = ref<string>('all')
 const bookSearch = ref('')
 const showApprovalModal = ref(false)
 const isApprovingBook = ref(false)
+const showClearExercisesModal = ref(false)
+const showRegenerateModal = ref(false)
+const showDiscardModal = ref(false)
+let discardConfirmCallback: (() => void) | null = null
+let confirmedLeave = false
 
 // Progresso simulado: curva exponencial que satura em ~95% enquanto aguarda resposta
 const generationProgress = computed(() => {
@@ -474,20 +483,7 @@ const generateForModules = async (count: number, modulesToUse = selectedModules.
     return { items, receivedCount: items.length, rawResponse }
 }
 
-const handleGenerate = async () => {
-    if (!selectedModules.value.length) {
-        toast.error('Seleciona pelo menos um módulo primeiro.')
-        return
-    }
-    if (countPerModule.value <= 0) {
-        toast.error('Define uma quantidade maior que zero.')
-        return
-    }
-    if (isOverMaxTotal.value) {
-        toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
-        return
-    }
-
+const doGenerate = async () => {
     const fullModules = selectedModules.value.filter(
         (m) => (approvedExercisesByModule.value[m.modules_id] ?? []).length >= MAX_MODULE_EXERCISES,
     )
@@ -525,7 +521,7 @@ const handleGenerate = async () => {
             toast.error('A IA não devolveu exercícios. Tenta novamente.')
             return
         }
-        generatedExercises.value = [...generatedExercises.value, ...result.items]
+        generatedExercises.value = result.items
         toast.info('Exercícios gerados. Revê e aprova os melhores.')
     } catch (err) {
         console.error(err)
@@ -538,6 +534,68 @@ const handleGenerate = async () => {
             elapsedTimer = null
         }
     }
+}
+
+const handleGenerate = async () => {
+    if (!selectedModules.value.length) {
+        toast.error('Seleciona pelo menos um módulo primeiro.')
+        return
+    }
+    if (countPerModule.value <= 0) {
+        toast.error('Define uma quantidade maior que zero.')
+        return
+    }
+    if (isOverMaxTotal.value) {
+        toast.error(`O total pedido (${totalQuestions.value}) excede o máximo permitido (${MAX_TOTAL_QUESTIONS}).`)
+        return
+    }
+
+    if (generatedExercises.value.length > 0) {
+        showRegenerateModal.value = true
+        return
+    }
+
+    await doGenerate()
+}
+
+const confirmRegenerate = async () => {
+    showRegenerateModal.value = false
+    generatedExercises.value = []
+    await doGenerate()
+}
+
+const handleClearExercises = () => {
+    showClearExercisesModal.value = true
+}
+
+const confirmClearExercises = () => {
+    generatedExercises.value = []
+    showClearExercisesModal.value = false
+    toast.info('Lista de exercícios limpa.')
+}
+
+const requestDiscard = (onConfirm: () => void) => {
+    if (generatedExercises.value.length === 0) {
+        onConfirm()
+        return
+    }
+    discardConfirmCallback = onConfirm
+    showDiscardModal.value = true
+}
+
+const handleChangeBook = () => {
+    requestDiscard(() => { selectedBookId.value = null })
+}
+
+const confirmDiscard = () => {
+    showDiscardModal.value = false
+    discardConfirmCallback?.()
+    discardConfirmCallback = null
+}
+
+const cancelDiscard = () => {
+    showDiscardModal.value = false
+    discardConfirmCallback = null
 }
 
 const removeGenerated = (localId: string) => {
@@ -632,6 +690,16 @@ watch(selectedBookId, () => {
     rawFlowiseRequest.value = ''
 })
 
+onBeforeRouteLeave((to) => {
+    if (generatedExercises.value.length > 0 && !confirmedLeave) {
+        requestDiscard(() => {
+            confirmedLeave = true
+            router.push(to.fullPath)
+        })
+        return false
+    }
+})
+
 onMounted(async () => {
     await loadInitialData()
 })
@@ -655,11 +723,13 @@ onMounted(async () => {
         <div class="workspace">
             <div class="main-column">
                 <UiCard class="workspace-panel step1-panel">
-                    <div class="panel-header">
+                    <div class="panel-header" :class="{ 'panel-header--selected': !!selectedBookId }">
                         <div class="step-indicator">1</div>
                         <div class="header-text">
-                            <h2>Escolhe um Livro</h2>
-                            <p v-if="!selectedBookId" class="meta">Seleciona o livro onde queres trabalhar.</p>
+                            <template v-if="!selectedBookId">
+                                <h2>Escolhe um Livro</h2>
+                                <p class="meta">Seleciona o livro onde queres trabalhar.</p>
+                            </template>
                             <div v-else class="sbp-inline">
                                 <div class="sbp-cover">
                                     <img v-if="selectedBook?.cover_img"
@@ -673,7 +743,7 @@ onMounted(async () => {
                                     <span class="sbp-name">{{ selectedBook?.title }}</span>
                                     <span class="sbp-meta">{{ selectedBook?.editora?.nome_editora || 'Sem editora' }}</span>
                                 </div>
-                                <button class="alterar-btn" @click="selectedBookId = null">Alterar</button>
+                                <button class="alterar-btn" @click="handleChangeBook">Alterar</button>
                             </div>
                         </div>
                     </div>
@@ -814,20 +884,60 @@ onMounted(async () => {
                             <p class="modal-note">Esta ação pode ser revertida manualmente no Directus.</p>
                         </div>
                         <div class="approval-modal-actions">
-                            <button class="modal-btn modal-btn--cancel" @click="showApprovalModal = false">
-                                Cancelar
-                            </button>
-                            <button class="modal-btn modal-btn--confirm" :disabled="isApprovingBook" @click="handleConfirmPublish">
-                                {{ isApprovingBook ? 'A publicar...' : 'Confirmar publicação' }}
-                            </button>
+                            <UiButton variant="outline" size="sm" @click="showApprovalModal = false">Cancelar</UiButton>
+                            <UiButton variant="primary" size="sm" :loading="isApprovingBook" :disabled="isApprovingBook" @click="handleConfirmPublish">Confirmar publicação</UiButton>
+                        </div>
+                    </div>
+                </UiModal>
+
+                <UiModal :visible="showRegenerateModal" :close-on-overlay="true" @close="showRegenerateModal = false">
+                    <div class="approval-modal-card">
+                        <div class="approval-modal-header">
+                            <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                            <h3>Gerar novos exercícios</h3>
+                        </div>
+                        <div class="approval-modal-body">
+                            <p>Já existem exercícios gerados. Ao continuar, os <strong>exercícios anteriores serão apagados</strong> e substituídos pelos novos.</p>
+                            <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                        </div>
+                        <div class="approval-modal-actions">
+                            <UiButton variant="outline" size="sm" @click="showRegenerateModal = false">Cancelar</UiButton>
+                            <UiButton variant="primary" size="sm" @click="confirmRegenerate">Gerar na mesma</UiButton>
+                        </div>
+                    </div>
+                </UiModal>
+
+                <UiModal :visible="showClearExercisesModal" :close-on-overlay="true" @close="showClearExercisesModal = false">
+                    <div class="approval-modal-card">
+                        <div class="approval-modal-header">
+                            <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                            <h3>Limpar exercícios</h3>
+                        </div>
+                        <div class="approval-modal-body">
+                            <p>Tens a certeza que queres remover todos os exercícios gerados? Esta ação não pode ser revertida.</p>
+                            <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                        </div>
+                        <div class="approval-modal-actions">
+                            <UiButton variant="outline" size="sm" @click="showClearExercisesModal = false">Cancelar</UiButton>
+                            <UiButton variant="danger" size="sm" :style="{ '--btn-shadow': '#fca5a5' }" @click="confirmClearExercises">Limpar exercícios</UiButton>
                         </div>
                     </div>
                 </UiModal>
 
                 <div v-if="groupedSections.length" class="generated-section">
                     <div class="workspace-section-header">
-                        <h2>Exercícios Gerados pela IA</h2>
-                        <p class="meta">Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
+                        <div class="section-header-flex">
+                            <div>
+                                <h2>Exercícios Gerados pela IA</h2>
+                                <p class="meta">Revê, edita (se necessário) e aprova as melhores questões geradas.</p>
+                            </div>
+                            <UiButton variant="outline" size="sm" @click="handleClearExercises">
+                                <template #icon-left>
+                                    <TrashIcon style="width: 15px; height: 15px; flex-shrink: 0;" aria-hidden="true" />
+                                </template>
+                                Limpar exercícios
+                            </UiButton>
+                        </div>
                     </div>
                     <GeneratedExercisesList :sections="groupedSections" :type-labels="typeLabels"
                         :approving-map="approvingMap" @approve="handleApprove" @reject="handleReject" />
@@ -905,26 +1015,6 @@ onMounted(async () => {
                             </button>
                         </UiCard>
 
-                        <Transition name="fade-slide">
-                            <UiCard v-if="approvedSummaries.length" class="status-card">
-                                <h4 class="status-card-title">Módulos Selecionados</h4>
-                                <div v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
-                                    class="sc-module-item" :class="{ 'is-approved': summary.isApproved }">
-                                    <div class="sc-module-name">
-                                        {{ summary.moduleItem.module_title || 'Módulo' }}
-                                    </div>
-                                    <div class="sc-module-meta">
-                                        <UiChip
-                                            :label="summary.isApproved ? 'Aprovado' : 'Por aprovar'"
-                                            :variant="summary.isApproved ? 'filled' : 'outline'" size="sm" />
-                                        <span class="sc-module-count"
-                                            :class="{ 'is-full': summary.approvedCount >= MAX_MODULE_EXERCISES }">
-                                            {{ summary.approvedCount }}/{{ MAX_MODULE_EXERCISES }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </UiCard>
-                        </Transition>
                     </div>
                 </Transition>
             </div>
@@ -932,6 +1022,23 @@ onMounted(async () => {
 
         <GeneratorLoadingOverlay :is-generating="isGenerating" :progress-label="progressLabel"
             :progress="generationProgress" />
+
+        <UiModal :visible="showDiscardModal" :close-on-overlay="true" @close="cancelDiscard">
+            <div class="approval-modal-card">
+                <div class="approval-modal-header">
+                    <ExclamationTriangleIcon class="modal-warning-icon" aria-hidden="true" />
+                    <h3>Exercícios não guardados</h3>
+                </div>
+                <div class="approval-modal-body">
+                    <p>Tens exercícios gerados que ainda não foram aprovados. Se continuares, <strong>os exercícios serão perdidos</strong>.</p>
+                    <p class="modal-note">Os exercícios já aprovados não são afetados.</p>
+                </div>
+                <div class="approval-modal-actions">
+                    <UiButton variant="outline" size="sm" @click="cancelDiscard">Cancelar</UiButton>
+                    <UiButton variant="primary" size="sm" @click="confirmDiscard">Continuar</UiButton>
+                </div>
+            </div>
+        </UiModal>
     </div>
 </template>
 
@@ -1020,10 +1127,21 @@ onMounted(async () => {
     margin-bottom: var(--space-400);
 }
 
+.panel-header--selected {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
 .workspace-panel.is-completed .panel-header {
     border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 0;
+}
+
+.header-text {
+    flex: 1;
+    min-width: 0;
 }
 
 .step-indicator {
@@ -1057,22 +1175,21 @@ onMounted(async () => {
 .sbp-inline {
     display: flex;
     align-items: center;
-    gap: var(--space-300);
-    margin-top: 4px;
+    gap: var(--space-400);
 }
 
 .sbp-cover {
-    width: 32px;
-    height: 44px;
+    width: 52px;
+    height: 72px;
     flex-shrink: 0;
-    border-radius: 2px 4px 4px 2px;
+    border-radius: 3px 6px 6px 3px;
     overflow: hidden;
-    border: 1.5px solid var(--color-mirage-800);
+    border: 2px solid var(--color-mirage-800);
     background: var(--color-wild-300);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: -2px 0 4px rgba(0,0,0,0.08) inset, 2px 2px 5px rgba(0,0,0,0.12);
+    box-shadow: -3px 0 6px rgba(0,0,0,0.12) inset, 3px 3px 8px rgba(0,0,0,0.18);
 }
 
 .sbp-cover img {
@@ -1083,7 +1200,7 @@ onMounted(async () => {
 }
 
 .sbp-cover-placeholder {
-    font-size: 13px;
+    font-size: 18px;
     font-weight: 800;
     color: var(--color-mirage-600);
 }
@@ -1093,12 +1210,12 @@ onMounted(async () => {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 }
 
 .sbp-name {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--color-mirage-900);
     white-space: nowrap;
     overflow: hidden;
@@ -1106,8 +1223,9 @@ onMounted(async () => {
 }
 
 .sbp-meta {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--color-mirage-500);
+    font-weight: 600;
 }
 
 .alterar-btn {
@@ -1349,6 +1467,14 @@ onMounted(async () => {
     font-size: 14px;
 }
 
+.section-header-flex {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-400);
+}
+
+
 .approved-grid {
     display: grid;
     gap: var(--space-500);
@@ -1502,48 +1628,6 @@ onMounted(async () => {
     color: var(--color-mirage-800);
 }
 
-.sc-module-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-100);
-    padding: var(--space-200) var(--space-300);
-    border-radius: var(--radius-200);
-    border: 1.5px solid var(--color-mirage-200);
-    background: var(--color-wild-100);
-}
-
-.sc-module-item.is-approved {
-    border-color: var(--color-teal-400);
-    background: #f0faf4;
-}
-
-.sc-module-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-mirage-900);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.sc-module-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-200);
-}
-
-.sc-module-count {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-mirage-500);
-    flex-shrink: 0;
-}
-
-.sc-module-count.is-full {
-    color: var(--color-teal-600);
-}
-
 .publish-btn--full {
     width: 100%;
     margin-top: var(--space-100);
@@ -1639,36 +1723,6 @@ onMounted(async () => {
     gap: var(--space-300);
 }
 
-.modal-btn {
-    padding: var(--space-200) var(--space-500);
-    border-radius: var(--radius-200);
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-    border: 2px solid var(--color-mirage-900);
-    box-shadow: 3px 3px 0 var(--color-shadow);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.modal-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 5px 5px 0 var(--color-shadow);
-}
-
-.modal-btn:active {
-    transform: translate(3px, 3px);
-    box-shadow: 0 0 0 var(--color-shadow);
-}
-
-.modal-btn--cancel {
-    background: var(--color-wild-200);
-    color: var(--color-mirage-800);
-}
-
-.modal-btn--confirm {
-    background: var(--color-deep-600);
-    color: var(--color-wild-100);
-}
 
 .modal-btn--confirm:disabled {
     background: var(--color-mirage-300);

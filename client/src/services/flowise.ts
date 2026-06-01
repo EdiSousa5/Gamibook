@@ -1,5 +1,10 @@
 const FLOWISE_URL = import.meta.env.VITE_FLOWISE_URL ?? 'http://localhost:3000'
-const CHATFLOW_ID = import.meta.env.VITE_FLOWISE_CHATFLOW_ID ?? '18a5aadf-041b-4c26-ba74-a062281b843d'
+const FLOWISE_API_KEY: string = import.meta.env.VITE_FLOWISE_API_KEY ?? ''
+const CHATFLOW_ID: string = import.meta.env.VITE_FLOWISE_CHATFLOW_ID ?? ''
+
+if (!CHATFLOW_ID) {
+  console.warn('VITE_FLOWISE_CHATFLOW_ID não está definido. A geração de exercícios irá falhar.')
+}
 
 type FlowiseRawData = {
   json?: Record<string, unknown>
@@ -43,9 +48,12 @@ const callFlowise = async (
     },
   }
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (FLOWISE_API_KEY) headers['Authorization'] = `Bearer ${FLOWISE_API_KEY}`
+
   const response = await fetch(`${FLOWISE_URL}/api/v1/prediction/${chatflowId}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(flowisePayload),
   })
 
