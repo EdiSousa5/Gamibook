@@ -150,9 +150,8 @@ const classes = computed(() => {
   flex-shrink: 0;
 }
 
-.cracha-rank      { background: var(--color-mirage-800); color: var(--color-wild-100); }
-.cracha-exercises { background: var(--color-deep-500);   color: var(--color-wild-100); }
-.cracha-streak    { background: var(--color-amber-500);  color: var(--color-mirage-800); }
+.cracha-rank   { background: var(--color-mirage-800); color: var(--color-wild-100); }
+.cracha-streak { background: var(--color-amber-500);  color: var(--color-mirage-800); }
 .cracha-level     { background: var(--color-deep-100);   color: var(--color-deep-700); border-color: var(--color-deep-500); box-shadow: 2px 2px 0 var(--color-deep-400); }
 .cracha-bronze    { background: var(--color-amber-300);  color: var(--color-amber-900); }
 .cracha-silver    { background: var(--color-mirage-200); color: var(--color-mirage-700); }
@@ -177,91 +176,8 @@ const classes = computed(() => {
 .status.busy    { background: #d74c4c; }
 .status.offline { background: var(--color-mirage-400); }
 
-/* ── Legacy tone ─────────────────────────────────────── */
-
-.tone-accent  { background: var(--color-amber-500); }
-.tone-neutral { background: var(--color-mirage-500); }
-
-/* ── Legacy frame system ─────────────────────────────── */
-
-.frame-essence {
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.frame-bloom {
-  border: 2px dashed var(--color-mirage-700);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.frame-ember {
-  border: 3px solid var(--color-mirage-800);
-  box-shadow: 6px 6px 0 var(--color-shadow);
-}
-
-.frame-aurora {
-  border: 2px solid var(--color-mirage-800);
-  box-shadow:
-    0 0 0 4px var(--color-wild-100),
-    0 0 0 6px var(--color-mirage-800),
-    4px 4px 0 var(--color-shadow);
-}
-
-.frame-nebula {
-  border: 3px solid var(--color-deep-600);
-  box-shadow:
-    0 0 0 4px var(--color-deep-200),
-    5px 5px 0 var(--color-shadow);
-  animation: frame-marca-pulse 3s ease-in-out infinite;
-}
-
-@keyframes frame-marca-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px var(--color-deep-200), 5px 5px 0 var(--color-shadow); }
-  50%       { box-shadow: 0 0 0 6px var(--color-deep-300), 5px 5px 0 var(--color-shadow); }
-}
-
-.frame-ethereal {
-  border: 3px solid var(--color-amber-600);
-  box-shadow:
-    0 0 0 4px var(--color-amber-100),
-    5px 5px 0 var(--color-shadow);
-  animation: frame-destaque-pulse 3s ease-in-out infinite;
-}
-
-@keyframes frame-destaque-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px var(--color-amber-100), 5px 5px 0 var(--color-shadow); }
-  50%       { box-shadow: 0 0 0 6px var(--color-amber-200), 5px 5px 0 var(--color-shadow); }
-}
-
-.frame-void {
-  border: 3px solid var(--color-deep-700);
-  box-shadow:
-    0 0 0 3px var(--color-wild-100),
-    0 0 0 6px var(--color-deep-600),
-    0 0 0 9px var(--color-deep-300),
-    6px 6px 0 var(--color-shadow);
-  animation: frame-lenda-pulse 4s ease-in-out infinite;
-}
-
-@keyframes frame-lenda-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 0 3px var(--color-wild-100),
-      0 0 0 6px var(--color-deep-600),
-      0 0 0 9px var(--color-deep-300),
-      6px 6px 0 var(--color-shadow);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px var(--color-wild-100),
-      0 0 0 6px var(--color-deep-500),
-      0 0 0 11px var(--color-deep-200),
-      6px 6px 0 var(--color-shadow);
-  }
-}
-
 /* ══════════════════════════════════════════════════════
-   NEW SYSTEM — three independent composable layers
+   CUSTOMISATION SYSTEM — three independent composable layers
    ══════════════════════════════════════════════════════ */
 
 /* ── Borders ─────────────────────────────────────────── */
