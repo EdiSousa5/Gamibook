@@ -50,12 +50,12 @@ const roleLabel = computed(() => {
 
 const isAbsoluteAdmin = computed(() => roleName.value?.trim().toLowerCase() === 'admin absoluto')
 
-import { ChartBarIcon, CogIcon, SparklesIcon, SwatchIcon } from '@heroicons/vue/24/outline'
+import { CogIcon, SparklesIcon, SwatchIcon, AcademicCapIcon } from '@heroicons/vue/24/outline'
 import AdminActivityLog from '@/components/ui/AdminActivityLog.vue'
 
 const quickLinks = [
-  { label: 'Estatísticas', desc: 'Dados de livros e utilizadores', to: '/admin/stats', icon: ChartBarIcon },
   { label: 'Gerar exercícios', desc: 'Criar exercícios com IA', to: '/exercise-generator', icon: SparklesIcon },
+  { label: 'Guia de utilização', desc: 'Manual para editoras e autores', to: '/admin/guide', icon: AcademicCapIcon },
   { label: 'Definições', desc: 'Configurações da conta', to: '/settings', icon: CogIcon },
   { label: 'UI Kit', desc: 'Componentes visuais', to: '/ui-kit', icon: SwatchIcon },
 ]

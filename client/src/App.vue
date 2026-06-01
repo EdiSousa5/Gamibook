@@ -37,8 +37,8 @@ const navItems = computed(() => {
   if (isAdmin.value) {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
-      { label: 'Estatísticas', to: '/admin/stats', icon: 'stats' },
       { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate' },
+      { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
     ]

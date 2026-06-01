@@ -11,6 +11,7 @@ const BOOK_FIELDS = [
   'publisher',
   'editora.*',
   'is_approved',
+  'has_minimum_content',
   'date_created',
   'date_updated',
 ]
@@ -211,6 +212,22 @@ export const updateBookApproval = async (bookId: number, isApproved: boolean) =>
   if (!response.ok) {
     const text = await response.text().catch(() => '')
     throw new Error(`Update book failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as Book
+}
+
+export const updateBookMinimumContent = async (bookId: number, hasMinimumContent: boolean) => {
+  const response = await authFetch(`/items/books/${bookId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ has_minimum_content: hasMinimumContent }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Update book minimum content failed: ${response.status} ${text}`.trim())
   }
 
   const data = await response.json().catch(() => null)
