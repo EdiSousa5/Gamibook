@@ -10,7 +10,7 @@ import {
     updateUser,
     uploadUserAvatar,
 } from '../../services/auth'
-import { getAssetUrl } from '../../services/client'
+import { getAssetUrl, getStoredUserId } from '../../services/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import type { User } from '@/types'
@@ -45,7 +45,7 @@ const onAvatarChange = (event: Event) => {
 }
 
 const loadProfile = async () => {
-    const storedId = localStorage.getItem('gb_user_id')
+    const storedId = getStoredUserId()
     if (!storedId) {
         user.value = null
         return

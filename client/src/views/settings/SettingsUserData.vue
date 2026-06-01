@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { fetchUserById } from '../../services/auth'
+import { getStoredUserId } from '../../services/storage'
 import type { User } from '@/types'
 
 const user = ref<User | null>(null)
@@ -16,7 +17,7 @@ const userFields = computed(() => {
 })
 
 const loadUser = async () => {
-    const storedId = localStorage.getItem('gb_user_id')
+    const storedId = getStoredUserId()
     if (!storedId) return
     error.value = ''
     try {

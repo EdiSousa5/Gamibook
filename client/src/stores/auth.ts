@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchUserById, getUserDisplayName, isAdminUser, updateUser } from '@/services/auth'
-import { clearAccessToken, getAssetUrl, setStoredUserId } from '@/services/client'
+import { clearAccessToken, getAssetUrl, getStoredUserId, setStoredUserId } from '@/services/client'
 import { fetchUserPointsFromHistory, createUserPointsHistory } from '@/services/exercises'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User } from '@/types'
@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
   }))
 
   const loadUser = async () => {
-    const storedId = localStorage.getItem('gb_user_id')
+    const storedId = getStoredUserId()
     if (!storedId) {
       user.value = null
       points.value = 0

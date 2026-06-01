@@ -5,7 +5,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiChip from '@/components/ui/UiChip.vue'
 import { fetchUserById, getUserDisplayName } from '@/services/auth'
-import { getAssetUrl } from '@/services/client'
+import { getAssetUrl, getStoredUserId } from '@/services/client'
 import { useAuthStore } from '@/stores/auth'
 import type { User } from '@/types'
 
@@ -14,7 +14,7 @@ const { avatarConfig } = storeToRefs(useAuthStore())
 const user = ref<User | null>(null)
 
 onMounted(async () => {
-  const storedId = localStorage.getItem('gb_user_id')
+  const storedId = getStoredUserId()
   if (!storedId) return
   try {
     user.value = await fetchUserById(storedId)
