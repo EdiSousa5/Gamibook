@@ -33,8 +33,7 @@ import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import type { Book } from '@/types'
 import wintonUrl from '@/assets/images/winton.webp'
-import { AVATAR_FRAMES } from '@/types/avatar'
-import type { AvatarFrame, AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
+import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
 import {
   BellAlertIcon,
   CheckCircleIcon,
@@ -46,19 +45,6 @@ import {
   ArrowPathIcon,
 } from '@heroicons/vue/24/outline'
 
-const frameCategoryLabels: Record<string, string> = {
-  basic: 'Básico',
-  premium: 'Premium',
-  epic: 'Épico',
-}
-
-const framesByCategory = (() => {
-  const cats: Record<string, AvatarFrame[]> = { basic: [], premium: [], epic: [] }
-  for (const id of Object.keys(AVATAR_FRAMES) as AvatarFrame[]) {
-    cats[AVATAR_FRAMES[id].category]?.push(id)
-  }
-  return cats
-})()
 
 /* ── Avatar customization demo data ────────────────── */
 
@@ -102,7 +88,6 @@ const SHADOW_DEMOS: { id: AvatarShadow; label: string; desc: string }[] = [
 
 const CRACHA_DEMOS: { id: AvatarCracha; label: string; value: string }[] = [
   { id: 'rank', label: 'Classificação', value: '#12' },
-  { id: 'exercises', label: 'Exercícios', value: '127' },
   { id: 'streak', label: 'Streak', value: '14d' },
   { id: 'level', label: 'Nível', value: 'Nv5' },
   { id: 'bronze', label: 'Bronze', value: '3' },

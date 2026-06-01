@@ -321,26 +321,6 @@ export const fetchExercisesByIds = async (ids: number[]): Promise<Exercise[]> =>
   return (data?.data ?? []) as Exercise[]
 }
 
-export const fetchExercisesCreatedTodayByUser = async (userId: string): Promise<number> => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString()
-
-  const exerciseParams = new URLSearchParams({ fields: 'exercise_id', limit: '-1' })
-  exerciseParams.set('filter[created_by][_eq]', userId)
-  exerciseParams.set('filter[date_created][_gte]', todayStr)
-
-  const response = await authFetch(`/items/exercises?${exerciseParams.toString()}`)
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Fetch exercises created today failed: ${response.status} ${text}`.trim())
-  }
-
-  const exercisesData = await response.json().catch(() => null)
-  return ((exercisesData?.data ?? []) as unknown[]).length
-}
-
 export const fetchLatestUserExercise = async (userId: string) => {
   const params = new URLSearchParams({
     fields: 'module_id,date',

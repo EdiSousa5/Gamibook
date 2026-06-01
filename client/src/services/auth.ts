@@ -1,5 +1,5 @@
 import type { User } from '@/types'
-import { authFetch, normalizedDirectusUrl, setAccessToken, setStoredUserId } from './client'
+import { authFetch, normalizedDirectusUrl, setAccessToken, setRefreshToken, setStoredUserId } from './client'
 
 const USER_FIELDS = [
   'id',
@@ -119,7 +119,9 @@ export const loginUser = async (email: string, password: string) => {
 
   const data = await response.json().catch(() => null)
   const accessToken = data?.data?.access_token
+  const refreshToken = data?.data?.refresh_token
   setAccessToken(accessToken || null)
+  setRefreshToken(refreshToken || null)
 
   const user = await fetchCurrentUser()
   if (user?.id) {

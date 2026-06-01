@@ -137,6 +137,11 @@ const router = createRouter({
       component: () => import('../views/ExerciseGenerator.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFound.vue'),
+    },
   ],
 })
 

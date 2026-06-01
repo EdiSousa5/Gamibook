@@ -26,13 +26,12 @@ import QuestionCard from '@/components/ui/QuestionCard.vue'
 import type { Exercise, User } from '@/types'
 import { useToast } from '@/composables/useToast'
 import { useNotificationsStore } from '@/stores/notifications'
+import { DAILY_UNLOCK_LEVEL } from '@/utils/constants'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 const notifStore = useNotificationsStore()
-
-const DAILY_UNLOCK_LEVEL = 3
 
 type ViewMode = 'loading' | 'answering' | 'done' | 'cooldown' | 'locked' | 'no-exercises' | 'error'
 

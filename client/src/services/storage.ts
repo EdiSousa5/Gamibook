@@ -1,4 +1,5 @@
 const ACCESS_TOKEN_KEY = 'gb_access_token'
+const REFRESH_TOKEN_KEY = 'gb_refresh_token'
 const USER_ID_KEY = 'gb_user_id'
 
 export const getStoredUserId = () => {
@@ -34,4 +35,23 @@ export const setAccessToken = (token: string | null) => {
 export const clearAccessToken = () => {
   if (typeof window === 'undefined') return
   sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+}
+
+export const getRefreshToken = () => {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export const setRefreshToken = (token: string | null) => {
+  if (typeof window === 'undefined') return
+  if (token) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+  }
+}
+
+export const clearRefreshToken = () => {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
 }

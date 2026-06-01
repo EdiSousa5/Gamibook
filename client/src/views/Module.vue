@@ -150,7 +150,6 @@ const handleSelect = (option: string) => {
     }
 }
 
-// ── Confirmation modal ─────────────────────────────────────
 const confirmModal = ref<{
     title: string
     message: string
