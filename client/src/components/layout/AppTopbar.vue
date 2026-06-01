@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
-import UiSearch from '@/components/ui/UiSearch.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
 import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
@@ -17,7 +16,7 @@ import type { Book } from '@/types'
 
 type Props = {
   username: string
-  avatarUrl?: string
+  avatarAssetId?: string | null
   level?: number | null
   progressValue?: number
   progressTotal?: number
@@ -35,7 +34,6 @@ const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book] }>()
 const notifStore = useNotificationsStore()
 const authStore = useAuthStore()
 
-const query = ref('')
 const menuOpen = ref(false)
 const bellOpen = ref(false)
 const qrOpen = ref(false)
@@ -50,10 +48,11 @@ const scanState = ref<ScanState>('idle')
 const scannedBook = ref<Book | null>(null)
 const scanError = ref('')
 let scanControls: { stop: () => void } | null = null
+let cameraStartedAt = 0
 
-const showSearch = computed(() =>
-  route.path.startsWith('/collection') || route.path.startsWith('/exercise-generator'),
-)
+const isDraggingOver = ref(false)
+let dragCounter = 0
+
 const showBack = computed(() => route.path !== '/app')
 
 const getParentRoute = (): string => {
@@ -147,9 +146,10 @@ const processResult = async (rawText: string) => {
 
 const startCamera = async (videoEl: HTMLVideoElement) => {
   try {
+    cameraStartedAt = Date.now()
     const reader = new BrowserQRCodeReader()
     scanControls = await reader.decodeFromVideoDevice(undefined, videoEl, (result) => {
-      if (result) processResult(result.getText())
+      if (result && Date.now() - cameraStartedAt >= 1000) processResult(result.getText())
     })
   } catch {
     scanState.value = 'error'
@@ -221,6 +221,36 @@ const onFileSelected = async (event: Event) => {
   }
 }
 
+const onDropZoneDragEnter = (event: DragEvent) => {
+  if (!event.dataTransfer?.types.includes('Files')) return
+  dragCounter++
+  isDraggingOver.value = true
+}
+
+const onDropZoneDragLeave = () => {
+  dragCounter--
+  if (dragCounter <= 0) {
+    dragCounter = 0
+    isDraggingOver.value = false
+  }
+}
+
+const onDropZoneDrop = async (event: DragEvent) => {
+  event.preventDefault()
+  dragCounter = 0
+  isDraggingOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  scanState.value = 'processing'
+  try {
+    const text = await decodeQrFromFile(file)
+    await processResult(text)
+  } catch {
+    scanState.value = 'error'
+    scanError.value = 'Não foi possível ler o QR Code. Tenta com uma imagem mais nítida.'
+  }
+}
+
 const openQr = () => {
   qrOpen.value = true
   scanState.value = 'idle'
@@ -232,6 +262,8 @@ const closeQr = () => {
   qrOpen.value = false
   scannedBook.value = null
   scanState.value = 'idle'
+  isDraggingOver.value = false
+  dragCounter = 0
 }
 
 const retry = () => {
@@ -272,19 +304,6 @@ onBeforeUnmount(() => {
   stopScanner()
 })
 
-watch(query, (val) => {
-  if (!showSearch.value) return
-  router.replace({ query: { ...route.query, q: val || undefined } })
-})
-
-watch(
-  () => route.query.q,
-  (val) => {
-    const q = (val ?? '').toString()
-    if (q !== query.value) query.value = q
-  },
-  { immediate: true },
-)
 </script>
 
 <template>
@@ -296,9 +315,6 @@ watch(
       </UiPillButton>
     </div>
     <div v-else class="back-spacer"></div>
-    <div v-if="showSearch" class="search">
-      <UiSearch :model-value="query" @update="query = $event" />
-    </div>
     <div class="actions">
       <div class="bell-anchor" ref="bellRef">
         <UiIconButton variant="outline" size="lg" aria-label="Notificações" @click="toggleBell">
@@ -338,7 +354,7 @@ watch(
           <UiAvatar
               :alt="initials"
               :size="44"
-              :src="avatarUrl"
+              :asset-id="avatarAssetId"
               :border="authStore.avatarConfig.border"
               :avatar-color="authStore.avatarConfig.avatarColor"
               :effect="authStore.avatarConfig.effect"
@@ -367,7 +383,15 @@ watch(
 
   <!-- QR Modal -->
   <Teleport to="body">
-  <div v-if="qrOpen" class="qr-overlay" @click.self="closeQr">
+  <div
+    v-if="qrOpen"
+    class="qr-overlay"
+    @click.self="closeQr"
+    @dragenter.prevent="onDropZoneDragEnter"
+    @dragover.prevent
+    @dragleave="onDropZoneDragLeave"
+    @drop.prevent="onDropZoneDrop"
+  >
     <div class="qr-modal">
       <div class="qr-header">
         <strong>Ler QR Code</strong>
@@ -473,6 +497,19 @@ watch(
         style="display: none"
         @change="onFileSelected"
       />
+
+      <!-- Drag-and-drop overlay -->
+      <Transition name="drag-fade">
+        <div v-if="isDraggingOver" class="drag-overlay" aria-hidden="true">
+          <div class="drag-overlay-inner">
+            <div class="drag-overlay-icon-wrap">
+              <ArrowUpTrayIcon class="drag-overlay-icon" />
+            </div>
+            <strong>Larga a imagem aqui</strong>
+            <span>PNG, JPG ou WebP com o QR Code visível</span>
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
   </Teleport>
@@ -503,8 +540,6 @@ watch(
   font-size: 11px;
   padding: 4px 12px;
 }
-
-.search { flex: 1; min-width: 220px; }
 
 .actions {
   display: flex;
@@ -626,6 +661,8 @@ watch(
   padding: var(--space-500);
   display: grid;
   gap: var(--space-400);
+  position: relative;
+  overflow: hidden;
 }
 
 .qr-header {
@@ -887,6 +924,71 @@ watch(
   color: var(--color-mirage-500);
   max-width: 280px;
   line-height: 1.5;
+}
+
+/* Drag-and-drop overlay */
+.drag-overlay {
+  position: absolute;
+  inset: 6px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 3px dashed var(--color-deep-500);
+  box-shadow:
+    inset 0 0 0 5px var(--color-deep-100),
+    0 0 0 1px var(--color-deep-300);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drag-overlay-inner {
+  display: grid;
+  gap: var(--space-200);
+  justify-items: center;
+  text-align: center;
+}
+
+.drag-overlay-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--color-deep-500);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.drag-overlay-icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2;
+  color: #fff;
+}
+
+.drag-overlay-inner strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+}
+
+.drag-overlay-inner span {
+  font-size: 12px;
+  color: var(--color-mirage-500);
+}
+
+.drag-fade-enter-active {
+  transition: opacity 0.2s ease;
+}
+.drag-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.drag-fade-enter-from,
+.drag-fade-leave-to {
+  opacity: 0;
 }
 
 /* Spinner */

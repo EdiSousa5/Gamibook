@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { TrophyIcon, ArrowRightIcon, LockOpenIcon } from '@heroicons/vue/24/outline'
+import { TrophyIcon, ArrowRightIcon, LockOpenIcon, ChevronRightIcon, ChevronLeftIcon, BoltIcon } from '@heroicons/vue/24/outline'
 import UiButton from './UiButton.vue'
 import UiModal from './UiModal.vue'
+import UiScrollArea from './UiScrollArea.vue'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { generateConfetti } from '@/utils/confetti'
 
-type UnlockType = 'color' | 'bg' | 'effect' | 'border'
+type UnlockType = 'color' | 'bg' | 'effect' | 'border' | 'feature'
 
 type UnlockItem = {
   label: string
   type: UnlockType
   hex?: string
   gradVar?: string
+  desc?: string
 }
 
 const UNLOCKS_BY_LEVEL: Record<number, UnlockItem[]> = {
@@ -20,6 +22,7 @@ const UNLOCKS_BY_LEVEL: Record<number, UnlockItem[]> = {
     { label: 'Teal Claro', type: 'color', hex: '#a7d2cf' },
   ],
   3: [
+    { label: 'Desafios Diários', type: 'feature', desc: 'Um desafio por dia, por livro' },
     { label: 'Borda Mínima', type: 'border' },
     { label: 'Água Clara', type: 'bg', gradVar: '--grad-3' },
   ],
@@ -97,11 +100,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
+// Animation phases
 type Phase = 'idle' | 'filling' | 'flip' | 'settled'
 const phase = ref<Phase>('idle')
 const barWidth = ref(0)
 const displayLevel = ref(props.oldLevel)
 let timers: number[] = []
+
+// Slide: 'level' = slide 1, 'unlocks' = slide 2
+const slide = ref<'level' | 'unlocks'>('level')
 
 const clearTimers = () => { timers.forEach(clearTimeout); timers = [] }
 
@@ -109,6 +116,7 @@ const newLevelInfo = computed(() => getLevelProgressFromPoints(props.currentPoin
 
 const startAnimation = () => {
   clearTimers()
+  slide.value = 'level'
   phase.value = 'filling'
   barWidth.value = 0
   displayLevel.value = props.oldLevel
@@ -128,7 +136,7 @@ const startAnimation = () => {
 
 watch(() => props.visible, (val) => {
   if (val) startAnimation()
-  else { clearTimers(); phase.value = 'idle' }
+  else { clearTimers(); phase.value = 'idle'; slide.value = 'level' }
 })
 
 onUnmounted(clearTimers)
@@ -144,16 +152,62 @@ const rightLabel = computed(() => {
 const confetti = generateConfetti()
 
 const newUnlocks = computed(() => UNLOCKS_BY_LEVEL[props.newLevel] ?? [])
+const hasUnlocks = computed(() => newUnlocks.value.length > 0)
+
+// Group unlocks by category
+type UnlockGroup = { label: string; items: UnlockItem[] }
+
+const unlockGroups = computed<UnlockGroup[]>(() => {
+  const all = newUnlocks.value
+  const groups: UnlockGroup[] = []
+
+  const features = all.filter(u => u.type === 'feature')
+  if (features.length) groups.push({ label: 'Funcionalidades', items: features })
+
+  const colors = all.filter(u => u.type === 'color')
+  if (colors.length) groups.push({ label: 'Cores do Avatar', items: colors })
+
+  const borders = all.filter(u => u.type === 'border')
+  if (borders.length) groups.push({ label: 'Bordas do Avatar', items: borders })
+
+  const effects = all.filter(u => u.type === 'effect')
+  if (effects.length) groups.push({ label: 'Efeitos do Avatar', items: effects })
+
+  const bgs = all.filter(u => u.type === 'bg')
+  if (bgs.length) groups.push({ label: 'Fundos', items: bgs })
+
+  return groups
+})
 
 function bgStyle(item: UnlockItem): Record<string, string> {
   if (!item.gradVar) return {}
   return { background: `var(${item.gradVar})` }
+}
+
+const borderClass = (item: UnlockItem) => {
+  if (item.label === 'Borda Anel') return 'preview-border--ring'
+  if (item.label === 'Borda Pesada') return 'preview-border--heavy'
+  return 'preview-border--minimal'
 }
 </script>
 
 <template>
   <UiModal :visible="visible" aria-label="Subiste de nível!">
     <div class="levelup-card">
+
+      <!-- Confetti -->
+      <div class="confetti-wrap" aria-hidden="true">
+        <span
+          v-for="p in confetti"
+          :key="p.id"
+          class="cp"
+          :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
+        />
+      </div>
+
+      <!-- ─── Slide 1: Nível ─── -->
+      <Transition name="slide-fade" mode="out-in">
+        <div v-if="slide === 'level'" class="slide slide-level" key="level">
 
           <div class="trophy-wrap" aria-hidden="true">
             <TrophyIcon class="trophy-icon" />
@@ -165,9 +219,7 @@ function bgStyle(item: UnlockItem): Record<string, string> {
             <div class="lvl-bubble old" :class="{ dimmed: phase === 'flip' || phase === 'settled' }">
               <strong class="lvl-num">{{ oldLevel }}</strong>
             </div>
-
             <ArrowRightIcon class="arrow-icon" aria-hidden="true" />
-
             <div class="lvl-bubble new" :class="{ lit: phase === 'flip' || phase === 'settled' }">
               <strong class="lvl-num">{{ newLevel }}</strong>
             </div>
@@ -187,55 +239,97 @@ function bgStyle(item: UnlockItem): Record<string, string> {
                 }"
               />
             </div>
+            <Transition name="hint-fade">
+              <p v-if="hasUnlocks && phase === 'settled'" class="unlock-hint">
+                Desbloqueaste {{ newUnlocks.length }} {{ newUnlocks.length === 1 ? 'novidade' : 'novidades' }} neste nível!
+              </p>
+            </Transition>
           </div>
 
-          <div v-if="newUnlocks.length > 0 && (phase === 'flip' || phase === 'settled')" class="unlocks-section">
-            <div class="unlocks-header">
-              <LockOpenIcon class="unlock-icon" aria-hidden="true" />
-              <span>Desbloqueaste {{ newUnlocks.length === 1 ? 'uma novidade' : `${newUnlocks.length} novidades` }}!</span>
-            </div>
-
-            <div class="unlocks-grid">
-              <div v-for="item in newUnlocks" :key="item.label" class="unlock-item">
-
-                <!-- Cor -->
-                <div v-if="item.type === 'color'" class="unlock-preview preview-color">
-                  <span class="color-swatch" :style="{ background: item.hex }" />
-                </div>
-
-                <!-- Fundo -->
-                <div v-else-if="item.type === 'bg'" class="unlock-preview preview-bg" :style="bgStyle(item)" />
-
-                <!-- Efeito -->
-                <div v-else-if="item.type === 'effect'" class="unlock-preview preview-effect">
-                  <span class="effect-label">{{ EFFECT_LABELS[item.label] ?? item.label }}</span>
-                </div>
-
-                <!-- Borda -->
-                <div v-else-if="item.type === 'border'" class="unlock-preview preview-border"
-                  :class="item.label === 'Borda Anel' ? 'preview-border--ring' : item.label === 'Borda Pesada' ? 'preview-border--heavy' : 'preview-border--minimal'">
-                  <span class="border-inner" />
-                </div>
-
-                <span class="unlock-item-label">{{ item.label }}</span>
-              </div>
-            </div>
-          </div>
-
-          <UiButton variant="primary" style="width: 100%; display: flex;" @click="emit('close')">
-            Continuar
-          </UiButton>
-
-          <div class="confetti-wrap" aria-hidden="true">
-            <span
-              v-for="p in confetti"
-              :key="p.id"
-              class="cp"
-              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
-            />
+          <div class="actions-row">
+            <UiButton
+              v-if="hasUnlocks && (phase === 'flip' || phase === 'settled')"
+              variant="secondary"
+              style="flex: 1;"
+              @click="slide = 'unlocks'"
+            >
+              Ver o que desbloqueaste
+            </UiButton>
+            <UiButton variant="primary" style="flex: 1;" @click="emit('close')">
+              Continuar
+            </UiButton>
           </div>
 
         </div>
+
+        <!-- ─── Slide 2: Novidades ─── -->
+        <div v-else class="slide slide-unlocks" key="unlocks">
+
+          <div class="unlocks-top">
+            <button class="slide-back-btn" type="button" @click="slide = 'level'" aria-label="Voltar">
+              <ChevronLeftIcon style="width:16px;height:16px;stroke-width:2.5;" aria-hidden="true" />
+            </button>
+            <div class="unlocks-title-row">
+              <LockOpenIcon class="unlocks-title-icon" aria-hidden="true" />
+              <h2 class="unlocks-title">Novidades desbloqueadas!</h2>
+            </div>
+          </div>
+
+          <p class="unlocks-count">
+            {{ newUnlocks.length }} {{ newUnlocks.length === 1 ? 'item desbloqueado' : 'itens desbloqueados' }} neste nível
+          </p>
+
+          <UiScrollArea max-height="320px">
+          <div class="groups-list">
+            <div v-for="group in unlockGroups" :key="group.label" class="group">
+              <p class="group-label">{{ group.label }}</p>
+
+              <!-- Features (funcionalidades) -->
+              <div v-if="group.items[0].type === 'feature'" class="feature-list">
+                <div v-for="item in group.items" :key="item.label" class="feature-item">
+                  <div class="feature-icon-wrap" aria-hidden="true">
+                    <BoltIcon class="feature-icon" />
+                  </div>
+                  <div class="feature-text">
+                    <span class="feature-name">{{ item.label }}</span>
+                    <span v-if="item.desc" class="feature-desc">{{ item.desc }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cosméticos -->
+              <div v-else class="cosmetics-grid">
+                <div v-for="item in group.items" :key="item.label" class="unlock-item">
+
+                  <div v-if="item.type === 'color'" class="unlock-preview preview-color">
+                    <span class="color-swatch" :style="{ background: item.hex }" />
+                  </div>
+
+                  <div v-else-if="item.type === 'bg'" class="unlock-preview preview-bg" :style="bgStyle(item)" />
+
+                  <div v-else-if="item.type === 'effect'" class="unlock-preview preview-effect">
+                    <span class="effect-label">{{ EFFECT_LABELS[item.label] ?? item.label }}</span>
+                  </div>
+
+                  <div v-else-if="item.type === 'border'" class="unlock-preview preview-border" :class="borderClass(item)">
+                    <span class="border-inner" />
+                  </div>
+
+                  <span class="unlock-item-label">{{ item.label }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          </UiScrollArea>
+
+          <UiButton variant="primary" style="width:100%;display:flex;" @click="emit('close')">
+            Fechar
+          </UiButton>
+
+        </div>
+      </Transition>
+
+    </div>
   </UiModal>
 </template>
 
@@ -260,6 +354,25 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   to   { transform: scale(1)    translateY(0);    opacity: 1; }
 }
 
+/* Slide transitions */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.slide-fade-enter-from { opacity: 0; transform: translateX(24px); }
+.slide-fade-leave-to   { opacity: 0; transform: translateX(-24px); }
+
+.slide {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Slide 1 ── */
+.slide-level {
+  align-items: center;
+}
+
 /* Confetti */
 .confetti-wrap {
   position: absolute;
@@ -267,7 +380,6 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   pointer-events: none;
   overflow: hidden;
 }
-
 .cp {
   position: absolute;
   top: -14px;
@@ -277,7 +389,6 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   will-change: transform, opacity;
   animation: fall var(--dur) var(--d) ease-in forwards;
 }
-
 @keyframes fall {
   0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
   85%  { opacity: 1; }
@@ -298,12 +409,10 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   animation: trophy-bounce 0.5s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   will-change: transform, opacity;
 }
-
 @keyframes trophy-bounce {
   from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
   to   { transform: scale(1)   rotate(0deg);   opacity: 1; }
 }
-
 .trophy-icon {
   width: 40px;
   height: 40px;
@@ -329,7 +438,6 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   gap: 16px;
   margin-bottom: 28px;
 }
-
 .lvl-bubble {
   width: 88px;
   height: 88px;
@@ -341,45 +449,14 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   box-shadow: 4px 4px 0 var(--color-shadow);
   transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-.lvl-bubble.old.dimmed {
-  opacity: 0.35;
-  transform: scale(0.88);
-}
-
-.lvl-bubble.new {
-  opacity: 0.4;
-  transform: scale(0.88);
-  background: var(--color-teal-100);
-  border-color: var(--btn-border);
-}
-
-.lvl-bubble.new.lit {
-  opacity: 1;
-  transform: scale(1.1);
-  box-shadow: 6px 6px 0 var(--color-shadow);
-}
-
-.lvl-num {
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-  line-height: 1;
-  display: block;
-}
-
-.arrow-icon {
-  width: 28px;
-  height: 28px;
-  color: var(--color-mirage-400);
-  flex-shrink: 0;
-}
+.lvl-bubble.old.dimmed { opacity: 0.35; transform: scale(0.88); }
+.lvl-bubble.new { opacity: 0.4; transform: scale(0.88); background: var(--color-teal-100); border-color: var(--btn-border); }
+.lvl-bubble.new.lit { opacity: 1; transform: scale(1.1); box-shadow: 6px 6px 0 var(--color-shadow); }
+.lvl-num { font-size: 40px; font-weight: 800; color: var(--color-mirage-800); line-height: 1; display: block; }
+.arrow-icon { width: 28px; height: 28px; color: var(--color-mirage-400); flex-shrink: 0; }
 
 /* Progress bar */
-.bar-section {
-  margin-bottom: 20px;
-}
-
+.bar-section { margin-bottom: 24px; width: 100%; }
 .bar-labels {
   display: flex;
   justify-content: space-between;
@@ -390,7 +467,6 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   color: var(--color-mirage-500);
   margin-bottom: 8px;
 }
-
 .bar-track {
   width: 100%;
   height: 14px;
@@ -400,52 +476,149 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   box-shadow: 3px 3px 0 var(--color-shadow);
   overflow: hidden;
 }
-
 .bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-500));
   border-radius: inherit;
 }
 
-/* Unlocks section */
-.unlocks-section {
-  margin-bottom: 20px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--color-wild-200);
-  border: 2px solid var(--color-deep-600);
-  box-shadow: 3px 3px 0 var(--color-shadow);
+/* Unlock hint */
+.unlock-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-deep-600);
+  text-align: center;
+}
+
+.hint-fade-enter-active,
+.hint-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.hint-fade-enter-from,
+.hint-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+/* Actions */
+.actions-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+/* ── Slide 2 ── */
+.slide-unlocks {
   text-align: left;
-  animation: fade-in-up 0.3s ease both;
-  will-change: transform, opacity;
+  gap: 20px;
 }
 
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+.unlocks-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.unlocks-header {
+.slide-back-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  cursor: pointer;
+  color: var(--color-mirage-700);
+  transition: background 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+}
+.slide-back-btn:hover { background: var(--color-wild-300); }
+.slide-back-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+.unlocks-title-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-deep-700);
-  margin-bottom: 12px;
 }
-
-.unlock-icon {
-  width: 15px;
-  height: 15px;
+.unlocks-title-icon {
+  width: 16px;
+  height: 16px;
   stroke-width: 2.5;
+  color: var(--color-deep-600);
   flex-shrink: 0;
 }
+.unlocks-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  margin: 0;
+}
 
-/* Grid de itens */
-.unlocks-grid {
+/* Unlocks count message */
+.unlocks-count {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-mirage-500);
+}
+
+/* Groups */
+.groups-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 6px;
+}
+
+.group {}
+
+.group-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-mirage-500);
+  margin: 0 0 8px;
+}
+
+/* Features */
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-deep-100);
+  border: 2px solid var(--color-deep-400);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+.feature-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-deep-600);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.feature-icon { width: 18px; height: 18px; color: #fff; stroke-width: 2; }
+.feature-text { display: flex; flex-direction: column; gap: 2px; }
+.feature-name { font-size: 13px; font-weight: 800; color: var(--color-deep-800); }
+.feature-desc { font-size: 11px; font-weight: 500; color: var(--color-deep-600); }
+
+/* Cosmetics grid */
+.cosmetics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   gap: 10px;
 }
 
@@ -453,49 +626,42 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  width: 58px;
+  gap: 6px;
 }
 
 .unlock-preview {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   border: 2px solid var(--color-mirage-800);
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
-  flex-shrink: 0;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
   overflow: hidden;
 }
 
-/* Cor: fundo branco + círculo colorido centrado */
+/* Color */
 .preview-color {
   background: var(--color-wild-200);
   display: grid;
   place-items: center;
 }
-
 .color-swatch {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid var(--color-mirage-800);
-  display: block;
   box-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+  display: block;
 }
 
-/* Fundo: mostra o gradiente diretamente */
-.preview-bg {
-  /* background set by inline style */
-}
+/* BG */
+.preview-bg { /* background set inline */ }
 
-/* Efeito: pill com texto */
+/* Effect */
 .preview-effect {
   background: var(--color-deep-700);
   display: grid;
   place-items: center;
-  border-radius: 10px;
 }
-
 .effect-label {
   font-size: 9px;
   font-weight: 800;
@@ -506,29 +672,21 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   padding: 0 4px;
 }
 
-/* Borda: mostra o estilo de borda */
+/* Border */
 .preview-border {
   background: var(--color-wild-100);
   display: grid;
   place-items: center;
 }
-
 .border-inner {
   width: 28px;
   height: 28px;
   border-radius: 6px;
   background: transparent;
 }
-
-.preview-border--minimal .border-inner {
-  border: 1px solid var(--color-mirage-800);
-}
-
-.preview-border--heavy .border-inner {
-  border: 4px solid var(--color-mirage-800);
-}
-
-.preview-border--ring .border-inner {
+.preview-border--minimal .border-inner { border: 1px solid var(--color-mirage-800); }
+.preview-border--heavy   .border-inner { border: 4px solid var(--color-mirage-800); }
+.preview-border--ring    .border-inner {
   border-radius: 50%;
   border: 2px solid var(--color-mirage-800);
   outline: 3px solid var(--color-deep-500);
@@ -542,5 +700,6 @@ function bgStyle(item: UnlockItem): Record<string, string> {
   text-align: center;
   line-height: 1.2;
   word-break: break-word;
+  max-width: 60px;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, toRef } from 'vue'
 import type { Component } from 'vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
 import {
@@ -13,20 +13,19 @@ import {
   PencilIcon,
   BookOpenIcon,
 } from '@heroicons/vue/24/solid'
-import Book from '@/views/Book.vue'
+import { useAuthAsset } from '@/composables/useAuthAsset'
 
 type Frame = 'essence' | 'bloom' | 'ember' | 'aurora' | 'nebula' | 'ethereal' | 'void'
 
 type Props = {
   src?: string
+  assetId?: string | null
   alt?: string
   size?: number
   status?: 'online' | 'away' | 'busy' | 'offline'
   ring?: boolean
-  // legacy
   tone?: 'primary' | 'accent' | 'neutral'
   frame?: Frame
-  // new three-part system
   border?: AvatarBorder
   avatarColor?: AvatarColor
   effect?: AvatarEffect
@@ -37,6 +36,7 @@ type Props = {
 
 const props = withDefaults(defineProps<Props>(), {
   src: '',
+  assetId: undefined,
   alt: 'avatar',
   size: 48,
   status: undefined,
@@ -52,7 +52,11 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const imgError = ref(false)
-watch(() => props.src, () => { imgError.value = false })
+
+const blobUrl = useAuthAsset(toRef(props, 'assetId'))
+const resolvedSrc = computed(() => props.assetId ? blobUrl.value : props.src)
+
+watch(resolvedSrc, () => { imgError.value = false })
 
 const CRACHA_ICONS: Record<NonNullable<Props['cracha']>, Component> = {
   rank:      TrophyIcon,
@@ -87,7 +91,7 @@ const classes = computed(() => {
 
 <template>
   <div class="ui-avatar" :class="classes" :style="{ width: `${size}px`, height: `${size}px` }">
-    <img v-if="src && !imgError" :src="src" :alt="alt" @error="imgError = true" />
+    <img v-if="resolvedSrc && !imgError" :src="resolvedSrc" :alt="alt" @error="imgError = true" />
     <span v-else>{{ alt.charAt(0).toUpperCase() }}</span>
     <span v-if="status" class="status" :class="status"></span>
     <span v-if="cracha" class="cracha" :class="`cracha-${cracha}`">
