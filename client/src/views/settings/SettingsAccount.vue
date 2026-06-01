@@ -144,12 +144,12 @@ onMounted(loadProfile)
 
 .section-header {
     display: grid;
-    gap: 6px;
+    gap: var(--space-150);
 }
 
 .form {
     display: grid;
-    gap: 12px;
+    gap: var(--space-300);
 }
 
 .file-field {
@@ -197,7 +197,7 @@ onMounted(loadProfile)
 }
 
 .file-action {
-    padding: 4px 10px;
+    padding: var(--space-100) var(--space-300);
     border-radius: 999px;
     border: 2px solid var(--color-mirage-800);
     background: var(--color-wild-100);
@@ -231,5 +231,15 @@ onMounted(loadProfile)
 .state {
     font-weight: 600;
     color: var(--color-mirage-500);
+}
+
+@media (max-width: 480px) {
+  .file-picker {
+    grid-template-columns: auto 1fr;
+  }
+
+  .file-action {
+    display: none;
+  }
 }
 </style>

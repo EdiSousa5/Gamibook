@@ -158,14 +158,14 @@ h1 {
 
 form {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: var(--space-400);
+  margin-top: var(--space-400);
 }
 
 .avatar {
   display: grid;
   place-items: center;
-  margin-top: 8px;
+  margin-top: var(--space-200);
 }
 
 .avatar img {
@@ -187,7 +187,7 @@ form {
 }
 
 .alt {
-  margin-top: 16px;
+  margin-top: var(--space-400);
   font-size: 14px;
   text-align: center;
 }

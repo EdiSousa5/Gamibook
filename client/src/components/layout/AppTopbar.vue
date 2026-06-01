@@ -5,7 +5,7 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon, Bars3Icon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
@@ -22,6 +22,7 @@ type Props = {
   progressValue?: number
   progressTotal?: number
   isAdmin?: boolean
+  mobileNavOpen?: boolean
 }
 
 const UNLOCK_URL_RE = /\/unlock\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
@@ -30,7 +31,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-owned' | 'not-found' | 'error'
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book] }>()
+const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book]; 'toggle-nav': [] }>()
 
 const notifStore = useNotificationsStore()
 const authStore = useAuthStore()
@@ -309,13 +310,23 @@ onBeforeUnmount(() => {
 
 <template>
   <header class="topbar">
-    <div v-if="showBack" class="back">
-      <UiPillButton class="back-button" @click="goBack">
-        <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
-        Voltar para trás
-      </UiPillButton>
+    <div class="topbar-left">
+      <button
+        class="hamburger-btn"
+        :aria-expanded="mobileNavOpen"
+        aria-label="Abrir menu de navegação"
+        @click="emit('toggle-nav')"
+      >
+        <XMarkIcon v-if="mobileNavOpen" class="icon" aria-hidden="true" />
+        <Bars3Icon v-else class="icon" aria-hidden="true" />
+      </button>
+      <div v-if="showBack" class="back">
+        <UiPillButton class="back-button" @click="goBack">
+          <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
+          Voltar para trás
+        </UiPillButton>
+      </div>
     </div>
-    <div v-else class="back-spacer"></div>
     <div class="actions">
       <div class="bell-anchor" ref="bellRef">
         <UiIconButton variant="outline" size="lg" aria-label="Notificações" @click="toggleBell">
@@ -531,15 +542,40 @@ onBeforeUnmount(() => {
   z-index: 20;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  min-width: 160px;
+}
+
 .back { display: flex; align-items: center; }
-.back-spacer { width: 160px; }
+
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-200);
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--color-mirage-800);
+  transition: background 0.15s ease;
+}
+
+.hamburger-btn:hover { background: var(--color-wild-300); }
 
 .back-button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-150);
   font-size: 11px;
-  padding: 4px 12px;
+  padding: var(--space-100) var(--space-300);
 }
 
 .actions {
@@ -558,7 +594,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: var(--space-200);
-  padding: 6px 10px;
+  padding: var(--space-150) var(--space-300);
   border-radius: 18px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
@@ -570,7 +606,7 @@ onBeforeUnmount(() => {
 
 .profile-details {
   display: grid;
-  gap: 4px;
+  gap: var(--space-100);
   text-align: left;
 }
 
@@ -613,19 +649,19 @@ onBeforeUnmount(() => {
   top: calc(100% + var(--space-200));
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 12px;
+  border-radius: var(--radius-200);
   box-shadow: 4px 4px 0 var(--color-shadow);
   min-width: 100%;
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: var(--space-150);
   z-index: 2;
 }
 
 .menu-item {
-  padding: 10px 12px;
+  padding: var(--space-300) var(--space-300);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   background: transparent;
   text-align: left;
   font-size: 14px;
@@ -1132,5 +1168,39 @@ onBeforeUnmount(() => {
 @keyframes notif-pop-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Mobile ── */
+@media (max-width: 720px) {
+  .topbar {
+    padding: var(--space-200) var(--space-400);
+    gap: var(--space-200);
+  }
+
+  .topbar-left {
+    min-width: 0;
+  }
+
+  .hamburger-btn {
+    display: inline-flex;
+  }
+
+  .profile-details {
+    display: none;
+  }
+
+  .profile-button {
+    padding: var(--space-100) var(--space-200);
+  }
+
+  .back-button {
+    font-size: 12px;
+    padding: var(--space-100) var(--space-200);
+  }
+
+  .notif-popup {
+    width: min(260px, calc(100vw - var(--space-600)));
+    right: calc(-1 * var(--space-500));
+  }
 }
 </style>

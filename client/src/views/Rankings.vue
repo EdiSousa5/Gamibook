@@ -334,7 +334,7 @@ watch(timeFilter, () => {
 
 <style scoped>
 .rankings {
-  padding: 32px 16px;
+  padding: var(--space-600) var(--space-400);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -345,7 +345,7 @@ watch(timeFilter, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-600);
   z-index: 10;
 }
 
@@ -380,8 +380,8 @@ watch(timeFilter, () => {
   gap: 0;
   width: 100%;
   max-width: 800px;
-  margin-top: 24px;
-  margin-bottom: 0px;
+  margin-top: var(--space-500);
+  margin-bottom: 0;
 }
 
 .podium-col {
@@ -414,7 +414,7 @@ watch(timeFilter, () => {
 }
 
 .list-card {
-  padding: 16px;
+  padding: var(--space-400);
   overflow: hidden;
   background: var(--color-wild-100);
 }
@@ -442,8 +442,8 @@ watch(timeFilter, () => {
 /* --- Botão Flutuante (FAB) --- */
 .fab-container {
   position: fixed;
-  bottom: 32px;
-  right: 32px;
+  bottom: var(--space-600);
+  right: var(--space-600);
   z-index: 50;
 }
 
@@ -464,9 +464,17 @@ watch(timeFilter, () => {
 }
 
 @media (max-width: 768px) {
+  .rankings {
+    padding: var(--space-400) var(--space-300);
+  }
+
   .fab-container {
-    bottom: 16px;
-    right: 16px;
+    bottom: var(--space-400);
+    right: var(--space-400);
+  }
+
+  .podium {
+    max-width: 100%;
   }
 }
 
@@ -487,14 +495,14 @@ watch(timeFilter, () => {
   border: 2px solid var(--color-mirage-800);
   border-radius: 24px;
   box-shadow: 6px 6px 0 var(--color-shadow);
-  padding: 36px 24px 24px;
+  padding: var(--space-600) var(--space-500) var(--space-500);
   width: min(360px, 100%);
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - var(--space-700));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-400);
   text-align: center;
   animation: peek-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }

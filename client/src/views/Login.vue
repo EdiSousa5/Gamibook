@@ -122,8 +122,8 @@ h1 {
 
 form {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: var(--space-400);
+  margin-top: var(--space-400);
 }
 
 .cta {
@@ -142,7 +142,7 @@ form {
 }
 
 .alt {
-  margin-top: 16px;
+  margin-top: var(--space-400);
   font-size: 14px;
 }
 

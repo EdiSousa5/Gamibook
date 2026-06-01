@@ -282,12 +282,12 @@ onMounted(async () => {
 
 <style scoped>
 .profile-page {
-  padding: 32px 24px 80px;
+  padding: var(--space-600) var(--space-500) var(--space-800);
   max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-400);
 }
 
 /* ── Base card ── */
@@ -303,8 +303,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 48px 40px 36px;
+  gap: var(--space-400);
+  padding: var(--space-700) var(--space-600) var(--space-600);
   text-align: center;
 }
 
@@ -325,7 +325,7 @@ onMounted(async () => {
 .level-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-400);
   width: 100%;
   max-width: 520px;
 }
@@ -397,15 +397,15 @@ onMounted(async () => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: var(--space-300);
 }
 
 .stat-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 24px 12px;
+  gap: var(--space-150);
+  padding: var(--space-500) var(--space-300);
   text-align: center;
   transition: opacity 0.2s ease;
 }
@@ -442,7 +442,7 @@ onMounted(async () => {
 
 /* ── Section card ── */
 .section-card {
-  padding: 28px;
+  padding: var(--space-600);
 }
 
 .section-label {
@@ -451,14 +451,14 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--color-mirage-500);
-  margin: 0 0 18px;
+  margin: 0 0 var(--space-400);
 }
 
 /* ── Conquistas ── */
 .badges-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: var(--space-200);
 }
 
 .badge-cell {
@@ -582,11 +582,11 @@ onMounted(async () => {
 }
 
 @media (max-width: 600px) {
-  .profile-page { padding: 20px 12px 64px; }
-  .hero-card { padding: 32px 20px 24px; }
-  .section-card { padding: 20px; }
-  .books-section { padding: 20px 20px 24px; }
-  .books-row { padding: 16px 24px 16px; gap: 16px; }
+  .profile-page { padding: var(--space-400) var(--space-300) var(--space-700); }
+  .hero-card { padding: var(--space-600) var(--space-400) var(--space-500); }
+  .section-card { padding: var(--space-500); }
+  .books-section { padding: var(--space-500) var(--space-500) var(--space-500); }
+  .books-row { padding: var(--space-400) var(--space-500) var(--space-400); gap: var(--space-400); }
 }
 
 @media (max-width: 480px) {

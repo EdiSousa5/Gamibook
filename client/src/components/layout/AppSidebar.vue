@@ -20,10 +20,11 @@ type Props = {
   items: NavEntry[]
   username: string
   avatarAssetId?: string | null
+  open?: boolean
 }
 
 const props = defineProps<Props>()
-defineEmits<{ action: [string] }>()
+defineEmits<{ action: [string]; close: [] }>()
 
 const initials = computed(() => {
   const value = props.username?.trim() || 'U'
@@ -32,14 +33,16 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <aside class="sidebar">
+  <div v-if="open" class="sidebar-backdrop" aria-hidden="true" @click="$emit('close')" />
+
+  <aside class="sidebar" :class="{ 'is-open': open }">
     <div class="top">
       <div class="logo">
         <img :src="logoUrl" alt="GamiBook" />
       </div>
     </div>
 
-    <nav class="nav">
+    <nav class="nav" @click="$emit('close')">
       <NavItem v-for="item in items" :key="item.label" :label="item.label" :to="item.to" :icon="item.icon"
         :is-action="item.isAction" :exact="item.exact" @click="item.isAction ? $emit('action', item.label) : null" />
     </nav>
@@ -138,27 +141,55 @@ const initials = computed(() => {
   font-weight: 600;
 }
 
+/* ── Backdrop (mobile) ── */
+.sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .sidebar {
+    min-width: 200px;
     padding: var(--space-400) var(--space-300);
   }
 
   .logo img {
     width: 120px;
   }
-
-  .sidebar {
-    min-width: 200px;
-  }
 }
 
+/* ── Drawer (mobile) ── */
 @media (max-width: 720px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 22, 27, 0.5);
+    z-index: 49;
+    animation: backdrop-in 0.2s ease both;
+  }
+
+  @keyframes backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
   .sidebar {
-    position: relative;
-    height: auto;
-    width: 100%;
-    border-right: none;
-    border-bottom: 2px solid var(--color-mirage-800);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    min-width: unset;
+    height: 100dvh;
+    border-right: 2px solid var(--color-mirage-800);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
   }
 }
 </style>

@@ -23,6 +23,7 @@ const notifStore = useNotificationsStore()
 const { toasts, dismiss } = useToast()
 const { isAuthed, displayName, isAdmin, progress, levelUpVisible, levelUpOld, levelUpNew, levelUpPoints } = storeToRefs(auth)
 const avatarAssetId = computed(() => auth.user?.avatar ?? null)
+const mobileNavOpen = ref(false)
 
 const showLanding = computed(() => route.meta.layout === 'landing')
 const canGoBack = ref(false)
@@ -100,6 +101,7 @@ watch(
   () => route.fullPath,
   () => {
     updateCanGoBack()
+    mobileNavOpen.value = false
   },
 )
 
@@ -168,11 +170,11 @@ watch(
   </Teleport>
   <div class="app" :class="{ 'layout-landing': showLanding }">
     <template v-if="isAuthed && !showLanding">
-      <AppSidebar :items="navItems" :username="displayName" :avatar-asset-id="avatarAssetId" @action="onNavClick" />
+      <AppSidebar :items="navItems" :username="displayName" :avatar-asset-id="avatarAssetId" :open="mobileNavOpen" @action="onNavClick" @close="mobileNavOpen = false" />
       <div class="content">
         <AppTopbar :username="displayName" :avatar-asset-id="avatarAssetId" :level="progress.level"
           :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
-          :is-admin="isAdmin" @action="onNavClick" @book-unlocked="handleBookUnlocked" />
+          :is-admin="isAdmin" :mobile-nav-open="mobileNavOpen" @action="onNavClick" @book-unlocked="handleBookUnlocked" @toggle-nav="mobileNavOpen = !mobileNavOpen" />
         <main class="main">
           <RouterView />
         </main>
@@ -234,6 +236,12 @@ watch(
   display: flex;
   flex-direction: column;
   --topbar-height: 96px;
+}
+
+@media (max-width: 720px) {
+  .app {
+    --topbar-height: 60px;
+  }
 }
 
 .app:not(.layout-landing) {

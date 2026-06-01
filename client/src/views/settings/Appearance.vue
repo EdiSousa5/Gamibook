@@ -1245,4 +1245,26 @@ h2 {
   50%  { background-position: 100% 0%, 0% 100%, 0% 0%; }
   100% { background-position: 0% 100%, 100% 0%, 0% 0%; }
 }
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .av-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .av-preview-box {
+    display: flex;
+    justify-content: center;
+  }
+
+  .unlock-modal__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .unlock-row__category {
+    width: 80px;
+  }
+}
 </style>
