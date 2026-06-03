@@ -635,7 +635,7 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25em) {
   .destaque-wrapper {
     flex-direction: column-reverse;
     align-items: center;
@@ -653,11 +653,83 @@ onUnmounted(() => {
 
   .filters-bar {
     flex-direction: column;
+    gap: var(--space-200);
   }
 
   .filter-item {
     min-width: unset;
     width: 100%;
+  }
+
+  .filter-item--search {
+    min-width: unset;
+  }
+}
+
+@media (max-width: 45em) {
+  .collection {
+    gap: var(--space-300);
+  }
+
+  .destaque-wrapper {
+    padding: 0 var(--space-300);
+    min-height: unset;
+    gap: var(--space-300);
+  }
+
+  .destaque-visual {
+    margin-bottom: var(--space-200);
+    align-self: center;
+  }
+
+  .destaque-info {
+    padding-bottom: var(--space-300);
+    max-width: 100%;
+  }
+
+  .titulo-livro {
+    font-size: clamp(1.25rem, 5.5vw, 1.75rem);
+    margin-bottom: var(--space-200);
+  }
+
+  .descricao {
+    font-size: 0.875rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .lista-wrapper {
+    padding: 0 var(--space-300);
+  }
+
+  .titulo-secao {
+    font-size: 1rem;
+  }
+
+  .livros-fila {
+    gap: var(--space-400);
+    padding: var(--space-300) var(--space-200) var(--space-100);
+  }
+
+  .livro-item {
+    width: 80px;
+  }
+
+  .cartao-principal {
+    padding: var(--space-400) 0 0 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 30em) {
+  .livro-item {
+    width: 68px;
+  }
+
+  .livros-fila {
+    gap: var(--space-300);
   }
 }
 </style>

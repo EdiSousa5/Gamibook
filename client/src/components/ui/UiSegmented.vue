@@ -71,6 +71,14 @@ watch(() => props.modelValue, () => {
   padding: 6px 12px;
   box-shadow: 4px 4px 0 var(--color-shadow);
   z-index: 1;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-segmented::-webkit-scrollbar {
+  display: none;
 }
 
 .segmented-indicator {
@@ -110,5 +118,17 @@ watch(() => props.modelValue, () => {
 
 .ui-segmented button:focus-visible {
   box-shadow: 0 0 0 2px var(--color-teal-500);
+}
+
+@media (max-width: 37.5em) {
+  .ui-segmented {
+    padding: 4px 8px;
+  }
+
+  .ui-segmented button {
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
 }
 </style>

@@ -465,6 +465,7 @@ const filteredUnlockables = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-400);
+  max-width: 100%;
 }
 
 .section-heading {
@@ -472,6 +473,11 @@ const filteredUnlockables = computed(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-300);
+}
+
+.info-btn {
+  margin-left: auto;
+  align-self: flex-start;
 }
 
 .info-btn {
@@ -553,7 +559,7 @@ h2 {
 
 .av-editor {
   display: grid;
-  grid-template-columns: 130px 1fr;
+  grid-template-columns: minmax(7.5rem, 8.75rem) minmax(0, 1fr);
   gap: var(--space-500);
   width: 100%;
   align-items: start;
@@ -570,6 +576,7 @@ h2 {
   background: var(--color-deep-100);
   box-shadow: 4px 4px 0 var(--color-deep-300);
   aspect-ratio: 1;
+  min-width: 0;
 }
 
 .av-panel {
@@ -817,15 +824,16 @@ h2 {
 }
 
 .bg-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-300);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(3.75rem, 1fr));
+  gap: var(--space-200);
 }
 
 .bg-btn {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
   border-radius: 12px;
   border: 2px solid var(--color-deep-800);
   cursor: pointer;
@@ -1249,6 +1257,11 @@ h2 {
 /* ── Responsive ─────────────────────────────────────── */
 
 @media (max-width: 600px) {
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
   .av-editor {
     grid-template-columns: 1fr;
   }
@@ -1256,6 +1269,9 @@ h2 {
   .av-preview-box {
     display: flex;
     justify-content: center;
+    justify-self: center;
+    max-width: 9rem;
+    padding: var(--space-400);
   }
 
   .unlock-modal__filters {
@@ -1263,8 +1279,52 @@ h2 {
     align-items: stretch;
   }
 
+  .filter-pills {
+    flex-wrap: wrap;
+  }
+
+  .unlock-modal__header {
+    padding: 18px 18px 12px;
+  }
+
+  .unlock-modal__filters {
+    padding: 12px 18px;
+  }
+
+  .unlock-row {
+    padding: 10px 18px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .unlock-row__category {
+    width: auto;
+  }
+
+  .unlock-row__item {
+    min-width: 0;
+  }
+
+  .unlock-modal__footer {
+    padding: 14px 18px;
+  }
+
   .unlock-row__category {
     width: 80px;
+  }
+}
+
+@media (max-width: 40em) {
+  .bg-selector {
+    grid-template-columns: repeat(auto-fit, minmax(3.25rem, 1fr));
+  }
+
+  .bg-btn {
+    min-height: 3.25rem;
+  }
+
+  .av-preview-box {
+    max-width: 7.75rem;
   }
 }
 </style>

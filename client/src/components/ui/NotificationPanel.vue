@@ -198,18 +198,33 @@ const handleItemClick = async (id: string, isRead: boolean) => {
 /* ── Panel ── */
 .notif-panel {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 0.5rem);
   right: 0;
-  width: 400px;
-  max-height: 520px;
+  width: 25rem;
+  max-height: 32.5rem;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 16px;
+  border-radius: 1rem;
   box-shadow: 6px 6px 0 var(--color-shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   z-index: 100;
+}
+
+@media (max-width: 64em) {
+  .notif-panel {
+    position: fixed;
+    top: calc(var(--topbar-height, 4.5rem) + var(--space-200));
+    bottom: auto;
+    left: auto;
+    right: var(--space-300);
+    width: min(25rem, calc(100vw - 1.5rem));
+    max-height: min(32.5rem, calc(100dvh - 6rem));
+    border-radius: 1rem;
+    border-bottom: 2px solid var(--color-mirage-800);
+    box-shadow: 6px 6px 0 var(--color-shadow);
+  }
 }
 
 /* ── Header ── */
@@ -500,5 +515,19 @@ const handleItemClick = async (id: string, isRead: boolean) => {
 @keyframes panel-in {
   from { opacity: 0; transform: translateY(-8px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 64em) {
+  .panel-pop-enter-active {
+    animation: panel-slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .panel-pop-leave-active {
+    animation: panel-slide-up 0.2s ease reverse both;
+  }
+}
+
+@keyframes panel-slide-up {
+  from { opacity: 0; transform: translateY(1.5rem); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>

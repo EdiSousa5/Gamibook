@@ -853,8 +853,50 @@ watch(currentIndex, () => {
     grid-template-columns: 1fr;
   }
 
+  .info-card__actions,
+  .complete-header,
+  .history-header,
+  .attempt-header,
+  .attempt-meta,
+  .result-actions,
+  .pass-badge,
+  .quiz-card__title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .complete-header,
+  .history-header,
+  .attempt-header {
+    gap: var(--space-200);
+  }
+
+  .pass-badge {
+    align-items: flex-start;
+  }
+
+  .attempt-score {
+    white-space: normal;
+  }
+
+  .attempt-question {
+    flex-direction: column;
+  }
+
   .options-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .runner-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .complete-card {
+    padding: 18px;
+  }
+
+  .history-header {
+    align-items: flex-start;
   }
 }
 </style>

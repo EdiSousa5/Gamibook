@@ -70,14 +70,14 @@ const initials = computed(() => {
 <style scoped>
 .sidebar {
   width: max-content;
-  min-width: 230px;
+  min-width: 14.375rem;
   background: var(--color-wild-100);
   border-right: 2px solid var(--color-mirage-800);
   display: flex;
   flex-direction: column;
   padding: var(--space-400) var(--space-300);
   gap: var(--space-300);
-  height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -88,7 +88,7 @@ const initials = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(var(--topbar-height, 96px) - 24px);
+  height: calc(var(--topbar-height, 6rem) - 1.5rem);
   padding-bottom: 0;
   border-bottom: 2px solid var(--color-mirage-800);
 }
@@ -103,19 +103,19 @@ const initials = computed(() => {
 
 .logo img {
   width: 100%;
-  height: 52px;
+  height: 3.25rem;
   object-fit: contain;
   display: block;
 }
 
 .nav {
   display: grid;
-  gap: var(--space-400);
+  gap: var(--space-300);
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: var(--space-200);
   padding-bottom: var(--space-200);
-  padding-top: var(--space-600);
+  padding-top: var(--space-500);
 }
 
 .spacer {
@@ -128,15 +128,24 @@ const initials = computed(() => {
   gap: var(--space-300);
   padding: var(--space-200) 0 0;
   border-top: 2px solid var(--color-mirage-800);
+  min-width: 0;
 }
 
 .text {
   display: grid;
-  gap: 6px;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9375rem;
 }
 
 .welcome {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--color-mirage-500);
   font-weight: 600;
 }
@@ -146,19 +155,8 @@ const initials = computed(() => {
   display: none;
 }
 
-@media (max-width: 900px) {
-  .sidebar {
-    min-width: 200px;
-    padding: var(--space-400) var(--space-300);
-  }
-
-  .logo img {
-    width: 120px;
-  }
-}
-
-/* ── Drawer (mobile) ── */
-@media (max-width: 720px) {
+/* ── Drawer (tablet + mobile) ── */
+@media (max-width: 64em) {
   .sidebar-backdrop {
     display: block;
     position: fixed;
@@ -177,7 +175,7 @@ const initials = computed(() => {
     position: fixed;
     top: 0;
     left: 0;
-    width: 280px;
+    width: min(18rem, 85vw);
     min-width: unset;
     height: 100dvh;
     border-right: 2px solid var(--color-mirage-800);
@@ -186,10 +184,15 @@ const initials = computed(() => {
     z-index: 50;
     overflow-y: auto;
     overflow-x: hidden;
+    box-shadow: 4px 0 24px rgba(14, 22, 27, 0.18);
   }
 
   .sidebar.is-open {
     transform: translateX(0);
+  }
+
+  .nav {
+    padding-top: var(--space-500);
   }
 }
 </style>

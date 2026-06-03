@@ -651,14 +651,99 @@ const filteredFaqCategories = computed(() => {
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 53.75em) {
+  .hero {
+    padding: var(--space-400);
+  }
+
+  .hero-text h1 {
+    font-size: clamp(1.375rem, 4vw, 1.75rem);
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 37.5em) {
+  .help {
+    gap: var(--space-500);
+  }
+
   .hero {
     flex-direction: column;
-    gap: var(--space-400);
+    gap: var(--space-300);
+    padding: var(--space-300);
+  }
+
+  .hero-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .hero-icon {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+
+  .hero-text {
+    min-width: 0;
+  }
+
+  .hero-text h1 {
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+  }
+
+  .hero-sub {
+    font-size: 0.875rem;
   }
 
   .hero-chips {
     margin-left: 0;
+  }
+
+  .section {
+    gap: var(--space-400);
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-types-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-type-card {
+    padding: var(--space-300);
+  }
+
+  /* FAQ filters — scroll horizontal */
+  .faq-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-100);
+    scrollbar-width: none;
+  }
+
+  .faq-filters::-webkit-scrollbar { display: none; }
+
+  .category-title {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 25em) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-content {
+    padding: var(--space-300);
   }
 }
 </style>

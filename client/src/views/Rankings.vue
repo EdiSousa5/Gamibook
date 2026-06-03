@@ -7,7 +7,8 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import { StarIcon } from '@heroicons/vue/24/outline'
+import UiInput from '@/components/ui/UiInput.vue'
+import { StarIcon, MagnifyingGlassIcon, UserGroupIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import { FireIcon } from '@heroicons/vue/24/solid'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
@@ -52,6 +53,28 @@ const timeFilter = ref<TimeFilter>('all')
 
 type PeekEntry = LeaderboardEntry & { globalRank: number }
 const peekEntry = ref<PeekEntry | null>(null)
+
+const searchModalOpen = ref(false)
+const searchQuery = ref('')
+
+const filteredSearchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return topGlobal.value
+  return topGlobal.value.filter(u => {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase()
+    return name.includes(q) || (u.email ?? '').toLowerCase().includes(q)
+  })
+})
+
+function openSearchModal() {
+  searchQuery.value = ''
+  searchModalOpen.value = true
+}
+
+function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
+  searchModalOpen.value = false
+  goToProfile(String(entry.id))
+}
 
 onMounted(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }))
 const displayUserName = (entry?: User | null) => {
@@ -188,7 +211,23 @@ watch(timeFilter, () => {
 <template>
   <section class="rankings">
     <div class="filters-wrapper">
-      <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS" @update="timeFilter = $event as TimeFilter" />
+      <div class="filters-card">
+        <div class="filters-card-row">
+          <div class="filters-seg-block">
+            <p class="filters-label">Período</p>
+            <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS" @update="timeFilter = $event as TimeFilter" />
+          </div>
+          <div class="filters-divider" />
+          <button class="search-trigger" @click="openSearchModal" aria-label="Pesquisar jogador na classificação">
+            <UserGroupIcon class="search-trigger-icon" aria-hidden="true" />
+            <span class="search-trigger-text">
+              <span class="search-trigger-main">Pesquisar jogador</span>
+              <span class="search-trigger-sub">Encontrar na classificação</span>
+            </span>
+            <MagnifyingGlassIcon class="search-trigger-arrow" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <p v-if="isLoading && isInitialLoad" class="state podium-state">A carregar rankings...</p>
@@ -288,6 +327,55 @@ watch(timeFilter, () => {
     </div>
   </section>
 
+  <!-- Modal de pesquisa de jogador -->
+  <Teleport to="body">
+    <Transition name="peek-fade">
+      <div v-if="searchModalOpen" class="search-overlay" @click.self="searchModalOpen = false">
+        <div class="search-modal" role="dialog" aria-modal="true" aria-label="Pesquisar jogador">
+          <div class="search-modal__header">
+            <div>
+              <p class="search-modal__eyebrow">Classificação</p>
+              <h3 class="search-modal__title">Pesquisar jogador</h3>
+            </div>
+            <UiButton variant="outline" size="sm" @click="searchModalOpen = false">Fechar</UiButton>
+          </div>
+          <div class="search-modal__input-area">
+            <UiInput
+              :model-value="searchQuery"
+              placeholder="Nome do jogador..."
+              @update="searchQuery = String($event)"
+            />
+          </div>
+          <div class="search-modal__body">
+            <template v-if="filteredSearchResults.length">
+              <button
+                v-for="(entry, idx) in filteredSearchResults"
+                :key="entry.id"
+                class="search-row"
+                @click="handleSearchSelect({ ...entry, globalRank: idx + 1 })"
+              >
+                <span class="search-rank">#{{ idx + 1 }}</span>
+                <UiAvatar
+                  :src="getAvatarUrl(entry)"
+                  :alt="displayUserName(entry).charAt(0)"
+                  :size="36"
+                  :border="entry.avatar_border as AvatarBorder"
+                  :avatar-color="entry.avatar_color as AvatarColor"
+                  :effect="entry.avatar_effect as AvatarEffect"
+                  :shadow="entry.avatar_shadow as AvatarShadow"
+                />
+                <span class="search-name">{{ displayUserName(entry) }}</span>
+                <span class="search-level">Nível {{ entry.level }}</span>
+                <span class="search-pts">{{ entry.totalPoints.toLocaleString('pt-PT') }} pts</span>
+              </button>
+            </template>
+            <p v-else class="search-empty">Nenhum jogador encontrado.</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
   <!-- Profile peek popup -->
   <Teleport to="body">
     <Transition name="peek-fade">
@@ -334,7 +422,7 @@ watch(timeFilter, () => {
 
 <style scoped>
 .rankings {
-  padding: var(--space-600) var(--space-400);
+  padding: var(--space-500) var(--space-400);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -342,11 +430,231 @@ watch(timeFilter, () => {
 }
 
 .filters-wrapper {
+  margin-bottom: var(--space-500);
+  z-index: 10;
+  width: 100%;
+  max-width: 42.5rem;
+}
+
+.filters-card {
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: var(--radius-400);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  overflow: hidden;
+}
+
+.filters-card-row {
   display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.filters-seg-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
+  padding: var(--space-300) var(--space-400);
+  min-width: 0;
+}
+
+.filters-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-mirage-400);
+}
+
+.filters-divider {
+  width: 2px;
+  background: var(--color-mirage-800);
+  flex-shrink: 0;
+}
+
+.search-trigger {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--space-600);
-  z-index: 10;
+  gap: var(--space-150);
+  padding: var(--space-300) var(--space-400);
+  border: none;
+  background: var(--color-wild-200);
+  font-family: var(--font-base);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 9.25rem;
+  width: clamp(9.25rem, 22vw, 14rem);
+}
+
+.search-trigger:hover { background: var(--color-deep-100); }
+.search-trigger:active { background: var(--color-deep-200); }
+
+.search-trigger-icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+  color: var(--color-deep-600);
+}
+
+.search-trigger-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-trigger-main {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  line-height: 1;
+}
+
+.search-trigger-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mirage-400);
+  line-height: 1;
+}
+
+.search-trigger-arrow {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+  color: var(--color-mirage-400);
+}
+
+/* Modal de pesquisa */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 25, 0.65);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  padding: clamp(1rem, 4vw, 2rem);
+}
+
+.search-modal {
+  width: min(35rem, 100%);
+  max-height: 85dvh;
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-800);
+  border-radius: 1.25rem;
+  box-shadow: 8px 8px 0 var(--color-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.search-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
+  padding: var(--space-400) var(--space-500) var(--space-300);
+  border-bottom: 2px solid var(--color-wild-400);
+  flex-shrink: 0;
+}
+
+.search-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--color-deep-600);
+  font-weight: 800;
+}
+
+.search-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-mirage-800);
+}
+
+.search-modal__input-area {
+  padding: var(--space-300) var(--space-500);
+  border-bottom: 1px solid var(--color-wild-400);
+  flex-shrink: 0;
+}
+
+.search-modal__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: var(--space-200) var(--space-400);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-wild-300);
+  cursor: pointer;
+  font-family: var(--font-base);
+  transition: background 0.1s ease;
+}
+
+.search-row:last-child { border-bottom: none; }
+.search-row:hover { background: var(--color-deep-100); }
+
+.search-rank {
+  width: 34px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-mirage-400);
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  text-align: right;
+}
+
+.search-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-mirage-800);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-level {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  color: var(--color-mirage-700);
+  flex-shrink: 0;
+}
+
+.search-pts {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-deep-700);
+  flex-shrink: 0;
+}
+
+.search-empty {
+  padding: var(--space-600);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-mirage-500);
 }
 
 .content-refreshing {
@@ -463,18 +771,127 @@ watch(timeFilter, () => {
   100% { transform: scale(1); }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48em) {
   .rankings {
     padding: var(--space-400) var(--space-300);
   }
 
+  .filters-wrapper {
+    margin-bottom: var(--space-400);
+  }
+
   .fab-container {
     bottom: var(--space-400);
-    right: var(--space-400);
+    right: var(--space-300);
   }
 
   .podium {
     max-width: 100%;
+  }
+
+  .list-container {
+    margin-top: calc(var(--rankings-list-overlap, -40px) / 2);
+  }
+}
+
+@media (max-width: 37.5em) {
+  /* Filtros: stack vertical no mobile */
+  .filters-card-row {
+    flex-direction: column;
+  }
+
+  .filters-divider {
+    width: 100%;
+    height: 2px;
+    flex-shrink: 0;
+  }
+
+  .search-trigger {
+    flex-direction: row;
+    justify-content: flex-start;
+    min-width: unset;
+    width: 100%;
+    padding: var(--space-300) var(--space-400);
+    gap: var(--space-300);
+    text-align: left;
+  }
+
+  .search-trigger-text {
+    flex: 1;
+  }
+
+  .search-trigger-arrow {
+    margin-left: auto;
+  }
+
+  .filters-seg-block {
+    padding: var(--space-300);
+  }
+
+  .filters-wrapper {
+    max-width: 100%;
+  }
+
+  .podium {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-300) var(--space-200);
+    align-items: end;
+  }
+
+  .podium-col {
+    width: 100%;
+  }
+
+  .place-1-col {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .place-2-col {
+    order: 1;
+  }
+
+  .place-3-col {
+    order: 2;
+  }
+
+  .podium-state {
+    height: 160px;
+  }
+
+  .search-overlay {
+    padding: var(--space-300);
+  }
+
+  .search-modal {
+    width: min(35rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 1.25rem;
+  }
+
+  .peek-card {
+    width: min(22.5rem, calc(100vw - 1.5rem));
+    border-radius: 1.5rem;
+    border-bottom: 2px solid var(--color-mirage-800);
+    box-shadow: 6px 6px 0 var(--color-shadow);
+    animation: peek-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .list-container {
+    margin-top: 0;
+  }
+
+  .search-modal__input-area {
+    padding: var(--space-300);
+  }
+
+  .list-card {
+    padding: var(--space-300);
+  }
+
+  .peek-overlay {
+    padding: var(--space-300);
   }
 }
 
@@ -486,18 +903,18 @@ watch(timeFilter, () => {
   display: grid;
   place-items: center;
   z-index: 9999;
-  padding: 16px;
+  padding: 1rem;
 }
 
 .peek-card {
   position: relative;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 24px;
+  border-radius: 1.5rem;
   box-shadow: 6px 6px 0 var(--color-shadow);
   padding: var(--space-600) var(--space-500) var(--space-500);
-  width: min(360px, 100%);
-  max-height: calc(100dvh - var(--space-700));
+  width: min(22.5rem, 100%);
+  max-height: calc(100dvh - 3rem);
   overflow-y: auto;
   display: flex;
   flex-direction: column;

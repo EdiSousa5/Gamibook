@@ -1586,18 +1586,67 @@ watch(
 @media (max-width: 900px) {
   .book-hero {
     grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
   }
 
   .book-hero__cover {
     display: none;
   }
 
+  .destaque-wrapper {
+    padding: 0 var(--space-300);
+  }
+
   .roadmap-milestones {
     height: 90px;
+  }
+
+  .free-card,
+  .quiz-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .free-card__action,
+  .quiz-card__action {
+    width: 100%;
+  }
+
+  .free-card__action :deep(.ui-button),
+  .quiz-card__action :deep(.ui-button) {
+    width: 100%;
+  }
+
+  .free-card__tags {
+    justify-content: center;
+  }
+
+  .badge-modal {
+    padding: 22px;
   }
 }
 
 @media (max-width: 640px) {
+  .book-page {
+    gap: var(--space-400);
+  }
+
+  .book-hero,
+  .badge-roadmap,
+  .modules-section,
+  .free-section,
+  .quiz-section {
+    gap: var(--space-300);
+  }
+
+  .roadmap-header,
+  .modules-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .module-card {
     grid-template-columns: 64px 1fr;
     grid-template-rows: auto auto;
@@ -1625,6 +1674,22 @@ watch(
   .roadmap-meta {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .roadmap-milestones {
+    height: 84px;
+  }
+
+  .module-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .badge-modal {
+    padding: 18px;
+  }
+
+  .badge-modal__list {
+    gap: var(--space-150);
   }
 }
 </style>

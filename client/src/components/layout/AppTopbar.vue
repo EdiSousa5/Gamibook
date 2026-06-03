@@ -532,13 +532,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-400);
+  gap: var(--space-300);
   padding: var(--space-400) var(--space-500);
   background: var(--color-wild-100);
   border-bottom: 2px solid var(--color-mirage-800);
   position: sticky;
   top: 0;
-  height: var(--topbar-height, 72px);
+  height: var(--topbar-height, 4.5rem);
   z-index: 20;
 }
 
@@ -546,7 +546,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: var(--space-200);
-  min-width: 160px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .back { display: flex; align-items: center; }
@@ -555,8 +556,8 @@ onBeforeUnmount(() => {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
@@ -574,14 +575,14 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: var(--space-150);
-  font-size: 11px;
+  font-size: 0.6875rem;
   padding: var(--space-100) var(--space-300);
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-400);
+  gap: var(--space-300);
   margin-left: auto;
 }
 
@@ -595,7 +596,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-200);
   padding: var(--space-150) var(--space-300);
-  border-radius: 18px;
+  border-radius: 1.125rem;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 3px 3px 0 var(--color-shadow);
@@ -614,12 +615,12 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-200);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--color-mirage-600);
 }
 
 .level-bar {
-  width: 160px;
+  width: clamp(6rem, 12vw, 10rem);
   height: 6px;
   border-radius: 999px;
   overflow: hidden;
@@ -686,20 +687,43 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   z-index: 9999;
-  padding: 16px;
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 .qr-modal {
-  width: min(460px, 100%);
+  width: min(28.75rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   background: var(--color-wild-100);
-  border-radius: 20px;
+  border-radius: 1.25rem;
   border: 2px solid var(--color-mirage-800);
   box-shadow: 6px 6px 0 var(--color-shadow);
   padding: var(--space-500);
   display: grid;
   gap: var(--space-400);
   position: relative;
-  overflow: hidden;
+}
+
+@media (max-width: 64em) {
+  .qr-modal {
+    width: min(28.75rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    padding: var(--space-400);
+  }
+}
+
+@media (max-width: 40em) {
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-btn {
+    padding: var(--space-400);
+  }
+
+  .qr-modal {
+    width: min(28.75rem, calc(100vw - 1rem));
+  }
 }
 
 .qr-header {
@@ -1094,6 +1118,14 @@ onBeforeUnmount(() => {
   z-index: 101;
 }
 
+@media (max-width: 40em) {
+  .notif-popup {
+    width: min(280px, calc(100vw - 1rem));
+    right: 0;
+    left: auto;
+  }
+}
+
 .notif-popup__icon {
   flex-shrink: 0;
   width: 34px;
@@ -1170,15 +1202,15 @@ onBeforeUnmount(() => {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Mobile ── */
-@media (max-width: 720px) {
+/* ── Tablet + Mobile: topbar fixa + hamburger ── */
+@media (max-width: 64em) {
   .topbar {
-    padding: var(--space-200) var(--space-400);
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    padding: var(--space-200) var(--space-300);
     gap: var(--space-200);
-  }
-
-  .topbar-left {
-    min-width: 0;
   }
 
   .hamburger-btn {
@@ -1188,19 +1220,36 @@ onBeforeUnmount(() => {
   .profile-details {
     display: none;
   }
+}
 
-  .profile-button {
-    padding: var(--space-100) var(--space-200);
+/* ── Mobile apenas: back button oculto, mais compacto ── */
+@media (max-width: 45em) {
+  .back {
+    display: none;
   }
 
-  .back-button {
-    font-size: 12px;
-    padding: var(--space-100) var(--space-200);
+  .profile-button {
+    padding: var(--space-100) var(--space-150);
+    gap: var(--space-150);
+  }
+
+  .actions {
+    gap: var(--space-200);
   }
 
   .notif-popup {
-    width: min(260px, calc(100vw - var(--space-600)));
-    right: calc(-1 * var(--space-500));
+    width: min(16.25rem, calc(100vw - var(--space-600)));
+    right: calc(-1 * var(--space-400));
+  }
+}
+
+@media (max-width: 25em) {
+  .topbar {
+    padding: var(--space-150) var(--space-200);
+  }
+
+  .actions {
+    gap: var(--space-150);
   }
 }
 </style>

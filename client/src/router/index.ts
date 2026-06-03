@@ -111,6 +111,11 @@ const router = createRouter({
           name: 'settings-privacidade',
           component: () => import('../views/settings/Privacy.vue'),
         },
+        {
+          path: 'acessibilidade',
+          name: 'settings-acessibilidade',
+          component: () => import('../views/settings/Accessibility.vue'),
+        },
       ],
     },
     {

@@ -67,7 +67,7 @@ defineProps<Props>()
     align-items: center;
     gap: var(--space-300);
     padding: var(--space-300) var(--space-400);
-    min-height: 84px;
+    min-height: 5.25rem;
     transform: translate(0, 0);
     transition: transform 0.15s ease;
 }
@@ -75,9 +75,9 @@ defineProps<Props>()
 .item-icon {
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
     background: var(--color-wild-200);
     border: 2px solid var(--color-mirage-800);
     flex-shrink: 0;
@@ -85,26 +85,67 @@ defineProps<Props>()
 }
 
 .icon {
-    width: 22px;
-    height: 22px;
+    width: 1.375rem;
+    height: 1.375rem;
     stroke-width: 2.5;
 }
 
 .item-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
 }
 
 .item-title {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 0.9375rem;
     color: var(--color-mirage-900);
 }
 
 .item-desc {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--color-mirage-600);
+}
+
+@media (max-width: 45em) {
+    .ui-side-menu-item {
+        width: auto;
+        flex-shrink: 0;
+    }
+
+    .item-content {
+        min-height: unset;
+        padding: var(--space-150) var(--space-300);
+        gap: var(--space-200);
+        flex-direction: row;
+        align-items: center;
+        white-space: nowrap;
+    }
+
+    .item-icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .icon {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .item-text {
+        gap: 0;
+    }
+
+    .item-title {
+        font-size: 0.8125rem;
+        white-space: nowrap;
+    }
+
+    .item-desc {
+        display: none;
+    }
 }
 
 /* Interactions */

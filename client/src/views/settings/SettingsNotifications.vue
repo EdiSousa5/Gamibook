@@ -46,4 +46,11 @@ const weeklySummary = ref(false)
 .meta {
     color: var(--color-mirage-500);
 }
+
+@media (max-width: 40em) {
+    .row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
 </style>

@@ -846,6 +846,42 @@ onBeforeRouteLeave(() => {
 }
 
 @media (max-width: 720px) {
+    .runner-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-hero {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-400);
+    }
+
+    .summary-chips {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .summary-item__right {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .summary-item__question {
+        white-space: normal;
+    }
+
+    .summary-actions,
+    .runner-footer {
+        width: 100%;
+    }
+
     .question-tags {
         justify-items: center;
         text-align: center;
@@ -864,10 +900,15 @@ onBeforeRouteLeave(() => {
     .runner-footer {
         flex-direction: column;
         align-items: flex-start;
+        justify-content: stretch;
     }
 
     .options-grid-2 {
         grid-template-columns: 1fr;
+    }
+
+    .summary-list {
+        gap: var(--space-150);
     }
 
 }

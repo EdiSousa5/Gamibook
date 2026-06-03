@@ -80,7 +80,18 @@ function clearBg() {
   document.documentElement.removeAttribute('data-bg')
 }
 
+function applyAccessibilitySettings() {
+  const html = document.documentElement
+  const fontSz = localStorage.getItem('gb_a11y_font') || 'normal'
+  const colorMd = localStorage.getItem('gb_a11y_color') || 'none'
+  const contrastVal = localStorage.getItem('gb_a11y_contrast') || 'normal'
+  if (fontSz !== 'normal') html.setAttribute('data-font-size', fontSz)
+  if (colorMd !== 'none') html.setAttribute('data-color-mode', colorMd)
+  if (contrastVal !== 'normal') html.setAttribute('data-contrast', contrastVal)
+}
+
 onMounted(() => {
+  applyAccessibilitySettings()
   if (!showLanding.value) applyUserBg()
 
   setUnauthorizedHandler(() => router.push('/login'))
@@ -150,6 +161,21 @@ watch(
 </script>
 
 <template>
+  <!-- Filtros SVG para modos de daltonismo (ocultos) -->
+  <svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <filter id="cb-deuteranopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.700 0.300 0 0 0  0 0.300 0.700 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="cb-protanopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="cb-tritanopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.950 0.050 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0" />
+      </filter>
+    </defs>
+  </svg>
+
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
 
@@ -195,6 +221,18 @@ watch(
 </template>
 
 <style>
+/* ── Acessibilidade ──────────────────────────────────── */
+html[data-font-size="large"] { zoom: 1.125; }
+html[data-font-size="xl"]    { zoom: 1.25; }
+
+html[data-color-mode="deuteranopia"] .app { filter: url('#cb-deuteranopia'); }
+html[data-color-mode="protanopia"]   .app { filter: url('#cb-protanopia'); }
+html[data-color-mode="tritanopia"]   .app { filter: url('#cb-tritanopia'); }
+
+/* Contraste aplicado no body para não conflituar com filtros SVG em .app */
+html[data-contrast="high"] body { filter: contrast(1.3) saturate(0.85); }
+
+/* ── Toast ───────────────────────────────────────────── */
 .toast-container {
   position: fixed;
   bottom: 24px;
@@ -235,12 +273,12 @@ watch(
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  --topbar-height: 96px;
+  --topbar-height: 6rem;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 64em) {
   .app {
-    --topbar-height: 60px;
+    --topbar-height: 4.5rem;
   }
 }
 
@@ -266,6 +304,9 @@ watch(
 .main.landing {
   padding: 0;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
 }
 
 .landing-back {
@@ -286,13 +327,18 @@ watch(
   stroke-width: var(--icon-stroke);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 64em) {
   .app:not(.layout-landing) {
     flex-direction: column;
   }
 
+  /* Topbar é position:fixed no tablet/mobile — offset para não ficar por baixo */
+  .content {
+    padding-top: var(--topbar-height);
+  }
+
   .main {
-    padding: var(--space-400);
+    padding: var(--space-400) var(--space-300);
   }
 }
 </style>

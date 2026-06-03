@@ -104,4 +104,44 @@ withDefaults(
   box-shadow: 0 8px 16px -4px rgba(2, 29, 32, 0.4);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
+
+@media (max-width: 45em) {
+  .estante-wrapper.grande {
+    left: -16px;
+    width: calc(100% + 32px);
+    bottom: -10px;
+  }
+
+  .estante-wrapper.grande .estante-topo {
+    height: 24px;
+  }
+
+  .estante-wrapper.grande .estante-frente {
+    height: 16px;
+  }
+
+  .estante-wrapper.pequena {
+    margin: -2px var(--space-100) var(--space-300);
+    width: calc(100% - (var(--space-100) * 2));
+  }
+
+  .estante-wrapper.pequena .estante-topo {
+    height: 18px;
+  }
+
+  .estante-wrapper.pequena .estante-frente {
+    height: 12px;
+  }
+}
+
+@media (max-width: 30em) {
+  .estante-wrapper.grande {
+    left: -12px;
+    width: calc(100% + 24px);
+  }
+
+  .estante-wrapper.pequena {
+    margin: 0 var(--space-100) var(--space-300);
+  }
+}
 </style>
