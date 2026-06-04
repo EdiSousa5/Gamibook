@@ -302,13 +302,14 @@ const avatarSize = computed(() => {
     }
 
     .podium-header {
-        gap: 0.375rem;
-        margin-bottom: 0.875rem;
+        gap: 6px;
+        margin-bottom: 8px;
     }
 
     .avatar-wrap {
-        transform: scale(0.92);
+        transform: scale(1.15);
         transform-origin: bottom center;
+        margin-bottom: 12px;
     }
 
     .name {
@@ -320,8 +321,10 @@ const avatarSize = computed(() => {
     }
 
     .points-pill {
-        padding: 0.35rem 0.7rem;
-        max-width: 100%;
+        padding: 4px 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
     .points-text {
@@ -343,9 +346,9 @@ const avatarSize = computed(() => {
         left: -8px;
     }
 
-    .place-1 .block-front { height: 9rem; padding-top: 1.1rem; font-size: 2.25rem; }
-    .place-2 .block-front { height: 7rem; padding-top: 0.9rem; font-size: 1.9rem; }
-    .place-3 .block-front { height: 5.25rem; padding-top: 0.7rem; font-size: 1.6rem; }
+    .place-1 .block-front { height: 6.5rem; padding-top: 0.6rem; font-size: 1.6rem; }
+    .place-2 .block-front { height: 4.8rem; padding-top: 0.5rem; font-size: 1.3rem; }
+    .place-3 .block-front { height: 3.8rem; padding-top: 0.4rem; font-size: 1.2rem; }
     .block-top-wrapper { height: 1.6rem; }
 }
 </style>

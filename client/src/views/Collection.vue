@@ -32,6 +32,7 @@ const isAdmin = computed(() => isAdminUser(user.value))
 const viewFilter = ref<'all' | 'owned' | 'missing' | 'completed'>('all')
 const publisherFilter = ref('all')
 const sortBy = ref<'default' | 'title' | 'date'>('default')
+const showMobileFilters = ref(false)
 
 const viewOptions = [
   { label: 'Todos os livros', value: 'all' },
@@ -108,9 +109,9 @@ const completedBookIds = computed(() => {
 
 const uniquePublishers = computed(() => {
   const pubs = new Set<string>()
-  ;[...ownedBooks.value, ...missingBooks.value].forEach((b) => {
-    if (b.editora?.nome_editora) pubs.add(b.editora.nome_editora)
-  })
+    ;[...ownedBooks.value, ...missingBooks.value].forEach((b) => {
+      if (b.editora?.nome_editora) pubs.add(b.editora.nome_editora)
+    })
   return Array.from(pubs).sort()
 })
 
@@ -161,8 +162,11 @@ const containerWidth = ref(1000)
 let resizeObserver: ResizeObserver | null = null
 
 const itemsPerShelf = computed(() => {
-  const available = containerWidth.value - 64
-  return Math.max(2, Math.floor(available / 132))
+  const isMobile = containerWidth.value <= 720
+  const itemWidth = isMobile ? 96 : 132
+  const padding = isMobile ? 32 : 64
+  const available = containerWidth.value - padding
+  return Math.max(2, Math.floor(available / itemWidth))
 })
 
 const ownedShelves = computed(() => {
@@ -273,8 +277,15 @@ onUnmounted(() => {
     <p v-else-if="error" class="state error">{{ error }}</p>
 
     <template v-else-if="ownedBooks.length || missingBooks.length">
+
+      <div class="filters-mobile-toggle">
+        <UiButton variant="outline" size="sm" @click="showMobileFilters = !showMobileFilters" style="width: 100%">
+          {{ showMobileFilters ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
+        </UiButton>
+      </div>
+
       <!-- Filter bar -->
-      <div class="filters-bar">
+      <div class="filters-bar" :class="{ 'is-visible': showMobileFilters }">
         <div class="filter-item filter-item--search">
           <UiSearch :model-value="searchQuery" @update="searchQuery = $event" />
         </div>
@@ -282,7 +293,8 @@ onUnmounted(() => {
           <UiSelect :model-value="viewFilter" :options="viewOptions" @update="viewFilter = $event as any" />
         </div>
         <div class="filter-item">
-          <UiSelect :model-value="publisherFilter" :options="publisherOptions" @update="publisherFilter = $event as any" />
+          <UiSelect :model-value="publisherFilter" :options="publisherOptions"
+            @update="publisherFilter = $event as any" />
         </div>
         <div class="filter-item">
           <UiSelect :model-value="sortBy" :options="sortOptions" @update="sortBy = $event as any" />
@@ -296,8 +308,8 @@ onUnmounted(() => {
           <div class="destaque-info">
             <div class="destaque-top">
               <div class="destaque-tags">
-                <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
-                  variant="outline" />
+                <UiChip v-if="featuredBook.publish_date"
+                  :label="String(new Date(featuredBook.publish_date).getFullYear())" variant="outline" />
                 <UiChip v-if="featuredBook.editora?.nome_editora" :label="featuredBook.editora.nome_editora"
                   variant="soft" />
               </div>
@@ -315,8 +327,8 @@ onUnmounted(() => {
 
           <div class="destaque-visual">
             <Transition name="book-swap" mode="out-in">
-              <BookMockup :key="featuredBook.book_id" :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg"
-                :badge="badgeForBook(featuredBook.book_id)" />
+              <BookMockup :key="featuredBook.book_id" :cover-url="getAssetUrl(featuredBook.cover_img)"
+                :title="featuredBook.title" size="lg" :badge="badgeForBook(featuredBook.book_id)" />
             </Transition>
           </div>
         </div>
@@ -349,7 +361,8 @@ onUnmounted(() => {
           </div>
         </template>
 
-        <p v-else-if="showOwnedSection && (searchQuery || publisherFilter !== 'all' || viewFilter === 'completed')" class="state state-inline">
+        <p v-else-if="showOwnedSection && (searchQuery || publisherFilter !== 'all' || viewFilter === 'completed')"
+          class="state state-inline">
           Nenhum livro encontrado com os filtros atuais.
         </p>
 
@@ -414,6 +427,10 @@ onUnmounted(() => {
 .filter-item--search {
   flex: 1;
   min-width: 220px;
+}
+
+.filters-mobile-toggle {
+  display: none;
 }
 
 .cartao-principal {
@@ -636,33 +653,60 @@ onUnmounted(() => {
 }
 
 @media (max-width: 56.25em) {
+  .filters-mobile-toggle {
+    display: block;
+    margin-bottom: var(--space-400);
+  }
+
+  .filters-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-200);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    transition: max-height 0.35s ease, opacity 0.35s ease, margin-bottom 0.35s ease;
+  }
+
+  .filters-bar.is-visible {
+    max-height: 500px;
+    opacity: 1;
+    margin-bottom: var(--space-400);
+  }
+
   .destaque-wrapper {
-    flex-direction: column-reverse;
-    align-items: center;
-    text-align: center;
+    flex-direction: row;
+    align-items: flex-end;
+    text-align: left;
+    gap: var(--space-300);
   }
 
   .destaque-visual {
     padding-right: 0;
-    margin-bottom: var(--space-400);
+    margin-bottom: 0;
+    transform: scale(0.85);
+    transform-origin: bottom right;
+    flex-shrink: 0;
   }
 
   .destaque-info {
     padding-bottom: var(--space-400);
+    flex: 1;
   }
 
-  .filters-bar {
-    flex-direction: column;
-    gap: var(--space-200);
+  .destaque-tags {
+    justify-content: flex-start;
   }
 
   .filter-item {
-    min-width: unset;
     width: 100%;
+    min-width: 0;
   }
 
   .filter-item--search {
-    min-width: unset;
+    min-width: 0;
+    grid-column: 1 / -1;
   }
 }
 
@@ -674,17 +718,25 @@ onUnmounted(() => {
   .destaque-wrapper {
     padding: 0 var(--space-300);
     min-height: unset;
-    gap: var(--space-300);
+    gap: var(--space-200);
+    flex-direction: row;
+    align-items: flex-end;
+    text-align: left;
   }
 
   .destaque-visual {
-    margin-bottom: var(--space-200);
-    align-self: center;
+    margin-bottom: 0;
+    align-self: flex-end;
+    transform: scale(0.65);
+    transform-origin: bottom right;
+    margin-top: 0;
   }
 
   .destaque-info {
-    padding-bottom: var(--space-300);
+    padding-bottom: var(--space-200);
     max-width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .titulo-livro {
@@ -696,6 +748,7 @@ onUnmounted(() => {
     font-size: 0.875rem;
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -709,12 +762,13 @@ onUnmounted(() => {
   }
 
   .livros-fila {
-    gap: var(--space-400);
-    padding: var(--space-300) var(--space-200) var(--space-100);
+    gap: var(--space-300);
+    padding: var(--space-300) var(--space-300) var(--space-100);
   }
 
   .livro-item {
     width: 80px;
+    transform: translateY(14px);
   }
 
   .cartao-principal {
@@ -726,10 +780,11 @@ onUnmounted(() => {
 @media (max-width: 30em) {
   .livro-item {
     width: 68px;
+    transform: translateY(12px);
   }
 
   .livros-fila {
-    gap: var(--space-300);
+    gap: var(--space-200);
   }
 }
 </style>

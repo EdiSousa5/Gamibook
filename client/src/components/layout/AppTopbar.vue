@@ -684,8 +684,9 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   background: rgba(2, 29, 32, 0.55);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
   padding: clamp(1rem, 4vw, 2rem);
 }
@@ -713,16 +714,18 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 40em) {
+  .qr-modal {
+    width: 90%;
+    max-width: 320px;
+    padding: var(--space-400);
+  }
+
   .mode-buttons {
     grid-template-columns: 1fr;
   }
 
   .mode-btn {
     padding: var(--space-400);
-  }
-
-  .qr-modal {
-    width: min(28.75rem, calc(100vw - 1rem));
   }
 }
 
@@ -1181,6 +1184,7 @@ onBeforeUnmount(() => {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

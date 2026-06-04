@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{ update: [string] }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-const indicatorStyle = ref({ left: '4px', width: '0px' })
+const indicatorStyle = ref({ left: '6px', top: '6px', width: '0px', height: 'auto' })
 
 const updateIndicator = () => {
   if (!containerRef.value) return
@@ -24,7 +24,9 @@ const updateIndicator = () => {
   if (activeBtn) {
     indicatorStyle.value = {
       left: `${activeBtn.offsetLeft}px`,
-      width: `${activeBtn.offsetWidth}px`
+      top: `${activeBtn.offsetTop}px`,
+      width: `${activeBtn.offsetWidth}px`,
+      height: `${activeBtn.offsetHeight}px`
     }
   }
 }
@@ -83,9 +85,6 @@ watch(() => props.modelValue, () => {
 
 .segmented-indicator {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
   border-radius: 999px;
   background: var(--color-teal-500);
   transition: all 0.3s ease-out;
@@ -123,6 +122,7 @@ watch(() => props.modelValue, () => {
 @media (max-width: 37.5em) {
   .ui-segmented {
     padding: 4px 8px;
+    flex-wrap: wrap;
   }
 
   .ui-segmented button {
