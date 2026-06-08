@@ -92,11 +92,6 @@ const router = createRouter({
           component: () => import('../views/settings/SettingsAccount.vue'),
         },
         {
-          path: 'dados',
-          name: 'settings-dados',
-          component: () => import('../views/settings/SettingsUserData.vue'),
-        },
-        {
           path: 'notificacoes',
           name: 'settings-notificacoes',
           component: () => import('../views/settings/SettingsNotifications.vue'),
@@ -115,6 +110,11 @@ const router = createRouter({
           path: 'acessibilidade',
           name: 'settings-acessibilidade',
           component: () => import('../views/settings/Accessibility.vue'),
+        },
+        {
+          path: 'atividade',
+          name: 'settings-atividade',
+          component: () => import('../views/settings/ActivityHistory.vue'),
         },
       ],
     },

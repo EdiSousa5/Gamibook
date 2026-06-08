@@ -3,22 +3,22 @@ import { useRoute } from 'vue-router'
 import UiSideMenuItem from '@/components/ui/UiSideMenuItem.vue'
 import {
   UserIcon,
-  IdentificationIcon,
   BellIcon,
   PaintBrushIcon,
   ShieldCheckIcon,
   EyeIcon,
+  ChartBarIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 
 const sections = [
   { id: 'conta', label: 'Conta', description: 'Perfil e avatar', path: '/settings/conta', icon: UserIcon },
-  { id: 'dados', label: 'Dados Pessoais', description: 'Informação do utilizador', path: '/settings/dados', icon: IdentificationIcon },
   { id: 'aparencia', label: 'Aparência', description: 'Temas e cores', path: '/settings/aparencia', icon: PaintBrushIcon },
   { id: 'notificacoes', label: 'Notificações', description: 'Alertas e resumos', path: '/settings/notificacoes', icon: BellIcon },
   { id: 'privacidade', label: 'Privacidade', description: 'Segurança e dados', path: '/settings/privacidade', icon: ShieldCheckIcon },
   { id: 'acessibilidade', label: 'Acessibilidade', description: 'Letra, cores e contraste', path: '/settings/acessibilidade', icon: EyeIcon },
+  { id: 'atividade', label: 'Atividade', description: 'Histórico de XP', path: '/settings/atividade', icon: ChartBarIcon },
 ] as const
 
 const isActive = (path: string) => route.path === path
@@ -34,12 +34,12 @@ const isActive = (path: string) => route.path === path
     </div>
 
     <div class="settings-body">
-      <nav class="side-nav">
-        <UiSideMenuItem v-for="section in sections" :key="section.id" :to="section.path" :label="section.label"
-          :description="section.description" :icon="section.icon" :is-active="isActive(section.path)" />
-      </nav>
-
-      <p class="side-nav-hint">No telemóvel, desliza para ver mais opções.</p>
+      <div class="side-nav-wrap">
+        <nav class="side-nav">
+          <UiSideMenuItem v-for="section in sections" :key="section.id" :to="section.path" :label="section.label"
+            :description="section.description" :icon="section.icon" :is-active="isActive(section.path)" />
+        </nav>
+      </div>
 
       <div class="panel">
         <RouterView />
@@ -68,20 +68,16 @@ const isActive = (path: string) => route.path === path
   align-items: start;
 }
 
-.side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-300);
+.side-nav-wrap {
   align-self: start;
   position: sticky;
   top: calc(var(--topbar-height, 4.5rem) + var(--space-300));
 }
 
-.side-nav-hint {
-  display: none;
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-mirage-500);
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
 }
 
 .panel {
@@ -115,23 +111,38 @@ const isActive = (path: string) => route.path === path
     gap: var(--space-200);
   }
 
+  .side-nav-wrap {
+    position: relative;
+    /* o ::after usa position:absolute e precisa de um ancestor positioned */
+  }
+
+  .side-nav-wrap::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: calc(100% - var(--space-100));
+    width: 52px;
+    background: linear-gradient(to right, transparent, var(--color-wild-300, #f3f7f8));
+    pointer-events: none;
+    z-index: 2;
+  }
+
   .side-nav {
-    position: static;
-    display: flex;
     flex-direction: row;
     overflow-x: auto;
+    overflow-y: visible;
     gap: var(--space-150);
     padding-bottom: var(--space-100);
+    padding-right: var(--space-700);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    /* garantir que os itens não encolhem */
+    flex-wrap: nowrap;
   }
 
   .side-nav::-webkit-scrollbar {
     display: none;
-  }
-
-  .side-nav-hint {
-    display: block;
   }
 
   .panel {

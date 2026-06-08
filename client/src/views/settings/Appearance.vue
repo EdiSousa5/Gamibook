@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CheckIcon, LockClosedIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
+import { CheckIcon, LockClosedIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { updateUser } from '@/services/auth'
 import { useToast } from '@/composables/useToast'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 const authStore = useAuthStore()
@@ -185,6 +186,11 @@ const CATEGORIES = computed(() => {
   const cats = new Set(ALL_UNLOCKABLES.value.map(r => r.category))
   return [...cats]
 })
+
+const categoryOptions = computed(() => [
+  { label: 'Todas as categorias', value: '' },
+  ...CATEGORIES.value.map(c => ({ label: c, value: c })),
+])
 
 const filteredUnlockables = computed(() => {
   return ALL_UNLOCKABLES.value.filter(row => {
@@ -410,19 +416,23 @@ const filteredUnlockables = computed(() => {
   <Teleport to="body">
     <Transition name="modal-fade">
       <div v-if="unlockModalOpen" class="unlock-modal-overlay" @click.self="unlockModalOpen = false">
-        <div class="unlock-modal">
+        <div class="unlock-modal" role="dialog" aria-modal="true" aria-label="Desbloqueios por nível">
           <div class="unlock-modal__header">
             <div>
               <p class="unlock-modal__eyebrow">Aparência</p>
               <h3>Desbloqueios por nível</h3>
             </div>
+            <button class="unlock-close-btn" type="button" aria-label="Fechar" @click="unlockModalOpen = false">
+              <XMarkIcon class="unlock-close-icon" aria-hidden="true" />
+            </button>
           </div>
 
           <div class="unlock-modal__filters">
-            <select v-model="filterCategory" class="filter-select">
-              <option value="">Todas as categorias</option>
-              <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
+            <UiSelect
+              :model-value="filterCategory"
+              :options="categoryOptions"
+              @update="filterCategory = $event as string"
+            />
             <div class="filter-pills">
               <button class="filter-pill" :class="{ active: filterLevel === 'all' }" @click="filterLevel = 'all'">Todos</button>
               <button class="filter-pill" :class="{ active: filterLevel === 'unlocked' }" @click="filterLevel = 'unlocked'">Desbloqueados</button>
@@ -824,16 +834,16 @@ h2 {
 }
 
 .bg-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(3.75rem, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-200);
 }
 
 .bg-btn {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  height: auto;
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
   border-radius: 12px;
   border: 2px solid var(--color-deep-800);
   cursor: pointer;
@@ -997,9 +1007,44 @@ h2 {
 }
 
 .unlock-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
   padding: 22px 24px 14px;
   border-bottom: 2px solid var(--color-wild-400);
   flex-shrink: 0;
+}
+
+.unlock-close-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.unlock-close-btn:hover {
+  background: var(--color-wild-300);
+  transform: translateY(-1px);
+}
+
+.unlock-close-btn:active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--color-shadow);
+}
+
+.unlock-close-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-mirage-700);
+  stroke-width: 2.5;
 }
 
 .unlock-modal__eyebrow {
@@ -1029,20 +1074,6 @@ h2 {
   border-bottom: 1px solid var(--color-wild-400);
   flex-shrink: 0;
   flex-wrap: wrap;
-}
-
-.filter-select {
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--font-base);
-  color: var(--color-mirage-700);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  cursor: pointer;
-  outline: none;
 }
 
 .filter-pills {
@@ -1315,12 +1346,9 @@ h2 {
 }
 
 @media (max-width: 40em) {
-  .bg-selector {
-    grid-template-columns: repeat(auto-fit, minmax(3.25rem, 1fr));
-  }
-
   .bg-btn {
-    min-height: 3.25rem;
+    width: 3.25rem;
+    height: 3.25rem;
   }
 
   .av-preview-box {

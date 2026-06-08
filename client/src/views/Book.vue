@@ -1594,33 +1594,24 @@ watch(
     display: none;
   }
 
-  .destaque-wrapper {
-    padding: 0 var(--space-300);
-  }
-
   .roadmap-milestones {
     height: 90px;
   }
 
   .free-card,
   .quiz-card {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
+    grid-template-columns: 80px 1fr;
+    text-align: left;
+    justify-items: start;
   }
 
   .free-card__action,
   .quiz-card__action {
-    width: 100%;
-  }
-
-  .free-card__action :deep(.ui-button),
-  .quiz-card__action :deep(.ui-button) {
-    width: 100%;
+    grid-column: 2;
   }
 
   .free-card__tags {
-    justify-content: center;
+    justify-content: flex-start;
   }
 
   .badge-modal {
@@ -1633,6 +1624,23 @@ watch(
     gap: var(--space-400);
   }
 
+  /* Hero: left-align no mobile */
+  .book-hero {
+    grid-template-columns: 1fr auto;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .book-hero__cover {
+    display: flex;
+  }
+
+  .book-hero__cover :deep(.book-scene.lg .book) {
+    width: 84px;
+    height: 122px;
+    --d: 17px;
+  }
+
   .book-hero,
   .badge-roadmap,
   .modules-section,
@@ -1641,15 +1649,33 @@ watch(
     gap: var(--space-300);
   }
 
-  .roadmap-header,
   .modules-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .roadmap-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-200);
+  }
+
+  .roadmap-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .roadmap-milestones {
+    height: 84px;
   }
 
   .module-card {
     grid-template-columns: 64px 1fr;
     grid-template-rows: auto auto;
+  }
+
+  .module-card--done {
+    grid-template-columns: 64px 1fr;
   }
 
   .order-badge {
@@ -1663,25 +1689,51 @@ watch(
 
   .module-action {
     grid-column: 1 / -1;
-    place-items: start;
+    display: flex;
   }
 
-  .roadmap-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .roadmap-meta {
+  .module-action :deep(.ui-button) {
     width: 100%;
-    justify-content: space-between;
   }
 
-  .roadmap-milestones {
-    height: 84px;
+  .free-card,
+  .quiz-card {
+    grid-template-columns: 64px 1fr;
+  }
+
+  .free-card__icon,
+  .quiz-card__icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .free-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .quiz-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .free-card__action,
+  .quiz-card__action {
+    grid-column: 1 / -1;
+    display: flex;
+  }
+
+  .free-card__action :deep(.ui-button),
+  .quiz-card__action :deep(.ui-button) {
+    width: 100%;
   }
 
   .module-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .book-title {
+    font-size: 20px;
   }
 
   .badge-modal {
@@ -1690,6 +1742,160 @@ watch(
 
   .badge-modal__list {
     gap: var(--space-150);
+  }
+}
+
+@media (max-width: 30em) {
+  .book-hero {
+    padding: var(--space-400);
+    gap: var(--space-300);
+  }
+
+  .book-hero__cover :deep(.book-scene.lg .book) {
+    width: 70px;
+    height: 101px;
+    --d: 14px;
+  }
+
+  .badge-roadmap {
+    padding: var(--space-300);
+  }
+
+  /* Esconder labels de texto das milestones — só badges, evita sobreposição */
+  .roadmap-milestone__label,
+  .roadmap-milestone__pct {
+    display: none;
+  }
+
+  .roadmap-milestones {
+    height: 48px;
+  }
+
+  /* Module card — layout vertical */
+  .module-card {
+    padding: var(--space-300);
+    gap: var(--space-200);
+    grid-template-columns: 1fr;
+  }
+
+  .module-card--done {
+    grid-template-columns: 1fr;
+  }
+
+  .order-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    align-self: flex-start;
+    box-shadow: 2px 2px 0 var(--color-shadow);
+  }
+
+  .badge-num {
+    font-size: 15px;
+  }
+
+  .badge-check {
+    width: 20px;
+    height: 20px;
+  }
+
+  .module-action {
+    grid-column: 1;
+    display: flex;
+  }
+
+  .module-action :deep(.ui-button) {
+    width: 100%;
+  }
+
+  .module-title {
+    font-size: 14px;
+  }
+
+  .module-stat {
+    padding: 6px 8px;
+  }
+
+  .module-stat span {
+    font-size: 9px;
+  }
+
+  .module-stat strong {
+    font-size: 13px;
+  }
+
+  /* Free/quiz cards — layout vertical */
+  .free-card,
+  .quiz-card {
+    padding: var(--space-300);
+    gap: var(--space-200);
+    grid-template-columns: 1fr;
+  }
+
+  .free-card__icon,
+  .quiz-card__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    align-self: flex-start;
+  }
+
+  .free-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .quiz-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .free-card__action,
+  .quiz-card__action {
+    grid-column: 1;
+    display: flex;
+  }
+
+  .free-card__action :deep(.ui-button),
+  .quiz-card__action :deep(.ui-button) {
+    width: 100%;
+  }
+
+  .book-title {
+    font-size: 17px;
+  }
+
+  .book-desc {
+    font-size: 13px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .galaxy-unlock {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  /* Badge roadmap — milestones com scroll horizontal */
+  .roadmap-bar-outer {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: var(--space-100);
+  }
+
+  .roadmap-bar-outer::-webkit-scrollbar {
+    display: none;
+  }
+
+  .roadmap-milestones {
+    height: 52px;
+    min-width: 320px;
+  }
+
+  .roadmap-track-wrap {
+    min-width: 320px;
   }
 }
 </style>

@@ -266,6 +266,11 @@ withDefaults(defineProps<Props>(), {
     height: 122px;
     --d: 16px;
   }
+
+  .book-scene.lg .book-badge-overlay {
+    transform: translateZ(1px) scale(0.68);
+    transform-origin: bottom right;
+  }
 }
 
 @media (max-width: 30em) {

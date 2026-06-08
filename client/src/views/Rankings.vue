@@ -8,8 +8,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import { StarIcon, MagnifyingGlassIcon, UserGroupIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
-import { FireIcon } from '@heroicons/vue/24/solid'
+import { StarIcon, MagnifyingGlassIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   fetchUsers,
@@ -609,6 +608,7 @@ watch(timeFilter, () => {
   box-shadow: 2px 2px 0 var(--color-shadow);
   color: var(--color-mirage-700);
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .search-pts {
@@ -616,6 +616,8 @@ watch(timeFilter, () => {
   font-weight: 800;
   color: var(--color-deep-700);
   flex-shrink: 0;
+  min-width: 5.5rem;
+  text-align: right;
 }
 
 .search-empty {

@@ -122,13 +122,14 @@ watch(() => props.modelValue, () => {
 @media (max-width: 37.5em) {
   .ui-segmented {
     padding: 4px 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .ui-segmented button {
     padding: 8px 12px;
     font-size: 12px;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 }
 </style>

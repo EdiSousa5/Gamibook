@@ -451,18 +451,19 @@ h1 {
   .oi-3 { left: 84%; top: 22%; }
 }
 
-/* Mobile: livro pequeno em cima, conteúdo centrado abaixo */
+/* Mobile: livro centrado em cima, conteúdo centrado abaixo */
 @media (max-width: 37.5em) {
   .landing {
     grid-template-columns: 1fr;
     min-height: 100dvh;
-    padding: var(--space-400) var(--space-300) var(--space-600);
-    gap: var(--space-300);
+    padding: var(--space-500) var(--space-300) var(--space-700);
+    gap: var(--space-400);
+    align-content: center;
   }
 
   .visuals {
     order: 1;
-    min-height: 13rem;
+    min-height: 17rem;
     padding-bottom: 2rem;
   }
 
@@ -474,12 +475,14 @@ h1 {
   }
 
   .hero-book :deep(.book-scene.lg .book) {
-    width: 6.5rem;
-    height: 9.4rem;
-    --d: 22px;
+    width: 8rem;
+    height: 11.6rem;
+    --d: 28px;
   }
 
-  .bf-1, .oi-1, .oi-3 { display: none; }
+  /* Mostrar apenas o badge Galaxy, esconder restantes */
+  .oi-1, .oi-3 { display: none; }
+  .bf-1 { left: 4%; top: 8%; }
 
   h1 { font-size: clamp(1.625rem, 7vw, 2rem); }
 
@@ -490,9 +493,14 @@ h1 {
 }
 
 @media (max-width: 25em) {
-  .visuals { min-height: 11rem; padding-bottom: 1.5rem; }
-  .hero-book :deep(.book-scene.lg .book) { width: 5.5rem; height: 8rem; --d: 18px; }
+  .landing {
+    padding: var(--space-400) var(--space-300) var(--space-600);
+    gap: var(--space-300);
+  }
+  .visuals { min-height: 13rem; padding-bottom: 1.5rem; }
+  .hero-book :deep(.book-scene.lg .book) { width: 6.5rem; height: 9.4rem; --d: 22px; }
   h1 { font-size: clamp(1.375rem, 7vw, 1.75rem); }
+  .bf-1 { display: none; }
 }
 
 /* ── Auto-cycle active state ── */

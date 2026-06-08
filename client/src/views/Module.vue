@@ -243,6 +243,10 @@ onBeforeRouteLeave(() => {
                 <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
                 <span v-if="viewState !== 'setup'" class="mode-pill">{{ modeLabel }}</span>
             </div>
+            <UiButton v-if="viewState === 'runner'" variant="outline" class="quit-btn" @click="quitSession">
+                <XMarkIcon class="quit-icon" aria-hidden="true" />
+                Terminar quiz
+            </UiButton>
         </header>
 
         <p v-if="isLoading" class="state">A carregar exercicios...</p>
@@ -318,32 +322,33 @@ onBeforeRouteLeave(() => {
         </div>
 
         <div v-else class="runner">
-            <div class="runner-stats">
-                <UiStatCard
-                    :key="xpPulse"
-                    label="XP nesta sessao"
-                    :value="sessionPoints"
-                    :delta="xpDelta > 0 ? `+${xpDelta}` : undefined"
-                    :class="{ 'runner-stat--pulse': xpPulse > 0, 'runner-stat--inactive': !isCurrentEligible }"
-                >
-                    <template #icon><BoltIcon class="stat-icon" aria-hidden="true" /></template>
-                </UiStatCard>
-                <UiStatCard
-                    label="Streak"
-                    :value="correctStreak"
-                    :delta="streakDelta > 0 ? `+${streakDelta}` : undefined"
-                    delta-variant="streak"
-                    class="runner-stat--streak"
-                    :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost', 'runner-stat--inactive': !isCurrentEligible }"
-                >
-                    <template #icon><FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" /></template>
-                </UiStatCard>
-                <UiStatCard label="Pergunta" :value="currentIndex + 1">
-                    <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
-                </UiStatCard>
-            </div>
+            <div class="runner-top">
+                <div class="runner-stats">
+                    <UiStatCard
+                        :key="xpPulse"
+                        label="XP nesta sessao"
+                        :value="sessionPoints"
+                        :delta="xpDelta > 0 ? `+${xpDelta}` : undefined"
+                        :class="{ 'runner-stat--pulse': xpPulse > 0, 'runner-stat--inactive': !isCurrentEligible }"
+                    >
+                        <template #icon><BoltIcon class="stat-icon" aria-hidden="true" /></template>
+                    </UiStatCard>
+                    <UiStatCard
+                        label="Streak"
+                        :value="correctStreak"
+                        :delta="streakDelta > 0 ? `+${streakDelta}` : undefined"
+                        delta-variant="streak"
+                        class="runner-stat--streak"
+                        :class="{ 'streak--up': streakAnimState === 'up', 'streak--lost': streakAnimState === 'lost', 'runner-stat--inactive': !isCurrentEligible }"
+                    >
+                        <template #icon><FireIcon class="stat-icon stat-icon--fire" aria-hidden="true" /></template>
+                    </UiStatCard>
+                    <UiStatCard label="Pergunta" :value="currentIndex + 1">
+                        <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ exercises.length }}</span></template>
+                    </UiStatCard>
+                </div>
 
-            <QuestionCard :question-text="currentQuestionText" :time-left="timeLeft" :timer-dash="timerDash">
+                <QuestionCard :question-text="currentQuestionText" :time-left="timeLeft" :timer-dash="timerDash">
                 <template #label>
                     Pergunta <span class="question-num">{{ String(currentIndex + 1).padStart(2, '0') }}</span>
                 </template>
@@ -359,6 +364,7 @@ onBeforeRouteLeave(() => {
                     </div>
                 </template>
             </QuestionCard>
+            </div>
 
             <div class="options options-grid-2">
                 <ExerciseOption v-for="(option, index) in options" :key="option" :value="option" :index="index"
@@ -366,13 +372,6 @@ onBeforeRouteLeave(() => {
                     :correct="selectedOption === option && isOptionCorrect(option)"
                     :wrong="(selectedOption === option || attemptedOptions.includes(option)) && !isOptionCorrect(option)"
                     :locked="isLocked" @select="handleSelect" />
-            </div>
-
-            <div class="runner-footer">
-                <UiButton variant="outline" @click="quitSession">
-                    <XMarkIcon class="quit-icon" aria-hidden="true" />
-                    Terminar quiz
-                </UiButton>
             </div>
 
         </div>
@@ -402,7 +401,9 @@ onBeforeRouteLeave(() => {
 }
 
 .runner-header {
-    display: grid;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: var(--space-300);
 }
 
@@ -491,6 +492,11 @@ onBeforeRouteLeave(() => {
     gap: var(--space-500);
     padding-top: var(--space-300);
     border-top: 2px solid var(--color-wild-400);
+}
+
+.runner-top {
+    display: grid;
+    gap: var(--space-200);
 }
 
 .question-tags {
@@ -832,22 +838,17 @@ onBeforeRouteLeave(() => {
     }
 }
 
-.runner-footer {
-    display: flex;
-    justify-content: flex-end;
-    width: min(960px, 100%);
-    margin: 0 auto;
-}
-
 .quit-icon {
     width: 16px;
     height: 16px;
     stroke-width: 2.5;
+    flex-shrink: 0;
 }
 
 @media (max-width: 720px) {
     .runner-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--space-200);
     }
 
     .summary-hero {
@@ -877,8 +878,7 @@ onBeforeRouteLeave(() => {
         white-space: normal;
     }
 
-    .summary-actions,
-    .runner-footer {
+    .summary-actions {
         width: 100%;
     }
 
@@ -887,30 +887,69 @@ onBeforeRouteLeave(() => {
         text-align: center;
     }
 
-    .option-content {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-    }
-
-    .option-text {
-        font-size: 18px;
-    }
-
-    .runner-footer {
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: stretch;
-    }
-
-    .options-grid-2 {
-        grid-template-columns: 1fr;
+    .quit-btn {
+        flex-shrink: 0;
     }
 
     .summary-list {
         gap: var(--space-150);
     }
 
+    .options-grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .options {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 560px) {
+    .module-runner {
+        gap: var(--space-200);
+    }
+
+    .runner-header {
+        padding-bottom: var(--space-150);
+        align-items: center;
+    }
+
+    .runner-header h1 {
+        font-size: 18px;
+    }
+
+    .meta {
+        font-size: 11px;
+    }
+
+    .quit-btn :deep(.ui-button-label) {
+        display: none;
+    }
+
+    .runner-top {
+        gap: var(--space-100);
+    }
+
+    .runner-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--space-100);
+    }
+
+    .runner-stats :deep(.stat-card) {
+        padding: 8px 10px;
+        gap: 6px;
+        border-radius: 10px;
+        box-shadow: 3px 3px 0 var(--color-shadow);
+    }
+
+    .runner-stats :deep(.stat-card__label) {
+        font-size: 8px;
+        letter-spacing: 0.5px;
+    }
+
+    .runner-stats :deep(.stat-card__value) {
+        font-size: 15px;
+    }
 }
 
 /* Streak animations */

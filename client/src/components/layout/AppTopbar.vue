@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
       <div v-if="showBack" class="back">
         <UiPillButton class="back-button" @click="goBack">
           <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
-          Voltar para trás
+          <span class="back-label">Voltar para trás</span>
         </UiPillButton>
       </div>
     </div>
@@ -1226,10 +1226,23 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ── Mobile apenas: back button oculto, mais compacto ── */
+/* ── Mobile apenas: back button compacto (só ícone) ── */
 @media (max-width: 45em) {
   .back {
+    display: flex;
+  }
+
+  .back-label {
     display: none;
+  }
+
+  .back-button {
+    padding: 6px 8px;
+  }
+
+  .back-button .icon {
+    width: 16px;
+    height: 16px;
   }
 
   .profile-button {

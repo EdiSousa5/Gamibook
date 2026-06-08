@@ -20,8 +20,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'click-user': [string] }>()
 
-const isFirst = computed(() => props.position === 1)
-
 const isMobile = ref(false)
 let mq: MediaQueryList | null = null
 const onMqChange = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
@@ -187,16 +185,16 @@ const avatarSize = computed(() => {
 .points-pill {
     background-color: var(--color-wild-100);
     border: 2px solid var(--color-mirage-800);
-    box-shadow: 4px 4px 0 var(--color-shadow);
+    box-shadow: 3px 3px 0 var(--color-shadow);
     border-radius: 999px;
-    padding: 10px 24px;
+    padding: 5px 14px;
 }
 
 .points-text {
     color: var(--color-mirage-800);
     font-weight: 800;
-    font-size: 17px;
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
 }
 

@@ -81,4 +81,15 @@ defineProps<{
   55%  { transform: translateY(-4px) scale(1.06); opacity: 1; }
   100% { transform: translateY(0)    scale(1);    opacity: 1; }
 }
+
+@media (max-width: 25em) {
+  .stat-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .stat-card__value {
+    font-size: 17px;
+  }
+}
 </style>

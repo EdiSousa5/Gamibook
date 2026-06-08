@@ -155,6 +155,33 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
       return typeof b === 'object' ? !!b?.book_id : typeof b === 'number'
     })
     dailyStatus.value = hasBooks ? 'ready' : 'no-exercises'
+
+    // Notificação de aviso de streak
+    const streak = auth.user?.exercises_daily_streak ?? 0
+    if (lastDateStr && streak > 0) {
+      const ONE_DAY = 24 * 60 * 60 * 1000
+      const elapsed = Date.now() - new Date(lastDateStr).getTime()
+      const msLeft = 2 * ONE_DAY - elapsed
+      const hoursLeft = msLeft / 3_600_000
+      let threshold: string | null = null
+      if (hoursLeft <= 0.25) threshold = '15min'
+      else if (hoursLeft <= 1) threshold = '1h'
+      else if (hoursLeft <= 2) threshold = '2h'
+      else if (hoursLeft <= 5) threshold = '5h'
+      if (threshold) {
+        const warnKey = `gb_streak_warn_${userId}_${new Date(lastDateStr).toISOString().slice(0, 10)}_${threshold}`
+        if (!localStorage.getItem(warnKey)) {
+          localStorage.setItem(warnKey, '1')
+          const labels: Record<string, string> = { '15min': '15 minutos', '1h': '1 hora', '2h': '2 horas', '5h': '5 horas' }
+          notifStore.add({
+            user: userId,
+            title: 'Streak em risco!',
+            message: `Tens menos de ${labels[threshold]} para fazeres o exercício diário e manteres o teu streak de ${streak} dia${streak === 1 ? '' : 's'}.`,
+            type: 'streak_warning',
+          })
+        }
+      }
+    }
   } catch {
     dailyStatus.value = 'no-exercises'
   }

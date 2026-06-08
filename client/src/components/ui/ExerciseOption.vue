@@ -217,6 +217,28 @@ const emit = defineEmits<{ select: [value: string] }>()
   cursor: not-allowed;
 }
 
+@media (max-width: 640px) {
+  .option-content {
+    padding: 14px 14px;
+    gap: 10px;
+  }
+
+  .option-letter {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  .letter-text {
+    font-size: 20px;
+  }
+
+  .option-text {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+}
+
 @keyframes option-correct {
   0% {
     transform: translate(var(--option-press-x), var(--option-press-y)) scale(1);

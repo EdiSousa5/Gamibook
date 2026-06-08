@@ -149,7 +149,13 @@ const displayedOwnedBooks = computed(() => {
   return applyBookFilters(list)
 })
 
-const displayedMissingBooks = computed(() => applyBookFilters(missingBooks.value))
+const displayedMissingBooks = computed(() => {
+  const featured = featuredBook.value
+  const list = (featured && !isFeaturedBookOwned.value)
+    ? missingBooks.value.filter(b => b.book_id !== featured.book_id)
+    : missingBooks.value
+  return applyBookFilters(list)
+})
 
 const showOwnedSection = computed(() => viewFilter.value !== 'missing')
 const showMissingSection = computed(() => viewFilter.value === 'all' || viewFilter.value === 'missing')
@@ -323,6 +329,11 @@ onUnmounted(() => {
                 <UiButton size="lg" variant="primary">Fazer Exercícios</UiButton>
               </RouterLink>
             </div>
+            <div class="destaque-actions" v-else-if="featuredBook.site_url">
+              <a :href="featuredBook.site_url" target="_blank" rel="noopener noreferrer" class="buy-link">
+                <UiButton size="lg" variant="outline">Adquirir Livro</UiButton>
+              </a>
+            </div>
           </div>
 
           <div class="destaque-visual">
@@ -436,6 +447,7 @@ onUnmounted(() => {
 .cartao-principal {
   padding: var(--space-600) 0 0 0 !important;
   overflow: visible !important;
+  position: relative;
 }
 
 /* =========================================
@@ -498,6 +510,10 @@ onUnmounted(() => {
 
 .destaque-actions {
   margin-top: var(--space-500);
+}
+
+.buy-link {
+  text-decoration: none;
 }
 
 /* =========================================
@@ -715,10 +731,23 @@ onUnmounted(() => {
     gap: var(--space-300);
   }
 
+  /* No mobile, a prateleira usa position: relative para ficar no fluxo normal
+     e margens negativas para sair do card, sem clipagem por overflow-x */
+  :deep(.estante-wrapper.grande) {
+    position: relative !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: calc(100% + 24px) !important;
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    margin-top: -6px !important;
+    margin-bottom: var(--space-300) !important;
+  }
+
   .destaque-wrapper {
     padding: 0 var(--space-300);
     min-height: unset;
-    gap: var(--space-200);
+    gap: var(--space-300);
     flex-direction: row;
     align-items: flex-end;
     text-align: left;
@@ -727,9 +756,15 @@ onUnmounted(() => {
   .destaque-visual {
     margin-bottom: 0;
     align-self: flex-end;
-    transform: scale(0.65);
-    transform-origin: bottom right;
-    margin-top: 0;
+    flex-shrink: 0;
+    transform: none;
+  }
+
+  /* Reduzir livro do destaque para não roubar espaço ao texto */
+  .destaque-visual :deep(.book-scene.lg .book) {
+    width: 90px;
+    height: 130px;
+    --d: 18px;
   }
 
   .destaque-info {
@@ -739,18 +774,34 @@ onUnmounted(() => {
     min-width: 0;
   }
 
+  .destaque-actions {
+    margin-top: var(--space-300);
+  }
+
   .titulo-livro {
-    font-size: clamp(1.25rem, 5.5vw, 1.75rem);
-    margin-bottom: var(--space-200);
+    font-size: clamp(1rem, 4.5vw, 1.375rem);
+    margin-bottom: var(--space-100);
   }
 
   .descricao {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Botão compacto no destaque — reduzir altura e sombra */
+  .destaque-actions :deep(.ui-button.lg) {
+    font-size: 13px;
+    --btn-offset-x: 3px;
+    --btn-offset-y: 4px;
+  }
+
+  .destaque-actions :deep(.ui-button.lg .ui-button-content) {
+    min-height: 38px;
+    padding: 7px var(--space-400);
   }
 
   .lista-wrapper {
@@ -762,7 +813,7 @@ onUnmounted(() => {
   }
 
   .livros-fila {
-    gap: var(--space-300);
+    gap: var(--space-400);
     padding: var(--space-300) var(--space-300) var(--space-100);
   }
 
@@ -773,18 +824,29 @@ onUnmounted(() => {
 
   .cartao-principal {
     padding: var(--space-400) 0 0 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 }
 
+
 @media (max-width: 30em) {
+  .destaque-visual :deep(.book-scene.lg .book) {
+    width: 76px;
+    height: 110px;
+    --d: 15px;
+  }
+
   .livro-item {
     width: 68px;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
 
   .livros-fila {
-    gap: var(--space-200);
+    gap: var(--space-300);
+  }
+
+  .destaque-tags {
+    display: none;
   }
 }
 </style>

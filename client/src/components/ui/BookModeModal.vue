@@ -338,7 +338,7 @@ const toggleWrong = () => { if (hasWrong.value) includeWrong.value = !includeWro
 
 @media (max-width: 640px) {
   .mode-modal {
-    width: min(640px, calc(100vw - 1rem));
+    width: 100%;
     padding: 18px;
   }
 

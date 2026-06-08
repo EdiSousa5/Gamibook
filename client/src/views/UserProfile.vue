@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { FireIcon } from '@heroicons/vue/24/solid'
-import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon } from '@heroicons/vue/24/outline'
+import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, CheckCircleIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
@@ -10,7 +10,7 @@ import BookMockup from '@/components/ui/BookMockup.vue'
 import BookShelf from '@/components/ui/BookShelf.vue'
 import { fetchUserById, getUserAvatarId, getUserDisplayName } from '@/services/auth'
 import { fetchUserBookBadges, fetchUserBooks } from '@/services/books'
-import { fetchUserPointsFromHistory } from '@/services/exercises'
+import { fetchUserPointsFromHistory, fetchUserPointsHistoryList } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User, UserBook, Book } from '@/types'
@@ -28,6 +28,8 @@ const badgeCounts = ref<BadgeCounts>({ bronze: 0, silver: 0, gold: 0, diamond: 0
 const userBooks = ref<UserBook[]>([])
 const isLoading = ref(true)
 const error = ref('')
+const exercisesCorrect = ref(0)
+const dailiesCompleted = ref(0)
 
 const displayName = computed(() => getUserDisplayName(user.value))
 const avatarUrl = computed(() => getAssetUrl(getUserAvatarId(user.value)))
@@ -92,16 +94,19 @@ const shiftCarousel = (dir: 1 | -1) => {
 
 onMounted(async () => {
   try {
-    const [userData, totalPoints, allBadges, books] = await Promise.all([
+    const [userData, totalPoints, allBadges, books, historyEntries] = await Promise.all([
       fetchUserById(userId.value),
       fetchUserPointsFromHistory(userId.value).catch(() => 0),
       fetchUserBookBadges().catch(() => [] as UserBook[]),
       fetchUserBooks(userId.value).catch(() => [] as UserBook[]),
+      fetchUserPointsHistoryList(userId.value, 500).catch(() => []),
     ])
 
     user.value = userData
     points.value = totalPoints
     userBooks.value = books
+    exercisesCorrect.value = historyEntries.filter(e => e.source === 'exercise').length
+    dailiesCompleted.value = historyEntries.filter(e => e.source === 'daily').length
 
     const counts: BadgeCounts = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
     for (const ub of allBadges) {
@@ -137,6 +142,9 @@ onMounted(async () => {
         </div>
       </div>
       <div class="stats-grid">
+        <UiSkeleton width="100%" height="90px" radius="16px" />
+        <UiSkeleton width="100%" height="90px" radius="16px" />
+        <UiSkeleton width="100%" height="90px" radius="16px" />
         <UiSkeleton width="100%" height="90px" radius="16px" />
         <UiSkeleton width="100%" height="90px" radius="16px" />
         <UiSkeleton width="100%" height="90px" radius="16px" />
@@ -205,6 +213,16 @@ onMounted(async () => {
           <BookOpenIcon class="stat-icon books" aria-hidden="true" />
           <span class="stat-value">{{ userBooks.length }}</span>
           <span class="stat-label">Livros</span>
+        </div>
+        <div class="card stat-card" :class="{ 'stat-card--dim': !exercisesCorrect }">
+          <CheckCircleIcon class="stat-icon correct" aria-hidden="true" />
+          <span class="stat-value">{{ exercisesCorrect }}</span>
+          <span class="stat-label">Exercícios certos</span>
+        </div>
+        <div class="card stat-card" :class="{ 'stat-card--dim': !dailiesCompleted }">
+          <CalendarDaysIcon class="stat-icon dailies" aria-hidden="true" />
+          <span class="stat-value">{{ dailiesCompleted }}</span>
+          <span class="stat-label">Diários completos</span>
         </div>
       </div>
 
@@ -396,7 +414,7 @@ onMounted(async () => {
 /* ── Stats ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-300);
 }
 
@@ -424,6 +442,8 @@ onMounted(async () => {
 .stat-icon.streak     { color: #f97316; }
 .stat-icon.best-streak { color: var(--color-amber-600); }
 .stat-icon.books      { stroke-width: 1.5; color: var(--color-deep-500); }
+.stat-icon.correct    { stroke-width: 1.5; color: var(--color-teal-600); }
+.stat-icon.dailies    { stroke-width: 1.5; color: var(--color-deep-500); }
 
 .stat-value {
   font-size: 22px;
