@@ -61,6 +61,8 @@ const recentBadge = computed<BookBadgeTier | undefined>(() => {
 const dailyStreak = computed(() => user.value?.exercises_daily_streak ?? 0)
 const bestStreak = computed(() => user.value?.best_exercises_daily_streak ?? 0)
 const booksObtained = computed(() => userBooks.value.length)
+const currentRank = ref<number | null>(null)
+const bestRank = computed(() => user.value?.best_rank ?? null)
 
 const progressPct = computed(() =>
   progress.value.nextLevelXp
@@ -68,9 +70,8 @@ const progressPct = computed(() =>
     : 0,
 )
 
-
-
 const TIER_RANK: Record<BookBadgeTier, number> = { bronze: 0, silver: 1, gold: 2, diamond: 3, galaxy: 4 }
+const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
 
 const badgeCounts = computed(() => {
   const counts: Record<BookBadgeTier, number> = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
@@ -84,6 +85,14 @@ const badgeCounts = computed(() => {
   }
   return counts
 })
+
+const totalBadgeScore = computed(() =>
+  userBooks.value.reduce((sum, ub) => {
+    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!badge || badge === 'default') return sum
+    return sum + (BADGE_WEIGHTS[badge] ?? 0)
+  }, 0)
+)
 
 const totalBadges = computed(() =>
   userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
@@ -326,7 +335,24 @@ onUnmounted(() => {
               :shadow="avatarConfig.shadow"
             />
           </div>
-          <div class="profile-info">
+        </div>
+        <div class="stats-grid">
+          <UiSkeleton v-for="n in 6" :key="n" height="56px" radius="10px" />
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="profile-head">
+          <UiAvatar
+            :src="avatarUrl || undefined"
+            :alt="getUserDisplayName(user).charAt(0)"
+            :size="72"
+            :border="avatarConfig.border"
+            :avatar-color="avatarConfig.avatarColor"
+            :effect="avatarConfig.effect"
+            :shadow="avatarConfig.shadow"
+          />
+          <div class="profile-head-info">
             <div class="name-row">
               <h2>{{ getUserDisplayName(user) }}</h2>
               <RouterLink to="/settings/conta" aria-label="Editar perfil" class="edit-link">
@@ -344,6 +370,7 @@ onUnmounted(() => {
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${progressPct}%` }" />
               </div>
+              <span class="xp-label">{{ progress.progress }} / {{ progress.nextLevelXp }} XP</span>
             </div>
           </div>
         </div>
@@ -616,13 +643,15 @@ onUnmounted(() => {
   gap: var(--space-400);
 }
 
-.profile-avatar-wrapper {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-400);
 }
 
-.profile-info {
+.profile-head-info {
+  flex: 1;
+  min-width: 0;
   display: grid;
   gap: var(--space-200);
   flex: 1;
@@ -632,7 +661,7 @@ onUnmounted(() => {
 .name-row {
   display: flex;
   align-items: center;
-  gap: var(--space-200);
+  gap: var(--space-150);
 }
 
 .name-row h2 {
@@ -663,86 +692,14 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.profile-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.xp-row {
+  display: flex;
+  align-items: center;
   gap: var(--space-200);
 }
 
-.mini-stat {
-  display: flex;
-  align-items: center;
-  gap: var(--space-300);
-  padding: var(--space-200) var(--space-300);
-  border-radius: 14px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  transition: background 0.2s ease;
-}
-
-.mini-stat--hot {
-  background: var(--color-deep-100);
-  border-color: var(--color-deep-600);
-}
-
-.mini-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  display: grid;
-  place-items: center;
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  flex-shrink: 0;
-}
-
-.mini-stat--hot .mini-icon {
-  background: var(--color-deep-500);
-  border-color: var(--color-deep-600);
-}
-
-.mini-stat--hot .icon {
-  color: #fff;
-}
-
-.mini-text {
-  display: grid;
-  gap: 3px;
-}
-
-.mini-stat strong {
-  display: block;
-  font-size: clamp(1rem, 2.5vw, 1.25rem);
-  font-weight: 800;
-  color: var(--color-mirage-800);
-  line-height: 1;
-}
-
-.mini-stat span {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--color-mirage-500);
-  font-weight: 600;
-}
-
-.profile-progress {
-  display: grid;
-  gap: 8px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--color-mirage-600);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
 .progress-bar {
+  flex: 1;
   height: 12px;
   border-radius: 999px;
   overflow: hidden;
@@ -756,6 +713,85 @@ onUnmounted(() => {
   background: linear-gradient(90deg, var(--color-deep-700), var(--color-deep-500));
   border-radius: inherit;
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.xp-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-mirage-500);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-200);
+}
+
+.mini-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-250, 10px);
+  padding: var(--space-200) var(--space-300);
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  transition: background 0.15s ease;
+}
+
+.mini-stat--hot {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+}
+
+.mini-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.mini-stat--hot .mini-icon {
+  background: var(--color-deep-500);
+  border-color: var(--color-deep-700);
+}
+
+.mini-stat--hot .icon {
+  color: #fff;
+}
+
+.mini-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mini-stat strong {
+  display: block;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-weight: 800;
+  color: var(--color-mirage-800);
+  line-height: 1;
+  font-family: var(--font-display);
+}
+
+.mini-stat span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-mirage-500);
+  font-weight: 600;
+  color: var(--color-mirage-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .icon {

@@ -50,6 +50,30 @@ const isLoading = ref(false)
 const isInitialLoad = ref(true)
 const timeFilter = ref<TimeFilter>('all')
 
+const searchModalOpen = ref(false)
+const searchQuery = ref('')
+
+const filteredTopGlobal = computed(() => topGlobal.value)
+
+const filteredSearchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return topGlobal.value
+  return topGlobal.value.filter(u => {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase()
+    return name.includes(q) || (u.email ?? '').toLowerCase().includes(q)
+  })
+})
+
+function openSearchModal() {
+  searchQuery.value = ''
+  searchModalOpen.value = true
+}
+
+function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
+  searchModalOpen.value = false
+  goToProfile(String(entry.id))
+}
+
 type PeekEntry = LeaderboardEntry & { globalRank: number }
 const peekEntry = ref<PeekEntry | null>(null)
 
@@ -114,11 +138,10 @@ const getRangeStartDate = (filter: TimeFilter) => {
   return start.toISOString()
 }
 
-// Computadas para separar o pódio da lista restante
-const podiumUsers = computed(() => topGlobal.value.slice(0, 3))
-const remainingUsersList = computed(() => topGlobal.value.slice(3))
+const podiumUsers = computed(() => filteredTopGlobal.value.slice(0, 3))
+const remainingUsersList = computed(() => filteredTopGlobal.value.slice(3))
 
-const isUserInTop = computed(() => topGlobal.value.some(u => String(u.id) === String(currentUserId)))
+const isUserInTop = computed(() => filteredTopGlobal.value.some(u => String(u.id) === String(currentUserId)))
 const showUserBelowList = computed(() => !isUserInTop.value && currentUserEntry.value !== null)
 
 const goToProfile = (userId: string) => {
@@ -368,9 +391,14 @@ watch(timeFilter, () => {
             </div>
           </div>
 
+          <div v-if="peekEntry.profile_private" class="peek-private">
+            <LockClosedIcon class="peek-private-icon" aria-hidden="true" />
+            <span>Perfil privado</span>
+          </div>
+
           <div class="peek-actions">
             <UiButton variant="secondary" style="flex:1" @click="closePeek">Fechar</UiButton>
-            <UiButton variant="primary" style="flex:1" @click="navigateToProfile">Ver perfil</UiButton>
+            <UiButton v-if="!peekEntry.profile_private" variant="primary" style="flex:1" @click="navigateToProfile">Ver perfil</UiButton>
           </div>
         </div>
       </div>
@@ -1002,6 +1030,28 @@ watch(timeFilter, () => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--color-mirage-500);
+}
+
+.peek-private {
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding: var(--space-200) var(--space-300);
+  border-radius: var(--radius-200);
+  border: 2px solid var(--color-wild-500);
+  background: var(--color-wild-200);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-mirage-500);
+  width: 100%;
+  justify-content: center;
+}
+
+.peek-private-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+  flex-shrink: 0;
 }
 
 .peek-actions {

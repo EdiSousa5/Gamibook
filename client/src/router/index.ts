@@ -111,11 +111,13 @@ const router = createRouter({
           name: 'settings-acessibilidade',
           component: () => import('../views/settings/Accessibility.vue'),
         },
+
         {
           path: 'atividade',
           name: 'settings-atividade',
           component: () => import('../views/settings/ActivityHistory.vue'),
         },
+
       ],
     },
     {
@@ -146,6 +148,7 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/NotFound.vue'),
+      meta: { layout: 'landing' },
     },
   ],
 })

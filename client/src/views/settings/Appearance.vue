@@ -11,7 +11,7 @@ import UiSelect from '@/components/ui/UiSelect.vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 const authStore = useAuthStore()
-const { user, isAdmin, avatarUrl } = storeToRefs(authStore)
+const { user, isAdmin, avatarConfig } = storeToRefs(authStore)
 const toast = useToast()
 const userLevel = computed(() => user.value?.level ?? 1)
 
@@ -179,12 +179,43 @@ const ALL_UNLOCKABLES = computed<UnlockRow[]>(() => {
 })
 
 const unlockModalOpen = ref(false)
-const filterCategory = ref('')
 const filterLevel = ref<'all' | 'unlocked' | 'locked'>('all')
+const filterCategory = ref<string>('all')
+const filterSpecificLevel = ref<string>('')
 
-const CATEGORIES = computed(() => {
-  const cats = new Set(ALL_UNLOCKABLES.value.map(r => r.category))
-  return [...cats]
+const CATEGORY_CHIPS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'Borda', label: 'Borda' },
+  { value: 'Cor', label: 'Cor' },
+  { value: 'Efeito', label: 'Efeito' },
+  { value: 'Fundo', label: 'Fundo' },
+]
+
+function getCategoryIcon(category: string) {
+  if (category === 'Borda') return PaintBrushIcon
+  if (category === 'Efeito') return SparklesIcon
+  if (category === 'Fundo Sólido') return SwatchIcon
+  if (category === 'Gradiente') return PhotoIcon
+  if (category === 'Fundo Animado') return FilmIcon
+  return SwatchIcon
+}
+
+function getCategoryColor(category: string): string {
+  if (category === 'Borda') return 'var(--color-deep-600)'
+  if (category === 'Efeito') return 'var(--color-amber-600, #d97706)'
+  if (category === 'Fundo Sólido') return 'var(--color-teal-600, #0d9488)'
+  if (category === 'Gradiente') return 'var(--color-deep-500)'
+  if (category === 'Fundo Animado') return 'var(--color-crimson-600, #dc2626)'
+  return 'var(--color-mirage-500)'
+}
+
+const levelGroups = computed(() => {
+  const groups: Record<number, UnlockRow[]> = {}
+  for (const row of filteredUnlockables.value) {
+    if (!groups[row.minLevel]) groups[row.minLevel] = []
+    ;(groups[row.minLevel] as UnlockRow[]).push(row)
+  }
+  return groups
 })
 
 const categoryOptions = computed(() => [
@@ -193,14 +224,24 @@ const categoryOptions = computed(() => [
 ])
 
 const filteredUnlockables = computed(() => {
+  const specificLevel = filterSpecificLevel.value ? parseInt(filterSpecificLevel.value, 10) : null
   return ALL_UNLOCKABLES.value.filter(row => {
-    const catOk = !filterCategory.value || row.category === filterCategory.value
-    const isRowUnlocked = isUnlocked({ id: '', name: '', minLevel: row.minLevel })
-    const levelOk =
-      filterLevel.value === 'all' ? true :
-      filterLevel.value === 'unlocked' ? isRowUnlocked :
-      !isRowUnlocked
-    return catOk && levelOk
+    if (filterLevel.value !== 'all') {
+      const unlocked = isRowUnlocked(row)
+      if (filterLevel.value === 'unlocked' && !unlocked) return false
+      if (filterLevel.value === 'locked' && unlocked) return false
+    }
+    if (filterCategory.value !== 'all') {
+      if (filterCategory.value === 'Fundo') {
+        if (!row.category.startsWith('Fundo')) return false
+      } else {
+        if (row.category !== filterCategory.value) return false
+      }
+    }
+    if (specificLevel !== null && !isNaN(specificLevel)) {
+      if (row.minLevel !== specificLevel) return false
+    }
+    return true
   })
 })
 </script>
@@ -228,7 +269,7 @@ const filteredUnlockables = computed(() => {
         <div class="av-editor">
           <div class="av-preview-box">
             <UiAvatar
-              :src="avatarUrl || undefined"
+              :asset-id="user?.avatar"
               :alt="user?.first_name?.charAt(0) ?? 'G'"
               :size="88"
               :border="avatarBorder"
@@ -441,27 +482,61 @@ const filteredUnlockables = computed(() => {
           </div>
 
           <div class="unlock-modal__body">
-            <div
-              v-for="row in filteredUnlockables"
-              :key="row.category + row.label"
-              class="unlock-row"
-              :class="{ 'unlock-row--done': isUnlocked({ id: '', name: '', minLevel: row.minLevel }) }"
-            >
-              <span class="unlock-row__level">{{ row.minLevel }}</span>
-              <span class="unlock-row__category">{{ row.category }}</span>
-              <div class="unlock-row__item">
-                <span v-if="row.hex" class="table-swatch" :style="{ background: row.hex }" />
-                <span v-else-if="row.gradVar" class="table-bg-preview" :style="{ background: `var(${row.gradVar})` }" />
-                <span class="unlock-row__name">{{ row.label }}</span>
+            <template v-if="sortedLevelKeys.length">
+              <div v-for="level in sortedLevelKeys" :key="level" class="level-group">
+                <div class="level-group-header" :class="{ 'level-group-header--done': levelUnlocked(level) }">
+                  <component
+                    :is="levelUnlocked(level) ? LockOpenIcon : LockClosedIcon"
+                    class="level-group-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Nível {{ level }}</span>
+                  <span class="level-group-count">{{ (levelGroups[level] ?? []).length }}</span>
+                </div>
+                <div class="level-group-items">
+                  <div
+                    v-for="item in (levelGroups[level] ?? [])"
+                    :key="item.category + item.label"
+                    class="unlock-item"
+                    :class="{ 'unlock-item--done': isRowUnlocked(item) }"
+                  >
+                    <!-- Visual preview -->
+                    <div class="unlock-visual">
+                      <span
+                        v-if="item.hex"
+                        class="unlock-color-swatch"
+                        :style="{ background: item.hex }"
+                      />
+                      <span
+                        v-else-if="item.gradVar"
+                        class="unlock-grad-swatch"
+                        :style="{ background: `var(${item.gradVar})` }"
+                      />
+                      <div
+                        v-else
+                        class="unlock-icon-box"
+                        :style="{ background: isRowUnlocked(item) ? getCategoryColor(item.category) : 'var(--color-wild-400)' }"
+                      >
+                        <component :is="getCategoryIcon(item.category)" class="unlock-cat-icon" aria-hidden="true" />
+                      </div>
+                    </div>
+                    <!-- Info -->
+                    <div class="unlock-info">
+                      <span class="unlock-name">{{ item.label }}</span>
+                      <span class="unlock-cat-tag">{{ item.category }}</span>
+                    </div>
+                    <!-- Status -->
+                    <component
+                      :is="isRowUnlocked(item) ? LockOpenIcon : LockClosedIcon"
+                      class="unlock-status-icon"
+                      :class="{ 'unlock-status-icon--done': isRowUnlocked(item) }"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </div>
               </div>
-              <CheckIcon v-if="isUnlocked({ id: '', name: '', minLevel: row.minLevel })" class="unlock-row__check" aria-hidden="true" />
-              <LockClosedIcon v-else class="unlock-row__lock" aria-hidden="true" />
-            </div>
-            <p v-if="filteredUnlockables.length === 0" class="unlock-empty">Nenhum item encontrado com esses filtros.</p>
-          </div>
-
-          <div class="unlock-modal__footer">
-            <UiButton variant="outline" @click="unlockModalOpen = false">Fechar</UiButton>
+            </template>
+            <p v-else class="unlock-empty">Nenhum item com esses filtros.</p>
           </div>
         </div>
       </div>
@@ -987,16 +1062,15 @@ h2 {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(10, 20, 25, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(10, 20, 25, 0.65);
   display: grid;
   place-items: center;
   padding: clamp(16px, 4vw, 32px);
 }
 
 .unlock-modal {
-  width: min(560px, 100%);
-  max-height: 85vh;
+  width: min(600px, 100%);
+  max-height: 88vh;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
   border-radius: 20px;
@@ -1014,6 +1088,10 @@ h2 {
   padding: 22px 24px 14px;
   border-bottom: 2px solid var(--color-wild-400);
   flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
 }
 
 .unlock-close-btn {
@@ -1064,169 +1142,241 @@ h2 {
   color: var(--color-mirage-800);
 }
 
-/* ── Filtros ─────────────────────────────────────────── */
-
 .unlock-modal__filters {
   display: flex;
-  align-items: center;
-  gap: var(--space-300);
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--color-wild-400);
+  flex-direction: column;
+  gap: var(--space-250, 10px);
+  padding: var(--space-300) var(--space-400);
+  border-bottom: 2px solid var(--color-wild-400);
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
 
 .filter-pills {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: var(--space-150);
 }
 
-.filter-pill {
-  padding: 5px 12px;
+.cat-chip {
+  padding: 4px 12px;
   border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
   font-size: 11px;
   font-weight: 700;
   font-family: var(--font-base);
   color: var(--color-mirage-600);
   cursor: pointer;
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.filter-pill:hover { background: var(--color-wild-200); }
+.cat-chip:hover {
+  background: var(--color-wild-200);
+}
 
-.filter-pill.active {
+.cat-chip--active {
   background: var(--color-deep-100);
   border-color: var(--color-deep-600);
   color: var(--color-deep-700);
+  box-shadow: 2px 2px 0 var(--color-deep-300);
 }
-
-/* ── Lista de itens ──────────────────────────────────── */
 
 .unlock-modal__body {
   overflow-y: auto;
   flex: 1;
-  padding: 8px 0;
+  min-height: 0;
+  padding: var(--space-300) var(--space-400) var(--space-400);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
 }
 
-.unlock-row {
+/* Level groups */
+.level-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+}
+
+.level-group-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--color-wild-300);
-  transition: background 0.1s;
+  gap: var(--space-150);
+  padding: 6px 10px;
+  border-radius: var(--radius-200);
+  background: var(--color-wild-300);
+  border: 1.5px solid var(--color-wild-500);
+  opacity: 0.6;
 }
 
-.unlock-row:last-child { border-bottom: none; }
+.level-group-header--done {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-300);
+  opacity: 1;
+}
 
-.unlock-row:hover { background: var(--color-wild-200); }
-
-.unlock-row--done { background: var(--color-deep-50, #f0faf9); }
-.unlock-row--done:hover { background: var(--color-deep-100); }
-
-.unlock-row__level {
+.level-group-icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
+  color: var(--color-mirage-400);
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
+}
+
+.level-group-header--done .level-group-icon {
+  color: var(--color-deep-600);
+}
+
+.level-group-header span {
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-mirage-500);
+  flex: 1;
+}
+
+.level-group-header--done span {
+  color: var(--color-deep-700);
+}
+
+.level-group-count {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  background: var(--color-wild-400);
+  color: var(--color-mirage-500) !important;
+  padding: 1px 7px;
+  border-radius: 999px;
+  flex: 0 !important;
+}
+
+.level-group-header--done .level-group-count {
+  background: var(--color-deep-200);
+  color: var(--color-deep-700) !important;
+}
+
+.level-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-150);
+  padding-left: var(--space-200);
+}
+
+/* Unlock items */
+.unlock-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--color-wild-400);
+  background: var(--color-wild-200);
+  opacity: 0.5;
+  transition: background 0.12s ease;
+}
+
+.unlock-item--done {
+  opacity: 1;
+  border-color: var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.unlock-item--done:hover {
+  background: var(--color-deep-50, #f0fafa);
+}
+
+/* Visual */
+.unlock-visual {
+  flex-shrink: 0;
+}
+
+.unlock-color-swatch {
+  display: block;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
   box-shadow: 2px 2px 0 var(--color-shadow);
-  font-size: 12px;
-  font-weight: 900;
-  color: var(--color-deep-700);
-  font-family: var(--font-display);
 }
 
-.unlock-row--done .unlock-row__level {
-  background: var(--color-deep-100);
-  border-color: var(--color-deep-600);
+.unlock-grad-swatch {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
 }
 
-.unlock-row__category {
-  flex-shrink: 0;
-  width: 100px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-mirage-500);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.unlock-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  transition: background 0.12s ease;
 }
 
-.unlock-row__item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.unlock-row__name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-mirage-800);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-mirage-600);
-  flex-shrink: 0;
-  display: inline-block;
-}
-
-.table-bg-preview {
-  width: 28px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1.5px solid var(--color-mirage-600);
-  flex-shrink: 0;
-  display: inline-block;
-}
-
-.unlock-row__check {
-  flex-shrink: 0;
+.unlock-cat-icon {
   width: 16px;
   height: 16px;
-  color: var(--color-deep-600);
-  stroke-width: 2.5;
-}
-
-.unlock-row__lock {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  color: var(--color-mirage-400);
+  color: #fff;
   stroke-width: 2;
 }
 
+/* Info */
+.unlock-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unlock-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-mirage-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unlock-item--done .unlock-name {
+  color: var(--color-mirage-800);
+}
+
+.unlock-cat-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mirage-400);
+}
+
+.unlock-item--done .unlock-cat-tag {
+  color: var(--color-deep-600);
+}
+
+/* Status icon */
+.unlock-status-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+  color: var(--color-mirage-300);
+  flex-shrink: 0;
+}
+
+.unlock-status-icon--done {
+  color: var(--color-deep-500);
+}
+
 .unlock-empty {
-  padding: 24px;
+  padding: var(--space-500);
   text-align: center;
   font-size: 13px;
   color: var(--color-mirage-500);
-}
-
-/* ── Footer ──────────────────────────────────────────── */
-
-.unlock-modal__footer {
-  padding: 14px 24px;
-  border-top: 2px solid var(--color-wild-400);
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
 }
 
 .modal-fade-enter-active,

@@ -46,8 +46,14 @@ const BADGE_TIERS: { tier: BookBadgeTier; label: string }[] = [
   { tier: 'galaxy', label: 'Galáxia' },
 ]
 
-const totalBadges = computed(() =>
-  BADGE_TIERS.reduce((sum, { tier }) => sum + badgeCounts.value[tier], 0),
+const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
+
+const totalBadgeScore = computed(() =>
+  userBooks.value.reduce((sum, ub) => {
+    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!badge || badge === 'default') return sum
+    return sum + (BADGE_WEIGHTS[badge] ?? 0)
+  }, 0)
 )
 
 const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
