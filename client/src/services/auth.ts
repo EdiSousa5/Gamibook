@@ -20,6 +20,8 @@ const USER_FIELDS = [
   'avatar_shadow',
   'background_theme',
   'onboarding_completed',
+  'best_rank',
+  'profile_private',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {

@@ -90,7 +90,7 @@ const totalBadges = computed(() =>
 )
 
 const currentRank = ref<number | null>(null)
-const bestRank = ref<number | null>(null)
+const bestRank = computed(() => user.value?.best_rank ?? null)
 
 const formatDailyCooldown = computed(() => {
   const h = Math.floor(dailyCooldownSeconds.value / 3600)
@@ -199,42 +199,35 @@ const checkLeaderboardNotification = async (userId: string) => {
       .sort((a, b) => b.totalPoints - a.totalPoints)
 
     const idx = sorted.findIndex((u) => u.id === userId)
-    const rankValue = idx >= 0 ? idx + 1 : null
-    currentRank.value = rankValue
-
-    if (rankValue !== null) {
-      const bestKey = `gb_best_rank_${userId}`
-      const prevBestStr = localStorage.getItem(bestKey)
-      const prevBest = prevBestStr ? parseInt(prevBestStr, 10) : null
-      if (prevBest === null || rankValue < prevBest) {
-        localStorage.setItem(bestKey, String(rankValue))
-        bestRank.value = rankValue
-      } else {
-        bestRank.value = prevBest
-      }
-    }
-
-    if (!rankValue) return
+    const rank = idx >= 0 ? idx + 1 : null
+    if (!rank) return
+    currentRank.value = rank
 
     const storedKey = `gb_last_rank_${userId}`
     const prevRankStr = localStorage.getItem(storedKey)
     const prevRank = prevRankStr ? parseInt(prevRankStr, 10) : null
-    localStorage.setItem(storedKey, String(rankValue))
+    localStorage.setItem(storedKey, String(rank))
 
-    if (prevRank === null || prevRank === rankValue) return
+    const storedBestRank = auth.user?.best_rank ?? null
+    if (storedBestRank === null || rank < storedBestRank) {
+      await updateUser(userId, { best_rank: rank })
+      if (auth.user) auth.user.best_rank = rank
+    }
 
-    if (rankValue < prevRank) {
+    if (prevRank === null || prevRank === rank) return
+
+    if (rank < prevRank) {
       notifStore.add({
         user: userId,
         title: 'Subiste no ranking!',
-        message: `Passaste da posição ${prevRank} para a posição ${rankValue} na tabela de classificação.`,
+        message: `Passaste da posição ${prevRank} para a posição ${rank} na tabela de classificação.`,
         type: 'achievement',
       })
     } else {
       notifStore.add({
         user: userId,
         title: 'Desceste no ranking',
-        message: `Passaste da posição ${prevRank} para a posição ${rankValue} na tabela de classificação.`,
+        message: `Passaste da posição ${prevRank} para a posição ${rank} na tabela de classificação.`,
         type: 'system',
       })
     }
@@ -265,8 +258,6 @@ onMounted(async () => {
     if (!auth.user) await auth.loadUser()
     const userId = user.value?.id ? String(user.value.id) : null
     if (!userId) return
-    const storedBest = localStorage.getItem(`gb_best_rank_${userId}`)
-    if (storedBest) bestRank.value = parseInt(storedBest, 10)
     const [books] = await Promise.all([
       fetchUserBooks(userId).catch(() => [] as UserBook[]),
       checkLeaderboardNotification(userId),

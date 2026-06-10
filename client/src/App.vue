@@ -355,7 +355,7 @@ watch(
         <AppTopbar :username="displayName" :avatar-asset-id="avatarAssetId" :level="progress.level"
           :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
           :is-admin="isAdmin" :mobile-nav-open="mobileNavOpen" @action="onNavClick" @book-unlocked="handleBookUnlocked" @toggle-nav="mobileNavOpen = !mobileNavOpen" />
-        <main class="main">
+        <main id="main-content" class="main">
           <RouterView />
         </main>
       </div>
@@ -375,16 +375,70 @@ watch(
 </template>
 
 <style>
-/* ── Acessibilidade ──────────────────────────────────── */
-html[data-font-size="large"] { zoom: 1.125; }
-html[data-font-size="xl"]    { zoom: 1.25; }
+/* ── Skip links ─────────────────────────────────────── */
+.skip-links {
+  position: fixed;
+  top: -100px;
+  left: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
 
-html[data-color-mode="deuteranopia"] .app { filter: url('#cb-deuteranopia'); }
-html[data-color-mode="protanopia"]   .app { filter: url('#cb-protanopia'); }
-html[data-color-mode="tritanopia"]   .app { filter: url('#cb-tritanopia'); }
+.skip-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--color-deep-700);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-base);
+  border-radius: 8px;
+  text-decoration: none;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: top 0.15s ease, opacity 0.15s ease;
+}
 
-/* Contraste aplicado no body para não conflituar com filtros SVG em .app */
-html[data-contrast="high"] body { filter: contrast(1.3) saturate(0.85); }
+.skip-link:focus {
+  top: 0;
+  opacity: 1;
+  pointer-events: auto;
+  position: static;
+}
+
+/* ── Font size ───────────────────────────────────────── */
+html[data-font-size="large"] {
+  zoom: 1.125;
+}
+
+html[data-font-size="xl"] {
+  zoom: 1.25;
+}
+
+/* ── Color blindness filters ─────────────────────────── */
+html[data-color-mode="deuteranopia"] .app {
+  filter: url('#cb-deuteranopia');
+}
+
+html[data-color-mode="protanopia"] .app {
+  filter: url('#cb-protanopia');
+}
+
+html[data-color-mode="tritanopia"] .app {
+  filter: url('#cb-tritanopia');
+}
+
+/* ── Alto Contraste ──────────────────────────────────── */
+/* Aplicado no body (camada acima de .app) para não entrar
+   em conflito com os filtros SVG de daltonismo em .app */
+html[data-contrast="high"] body {
+  filter: contrast(1.3) saturate(0.85);
+}
 
 /* ── Toast ───────────────────────────────────────────── */
 .toast-container {

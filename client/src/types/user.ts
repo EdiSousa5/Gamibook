@@ -19,4 +19,6 @@ export type User = {
   avatar_shadow?: string
   background_theme?: string
   onboarding_completed?: boolean | null
+  best_rank?: number | null
+  profile_private?: boolean | null
 }

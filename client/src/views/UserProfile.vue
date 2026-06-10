@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { FireIcon } from '@heroicons/vue/24/solid'
-import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, CheckCircleIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline'
+import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, TrophyIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
@@ -10,7 +10,7 @@ import BookMockup from '@/components/ui/BookMockup.vue'
 import BookShelf from '@/components/ui/BookShelf.vue'
 import { fetchUserById, getUserAvatarId, getUserDisplayName } from '@/services/auth'
 import { fetchUserBookBadges, fetchUserBooks } from '@/services/books'
-import { fetchUserPointsFromHistory, fetchUserPointsHistoryList } from '@/services/exercises'
+import { fetchUserPointsFromHistory } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import type { User, UserBook, Book } from '@/types'
@@ -28,8 +28,7 @@ const badgeCounts = ref<BadgeCounts>({ bronze: 0, silver: 0, gold: 0, diamond: 0
 const userBooks = ref<UserBook[]>([])
 const isLoading = ref(true)
 const error = ref('')
-const exercisesCorrect = ref(0)
-const dailiesCompleted = ref(0)
+
 
 const displayName = computed(() => getUserDisplayName(user.value))
 const avatarUrl = computed(() => getAssetUrl(getUserAvatarId(user.value)))
@@ -49,6 +48,16 @@ const BADGE_TIERS: { tier: BookBadgeTier; label: string }[] = [
 
 const totalBadges = computed(() =>
   BADGE_TIERS.reduce((sum, { tier }) => sum + badgeCounts.value[tier], 0),
+)
+
+const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
+
+const totalBadgeScore = computed(() =>
+  userBooks.value.reduce((sum, ub) => {
+    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!badge || badge === 'default') return sum
+    return sum + (BADGE_WEIGHTS[badge] ?? 0)
+  }, 0)
 )
 
 const getBookCover = (ub: UserBook) => {
@@ -94,19 +103,16 @@ const shiftCarousel = (dir: 1 | -1) => {
 
 onMounted(async () => {
   try {
-    const [userData, totalPoints, allBadges, books, historyEntries] = await Promise.all([
+    const [userData, totalPoints, allBadges, books] = await Promise.all([
       fetchUserById(userId.value),
       fetchUserPointsFromHistory(userId.value).catch(() => 0),
       fetchUserBookBadges().catch(() => [] as UserBook[]),
       fetchUserBooks(userId.value).catch(() => [] as UserBook[]),
-      fetchUserPointsHistoryList(userId.value, 500).catch(() => []),
     ])
 
     user.value = userData
     points.value = totalPoints
     userBooks.value = books
-    exercisesCorrect.value = historyEntries.filter(e => e.source === 'exercise').length
-    dailiesCompleted.value = historyEntries.filter(e => e.source === 'daily').length
 
     const counts: BadgeCounts = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
     for (const ub of allBadges) {
@@ -194,11 +200,6 @@ onMounted(async () => {
 
       <!-- Stats -->
       <div class="stats-grid">
-        <div class="card stat-card">
-          <StarIcon class="stat-icon pts" aria-hidden="true" />
-          <span class="stat-value">{{ points.toLocaleString('pt-PT') }}</span>
-          <span class="stat-label">Pontos</span>
-        </div>
         <div class="card stat-card" :class="{ 'stat-card--dim': !user?.exercises_daily_streak }">
           <FireIcon class="stat-icon streak" aria-hidden="true" />
           <span class="stat-value">{{ user?.exercises_daily_streak ?? 0 }}</span>
@@ -209,20 +210,25 @@ onMounted(async () => {
           <span class="stat-value">{{ user?.best_exercises_daily_streak ?? 0 }}</span>
           <span class="stat-label">Melhor streak</span>
         </div>
+        <div class="card stat-card" :class="{ 'stat-card--dim': !user?.best_rank }">
+          <TrophyIcon class="stat-icon rank" aria-hidden="true" />
+          <span class="stat-value">{{ user?.best_rank != null ? `#${user.best_rank}` : '—' }}</span>
+          <span class="stat-label">Melhor posição</span>
+        </div>
+        <div class="card stat-card">
+          <StarIcon class="stat-icon pts" aria-hidden="true" />
+          <span class="stat-value">{{ points.toLocaleString('pt-PT') }}</span>
+          <span class="stat-label">Pontos</span>
+        </div>
         <div class="card stat-card">
           <BookOpenIcon class="stat-icon books" aria-hidden="true" />
           <span class="stat-value">{{ userBooks.length }}</span>
           <span class="stat-label">Livros</span>
         </div>
-        <div class="card stat-card" :class="{ 'stat-card--dim': !exercisesCorrect }">
-          <CheckCircleIcon class="stat-icon correct" aria-hidden="true" />
-          <span class="stat-value">{{ exercisesCorrect }}</span>
-          <span class="stat-label">Exercícios certos</span>
-        </div>
-        <div class="card stat-card" :class="{ 'stat-card--dim': !dailiesCompleted }">
-          <CalendarDaysIcon class="stat-icon dailies" aria-hidden="true" />
-          <span class="stat-value">{{ dailiesCompleted }}</span>
-          <span class="stat-label">Diários completos</span>
+        <div class="card stat-card">
+          <SparklesIcon class="stat-icon badges" aria-hidden="true" />
+          <span class="stat-value">{{ totalBadgeScore }}</span>
+          <span class="stat-label">Badges</span>
         </div>
       </div>
 
@@ -441,9 +447,9 @@ onMounted(async () => {
 .stat-icon.pts        { stroke-width: 1.5; color: var(--color-deep-600); }
 .stat-icon.streak     { color: #f97316; }
 .stat-icon.best-streak { color: var(--color-amber-600); }
+.stat-icon.rank       { stroke-width: 1.5; color: var(--color-pumpkin-600); }
 .stat-icon.books      { stroke-width: 1.5; color: var(--color-deep-500); }
-.stat-icon.correct    { stroke-width: 1.5; color: var(--color-teal-600); }
-.stat-icon.dailies    { stroke-width: 1.5; color: var(--color-deep-500); }
+.stat-icon.badges     { stroke-width: 1.5; color: var(--color-deep-600); }
 
 .stat-value {
   font-size: 22px;

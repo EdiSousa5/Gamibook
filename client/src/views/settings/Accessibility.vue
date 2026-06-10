@@ -135,7 +135,7 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
         </div>
         <div>
           <h3>Alto Contraste</h3>
-          <p>Aumenta o contraste das cores para facilitar a leitura em condições de pouca luz ou dificuldades visuais.</p>
+          <p>Aumenta o contraste das cores para facilitar a leitura em condições de pouca iluminação ou dificuldades visuais.</p>
         </div>
       </div>
       <div class="group-body">
@@ -217,6 +217,8 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
 
 .group-body {
   padding: var(--space-400);
+  display: grid;
+  gap: var(--space-300);
   background: var(--color-wild-100);
 }
 
