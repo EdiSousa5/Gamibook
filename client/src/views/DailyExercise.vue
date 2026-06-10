@@ -1126,10 +1126,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 560px) {
-    .options-grid-2 {
-        grid-template-columns: 1fr;
-    }
-
     .options {
         gap: 12px;
     }

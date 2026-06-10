@@ -98,9 +98,6 @@ const totalBadges = computed(() =>
   userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
 )
 
-const currentRank = ref<number | null>(null)
-const bestRank = computed(() => user.value?.best_rank ?? null)
-
 const formatDailyCooldown = computed(() => {
   const h = Math.floor(dailyCooldownSeconds.value / 3600)
   const m = Math.floor((dailyCooldownSeconds.value % 3600) / 60)
@@ -322,7 +319,7 @@ onUnmounted(() => {
         </div>
       </template>
 
-      <template v-else>
+      <template v-else-if="isLoadingProfile">
         <div class="profile-top">
           <div class="profile-avatar-wrapper">
             <UiAvatar
@@ -725,6 +722,12 @@ onUnmounted(() => {
 
 /* Stats grid */
 .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-200);
+}
+
+.profile-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-200);
