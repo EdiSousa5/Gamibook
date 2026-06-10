@@ -67,8 +67,8 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
-    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    border-radius: 1rem;
     border: 2px solid transparent;
     background-color: var(--color-wild-50);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -108,7 +108,8 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
 .item-left {
     display: flex;
     align-items: center;
-    gap: 22px;
+    gap: 1.25rem;
+    min-width: 0;
 }
 
 .position-circle {
@@ -173,9 +174,13 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
 }
 
 .name {
-    font-size: 18px;
+    font-size: clamp(0.875rem, 2.5vw, 1.125rem);
     font-weight: 700;
     color: var(--color-mirage-900);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 12rem;
 }
 
 .meta-row {
@@ -222,9 +227,40 @@ const BADGE_TIERS: BookBadgeTier[] = ['bronze', 'silver', 'gold', 'diamond', 'ga
 }
 
 .item-right .points {
-    font-size: 18px;
+    font-size: clamp(0.875rem, 2.5vw, 1.125rem);
     font-weight: 800;
     color: var(--color-deep-600);
+    white-space: nowrap;
+}
+
+@media (max-width: 37.5em) {
+    .ranking-list-item {
+        padding: 0.75rem 0.875rem;
+        border-radius: 0.75rem;
+    }
+
+    .item-left {
+        gap: 0.625rem;
+    }
+
+    .position-circle {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.875rem;
+        border-radius: 0.625rem;
+    }
+
+    .user-info {
+        gap: 0.625rem;
+    }
+
+    .name {
+        max-width: 8rem;
+    }
+
+    .level {
+        font-size: 0.625rem;
+    }
 }
 
 @keyframes pulse-highlight {

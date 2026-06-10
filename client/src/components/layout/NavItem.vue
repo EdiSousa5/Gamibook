@@ -108,13 +108,13 @@ const handleClick = (navigate?: () => void) => {
   min-width: 0;
   width: 100%;
   justify-content: flex-start;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .nav-item :deep(.ui-button-label) {
   width: 100%;
   text-align: left;
-  font-size: 16px;
+  font-size: 1rem;
   justify-content: flex-start;
 }
 
@@ -131,8 +131,8 @@ const handleClick = (navigate?: () => void) => {
 }
 
 .icon {
-  width: 26px;
-  height: 26px;
+  width: 1.625rem;
+  height: 1.625rem;
   display: flex;
   align-items: center;
   justify-content: center;

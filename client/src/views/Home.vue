@@ -159,15 +159,15 @@ const onIconLeave = () => {
 
 <style scoped>
 .landing {
-  min-height: calc(100vh - 120px);
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: clamp(40px, 8vw, 100px);
+  gap: clamp(2.5rem, 8vw, 6.25rem);
   padding: var(--space-600) var(--space-400);
   position: relative;
   overflow: hidden;
-  max-width: 1200px;
+  max-width: 75rem;
   margin: 0 auto;
 }
 
@@ -180,17 +180,16 @@ const onIconLeave = () => {
 }
 
 .halo-1 {
-  width: 640px;
-  height: 640px;
+  width: clamp(18.75rem, 45vw, 40rem);
+  height: clamp(18.75rem, 45vw, 40rem);
   background: radial-gradient(circle, rgba(46, 127, 123, 0.14), transparent 65%);
-  top: -180px;
-  right: -80px;
+  top: -11.25rem;
+  right: -5rem;
 }
 
-
 .halo-3 {
-  width: 300px;
-  height: 300px;
+  width: clamp(10rem, 20vw, 18.75rem);
+  height: clamp(10rem, 20vw, 18.75rem);
   background: radial-gradient(circle, rgba(46, 127, 123, 0.08), transparent 65%);
   top: 55%;
   left: 60%;
@@ -212,7 +211,7 @@ const onIconLeave = () => {
 }
 
 h1 {
-  font-size: clamp(32px, 4vw, 54px);
+  font-size: clamp(2rem, 4vw, 3.375rem);
   margin: 0;
   line-height: 1.15;
   color: var(--color-mirage-900);
@@ -228,6 +227,7 @@ h1 {
   display: flex;
   gap: var(--space-300);
   margin-top: var(--space-200);
+  flex-wrap: wrap;
 }
 
 /* ── Visuals ──────────────────────────────────────── */
@@ -237,8 +237,8 @@ h1 {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 560px;
-  padding-bottom: 50px;
+  min-height: clamp(22rem, 45vh, 35rem);
+  padding-bottom: 3.125rem;
 }
 
 .hero-book {
@@ -246,8 +246,8 @@ h1 {
 }
 
 .hero-book :deep(.book-scene.lg .book) {
-  width: 250px;
-  height: 362px;
+  width: 15.625rem;
+  height: 22.625rem;
   --d: 44px;
 }
 
@@ -257,15 +257,11 @@ h1 {
   z-index: 3;
 }
 
-/* Ícone ou badge activo sobe ao topo para o tooltip não ficar atrás */
 .fi-wrap:hover,
 .fi-wrap.is-active {
   z-index: 20;
 }
 
-/*
-  5 ícones: Galaxy topo-esq | XP topo-dir | Ranking dir-alta | Leitura dir-baixa | Fogo esq-meio
-*/
 .bf-1 { left:  3%; top: 15%;  animation: fi 5.3s -2.1s ease-in-out infinite alternate; }
 .oi-1 { left: 64%; top: 10%;  animation: fi 4.7s -1.3s ease-in-out infinite alternate; }
 .oi-3 { left: 84%; top: 22%;  animation: fi 6.2s -0.8s ease-in-out infinite alternate; }
@@ -283,8 +279,8 @@ h1 {
 /* ── Orbit icons interior ─────────────────────────── */
 .orbit-icon {
   position: relative;
-  width: 54px;
-  height: 54px;
+  width: 3.375rem;
+  height: 3.375rem;
   border-radius: 50%;
   border: 2px solid var(--color-mirage-800);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -295,8 +291,8 @@ h1 {
 }
 
 .o-icon {
-  width: 26px;
-  height: 26px;
+  width: 1.625rem;
+  height: 1.625rem;
 }
 
 /* ── Tooltips ─────────────────────────────────────── */
@@ -304,10 +300,10 @@ h1 {
   position: absolute;
   background: var(--color-wild-100);
   color: var(--color-mirage-800);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 10px;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.625rem;
   border: 2px solid var(--color-mirage-800);
   box-shadow: 3px 3px 0 var(--color-shadow);
   white-space: nowrap;
@@ -316,17 +312,72 @@ h1 {
   z-index: 1;
   transform: scale(0.85);
   transition: opacity 0.18s ease, transform 0.18s ease;
+
+@media (max-width: 48em) {
+  .landing {
+    padding-top: var(--space-500);
+  }
+
+  .visuals {
+    overflow: hidden;
+  }
+
+  .hero-book :deep(.book-scene.lg .book) {
+    width: 8.5rem;
+    height: 12.3rem;
+    --d: 26px;
+  }
+
+  .hero-book {
+    transform: translateX(-0.25rem);
+  }
+
+  .fi-wrap {
+    transform: scale(0.86);
+    transform-origin: center;
+  }
+
+  .bf-1 { left: 1%; top: 12%; }
+  .oi-1 { left: 64%; top: 8%; }
+  .oi-3 { left: 80%; top: 18%; }
 }
 
-/* Horizontal — centrados verticalmente no ícone */
-.tip--right { top: 50%; left: calc(100% + 12px);  translate: 0 -50%; }
-.tip--left  { top: 50%; right: calc(100% + 12px); translate: 0 -50%; }
+@media (max-width: 37.5em) {
+  .landing {
+    padding-top: var(--space-400);
+    padding-bottom: var(--space-500);
+  }
 
-/* Vertical — centrados horizontalmente no ícone */
-.tip--bottom { top: calc(100% + 10px); left: 50%; translate: -50% 0; }
-.tip--top    { bottom: calc(100% + 10px); left: 50%; translate: -50% 0; }
+  .visuals {
+    min-height: 11rem;
+    padding-bottom: 1.25rem;
+  }
 
-/* tooltips shown via is-active; :hover kept as CSS fallback */
+  .hero-book :deep(.book-scene.lg .book) {
+    width: 6.75rem;
+    height: 9.75rem;
+    --d: 22px;
+  }
+
+  .fi-wrap {
+    display: none;
+  }
+
+  .hero-chip {
+    max-width: 100%;
+  }
+
+  .cta {
+    max-width: 100%;
+  }
+}
+}
+
+.tip--right  { top: 50%; left: calc(100% + 0.75rem);  translate: 0 -50%; }
+.tip--left   { top: 50%; right: calc(100% + 0.75rem); translate: 0 -50%; }
+.tip--bottom { top: calc(100% + 0.625rem); left: 50%; translate: -50% 0; }
+.tip--top    { bottom: calc(100% + 0.625rem); left: 50%; translate: -50% 0; }
+
 .orbit-icon:hover .tip,
 .badge-float:hover .tip {
   opacity: 1;
@@ -335,11 +386,11 @@ h1 {
 
 /* ── Keyframes ────────────────────────────────────── */
 @keyframes fi {
-  0%   { transform: translateY(0px) scale(1); }
-  100% { transform: translateY(-14px) scale(1.04); }
+  0%   { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-0.875rem) scale(1.04); }
 }
 
-/* ── Transição entre livros — efeito de prateleira ── */
+/* ── Transição entre livros ── */
 .book-swap-enter-active {
   transition: opacity 0.5s cubic-bezier(0.34, 1.28, 0.64, 1), transform 0.5s cubic-bezier(0.34, 1.28, 0.64, 1);
 }
@@ -348,7 +399,7 @@ h1 {
 }
 .book-swap-enter-from {
   opacity: 0;
-  transform: translateY(32px) scale(0.82);
+  transform: translateY(2rem) scale(0.82);
 }
 .book-swap-leave-to {
   opacity: 0;
@@ -356,55 +407,106 @@ h1 {
 }
 
 /* ── Responsive ───────────────────────────────────── */
-@media (max-width: 900px) {
+
+/* Tablet: livro visível mas mais pequeno, content em baixo */
+@media (max-width: 56.25em) {
   .landing {
     grid-template-columns: 1fr;
-    text-align: center;
-    padding-top: var(--space-600);
+    min-height: unset;
+    padding: var(--space-600) var(--space-500) var(--space-700);
+    gap: var(--space-500);
   }
 
   .content {
     text-align: center;
     place-items: center;
+    order: 2;
+    padding-top: 0;
   }
 
   .hero-chip { justify-self: center; }
 
-  .content {
-    padding-top: var(--space-400);
-  }
-
   .cta {
     flex-direction: column;
     width: 100%;
+    max-width: 22rem;
   }
 
   .visuals {
-    grid-row: 1;
-    margin-bottom: var(--space-400);
-    min-height: 440px;
-    padding-bottom: 64px;
+    order: 1;
+    min-height: 22rem;
+    padding-bottom: 3rem;
   }
 
   .hero-book :deep(.book-scene.lg .book) {
-    width: 180px;
-    height: 261px;
-    --d: 34px;
+    width: 10rem;
+    height: 14.5rem;
+    --d: 32px;
   }
 
-  /* No mobile esconde alguns para não aglomerar */
   .oi-4, .oi-5 { display: none; }
 
-  /* Mantém 3: Galaxy topo-esq | XP topo-dir | Ranking dir */
-  .bf-1 { left:  4%; top: 15%; }
+  .bf-1 { left: 3%; top: 15%; }
   .oi-1 { left: 66%; top: 10%; }
   .oi-3 { left: 84%; top: 22%; }
 }
 
-/* ── Auto-cycle active state (button press effect) ── */
+/* Mobile: livro centrado em cima, conteúdo centrado abaixo */
+@media (max-width: 37.5em) {
+  .landing {
+    grid-template-columns: 1fr;
+    min-height: 100dvh;
+    padding: var(--space-500) var(--space-300) var(--space-700);
+    gap: var(--space-400);
+    align-content: center;
+  }
+
+  .visuals {
+    order: 1;
+    min-height: 17rem;
+    padding-bottom: 2rem;
+  }
+
+  .content {
+    order: 2;
+    text-align: center;
+    place-items: center;
+    width: 100%;
+  }
+
+  .hero-book :deep(.book-scene.lg .book) {
+    width: 8rem;
+    height: 11.6rem;
+    --d: 28px;
+  }
+
+  /* Mostrar apenas o badge Galaxy, esconder restantes */
+  .oi-1, .oi-3 { display: none; }
+  .bf-1 { left: 4%; top: 8%; }
+
+  h1 { font-size: clamp(1.625rem, 7vw, 2rem); }
+
+  .cta {
+    max-width: 18rem;
+    gap: var(--space-200);
+  }
+}
+
+@media (max-width: 25em) {
+  .landing {
+    padding: var(--space-400) var(--space-300) var(--space-600);
+    gap: var(--space-300);
+  }
+  .visuals { min-height: 13rem; padding-bottom: 1.5rem; }
+  .hero-book :deep(.book-scene.lg .book) { width: 6.5rem; height: 9.4rem; --d: 22px; }
+  h1 { font-size: clamp(1.375rem, 7vw, 1.75rem); }
+  .bf-1 { display: none; }
+}
+
+/* ── Auto-cycle active state ── */
 .fi-wrap.is-active .orbit-icon {
   transform: translate(4px, 4px);
-  box-shadow: 0px 0px 0 var(--color-shadow);
+  box-shadow: 0 0 0 var(--color-shadow);
 }
 
 .fi-wrap.is-active .badge-float {

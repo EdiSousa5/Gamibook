@@ -128,6 +128,10 @@ defineProps<{
 }
 
 @media (max-width: 720px) {
+  .question-card__panel {
+    padding: 28px 18px 22px;
+  }
+
   .question-top {
     flex-direction: column;
     align-items: center;
@@ -142,6 +146,44 @@ defineProps<{
 
   .question-text {
     font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .question-card__panel {
+    padding: 20px 16px 18px;
+  }
+
+  .question-top {
+    align-items: center;
+    text-align: center;
+    margin-top: var(--space-300);
+  }
+
+  .question-title {
+    font-size: 18px;
+    justify-content: center;
+  }
+
+  .question-text {
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .question-timer {
+    width: 58px;
+    height: 58px;
+    top: -26px;
+  }
+
+  .timer-ring {
+    width: 52px;
+    height: 52px;
+  }
+
+  .timer-value {
+    font-size: 14px;
   }
 }
 </style>

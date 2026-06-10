@@ -8,8 +8,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import { StarIcon, LockClosedIcon, MagnifyingGlassIcon, XMarkIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
-import { FireIcon } from '@heroicons/vue/24/solid'
+import { StarIcon, MagnifyingGlassIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import {
   fetchUsers,
@@ -77,6 +76,28 @@ function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
 
 type PeekEntry = LeaderboardEntry & { globalRank: number }
 const peekEntry = ref<PeekEntry | null>(null)
+
+const searchModalOpen = ref(false)
+const searchQuery = ref('')
+
+const filteredSearchResults = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return topGlobal.value
+  return topGlobal.value.filter(u => {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase()
+    return name.includes(q) || (u.email ?? '').toLowerCase().includes(q)
+  })
+})
+
+function openSearchModal() {
+  searchQuery.value = ''
+  searchModalOpen.value = true
+}
+
+function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
+  searchModalOpen.value = false
+  goToProfile(String(entry.id))
+}
 
 onMounted(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }))
 const displayUserName = (entry?: User | null) => {
@@ -210,13 +231,14 @@ watch(timeFilter, () => {
 </script>
 
 <template>
-  <section class="rankings">
+  <section class="rankings" data-tour="leaderboard-main">
     <div class="filters-wrapper">
       <div class="filters-card">
         <div class="filters-card-row">
           <div class="filters-seg-block">
             <p class="filters-label">Período</p>
-            <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS" @update="timeFilter = $event as TimeFilter" />
+            <UiSegmented :model-value="timeFilter" :options="TIME_FILTERS"
+              @update="timeFilter = $event as TimeFilter" />
           </div>
           <div class="filters-divider" />
           <button class="search-trigger" @click="openSearchModal" aria-label="Pesquisar jogador na classificação">
@@ -240,42 +262,30 @@ watch(timeFilter, () => {
         <div class="podium-col place-2-col">
           <PodiumItem v-if="podiumUsers[1]" :position="2" :points="podiumUsers[1].totalPoints"
             :level="podiumUsers[1].level" :avatarUrl="getAvatarUrl(podiumUsers[1])"
-            :displayName="displayUserName(podiumUsers[1])"
-            :elementId="`user-${podiumUsers[1].id}`"
-            :userId="String(podiumUsers[1].id)"
-            :avatarBorder="podiumUsers[1].avatar_border as any"
-            :avatarColor="podiumUsers[1].avatar_color as any"
-            :avatarEffect="podiumUsers[1].avatar_effect as any"
-            :avatarShadow="podiumUsers[1].avatar_shadow as any"
-            @click-user="goToProfile" />
+            :displayName="displayUserName(podiumUsers[1])" :elementId="`user-${podiumUsers[1].id}`"
+            :userId="String(podiumUsers[1].id)" :avatarBorder="podiumUsers[1].avatar_border as any"
+            :avatarColor="podiumUsers[1].avatar_color as any" :avatarEffect="podiumUsers[1].avatar_effect as any"
+            :avatarShadow="podiumUsers[1].avatar_shadow as any" @click-user="goToProfile" />
         </div>
 
         <!-- 1º Lugar -->
         <div class="podium-col place-1-col">
           <PodiumItem v-if="podiumUsers[0]" :position="1" :points="podiumUsers[0].totalPoints"
             :level="podiumUsers[0].level" :avatarUrl="getAvatarUrl(podiumUsers[0])"
-            :displayName="displayUserName(podiumUsers[0])"
-            :elementId="`user-${podiumUsers[0].id}`"
-            :userId="String(podiumUsers[0].id)"
-            :avatarBorder="podiumUsers[0].avatar_border as any"
-            :avatarColor="podiumUsers[0].avatar_color as any"
-            :avatarEffect="podiumUsers[0].avatar_effect as any"
-            :avatarShadow="podiumUsers[0].avatar_shadow as any"
-            @click-user="goToProfile" />
+            :displayName="displayUserName(podiumUsers[0])" :elementId="`user-${podiumUsers[0].id}`"
+            :userId="String(podiumUsers[0].id)" :avatarBorder="podiumUsers[0].avatar_border as any"
+            :avatarColor="podiumUsers[0].avatar_color as any" :avatarEffect="podiumUsers[0].avatar_effect as any"
+            :avatarShadow="podiumUsers[0].avatar_shadow as any" @click-user="goToProfile" />
         </div>
 
         <!-- 3º Lugar -->
         <div class="podium-col place-3-col">
           <PodiumItem v-if="podiumUsers[2]" :position="3" :points="podiumUsers[2].totalPoints"
             :level="podiumUsers[2].level" :avatarUrl="getAvatarUrl(podiumUsers[2])"
-            :displayName="displayUserName(podiumUsers[2])"
-            :elementId="`user-${podiumUsers[2].id}`"
-            :userId="String(podiumUsers[2].id)"
-            :avatarBorder="podiumUsers[2].avatar_border as any"
-            :avatarColor="podiumUsers[2].avatar_color as any"
-            :avatarEffect="podiumUsers[2].avatar_effect as any"
-            :avatarShadow="podiumUsers[2].avatar_shadow as any"
-            @click-user="goToProfile" />
+            :displayName="displayUserName(podiumUsers[2])" :elementId="`user-${podiumUsers[2].id}`"
+            :userId="String(podiumUsers[2].id)" :avatarBorder="podiumUsers[2].avatar_border as any"
+            :avatarColor="podiumUsers[2].avatar_color as any" :avatarEffect="podiumUsers[2].avatar_effect as any"
+            :avatarShadow="podiumUsers[2].avatar_shadow as any" @click-user="goToProfile" />
         </div>
       </section>
 
@@ -285,12 +295,9 @@ watch(timeFilter, () => {
             <RankingListItem v-for="(user, index) in remainingUsersList" :key="user.id || user.email || user.name"
               :id="`user-${user.id}`" :position="index + 4" :points="user.totalPoints" :level="user.level"
               :badgeCounts="user.badgeCounts" :isCurrentUser="String(user.id) === String(currentUserId)"
-              :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)"
-              :userId="String(user.id)"
-              :avatarBorder="user.avatar_border as any"
-              :avatarColor="user.avatar_color as any"
-              :avatarEffect="user.avatar_effect as any"
-              :avatarShadow="user.avatar_shadow as any"
+              :avatarUrl="getAvatarUrl(user)" :displayName="displayUserName(user)" :userId="String(user.id)"
+              :avatarBorder="user.avatar_border as any" :avatarColor="user.avatar_color as any"
+              :avatarEffect="user.avatar_effect as any" :avatarShadow="user.avatar_shadow as any"
               @click-user="goToProfile" />
           </ul>
 
@@ -299,22 +306,14 @@ watch(timeFilter, () => {
               <span>. . .</span>
             </div>
             <ul class="user-list">
-              <RankingListItem
-                :id="`user-${currentUserEntry.id}`"
-                :position="currentUserEntry.globalRank"
-                :points="currentUserEntry.totalPoints"
-                :level="currentUserEntry.level"
-                :badgeCounts="currentUserEntry.badgeCounts"
-                :isCurrentUser="true"
-                :avatarUrl="getAvatarUrl(currentUserEntry)"
-                :displayName="displayUserName(currentUserEntry)"
-                :userId="String(currentUserEntry.id)"
-                :avatarBorder="currentUserEntry.avatar_border as any"
+              <RankingListItem :id="`user-${currentUserEntry.id}`" :position="currentUserEntry.globalRank"
+                :points="currentUserEntry.totalPoints" :level="currentUserEntry.level"
+                :badgeCounts="currentUserEntry.badgeCounts" :isCurrentUser="true"
+                :avatarUrl="getAvatarUrl(currentUserEntry)" :displayName="displayUserName(currentUserEntry)"
+                :userId="String(currentUserEntry.id)" :avatarBorder="currentUserEntry.avatar_border as any"
                 :avatarColor="currentUserEntry.avatar_color as any"
                 :avatarEffect="currentUserEntry.avatar_effect as any"
-                :avatarShadow="currentUserEntry.avatar_shadow as any"
-                @click-user="goToProfile"
-              />
+                :avatarShadow="currentUserEntry.avatar_shadow as any" @click-user="goToProfile" />
             </ul>
           </template>
         </UiCard>
@@ -328,12 +327,11 @@ watch(timeFilter, () => {
     </div>
   </section>
 
-  <!-- Modal de pesquisa -->
+  <!-- Modal de pesquisa de jogador -->
   <Teleport to="body">
     <Transition name="peek-fade">
       <div v-if="searchModalOpen" class="search-overlay" @click.self="searchModalOpen = false">
         <div class="search-modal" role="dialog" aria-modal="true" aria-label="Pesquisar jogador">
-
           <div class="search-modal__header">
             <div>
               <p class="search-modal__eyebrow">Classificação</p>
@@ -341,33 +339,18 @@ watch(timeFilter, () => {
             </div>
             <UiButton variant="outline" size="sm" @click="searchModalOpen = false">Fechar</UiButton>
           </div>
-
           <div class="search-modal__input-area">
-            <UiInput
-              :model-value="searchQuery"
-              placeholder="Nome do jogador..."
-              @update="searchQuery = String($event)"
-            />
+            <UiInput :model-value="searchQuery" placeholder="Nome do jogador..."
+              @update="searchQuery = String($event)" />
           </div>
-
           <div class="search-modal__body">
             <template v-if="filteredSearchResults.length">
-              <button
-                v-for="(entry, idx) in filteredSearchResults"
-                :key="entry.id"
-                class="search-row"
-                @click="handleSearchSelect(entry as any)"
-              >
+              <button v-for="(entry, idx) in filteredSearchResults" :key="entry.id" class="search-row"
+                @click="handleSearchSelect({ ...entry, globalRank: idx + 1 })">
                 <span class="search-rank">#{{ idx + 1 }}</span>
-                <UiAvatar
-                  :src="getAvatarUrl(entry)"
-                  :alt="displayUserName(entry).charAt(0)"
-                  :size="36"
-                  :border="entry.avatar_border as any"
-                  :avatar-color="entry.avatar_color as any"
-                  :effect="entry.avatar_effect as any"
-                  :shadow="entry.avatar_shadow as any"
-                />
+                <UiAvatar :src="getAvatarUrl(entry)" :alt="displayUserName(entry).charAt(0)" :size="36"
+                  :border="entry.avatar_border as AvatarBorder" :avatar-color="entry.avatar_color as AvatarColor"
+                  :effect="entry.avatar_effect as AvatarEffect" :shadow="entry.avatar_shadow as AvatarShadow" />
                 <span class="search-name">{{ displayUserName(entry) }}</span>
                 <span class="search-level">Nível {{ entry.level }}</span>
                 <span class="search-pts">{{ entry.totalPoints.toLocaleString('pt-PT') }} pts</span>
@@ -375,7 +358,6 @@ watch(timeFilter, () => {
             </template>
             <p v-else class="search-empty">Nenhum jogador encontrado.</p>
           </div>
-
         </div>
       </div>
     </Transition>
@@ -387,15 +369,9 @@ watch(timeFilter, () => {
       <div v-if="peekEntry" class="peek-overlay" @click.self="closePeek">
         <div class="peek-card" role="dialog" aria-modal="true" aria-label="Pré-visualização do perfil">
 
-          <UiAvatar
-            :src="getAvatarUrl(peekEntry)"
-            :alt="displayUserName(peekEntry).charAt(0).toUpperCase()"
-            :size="80"
-            :border="peekEntry.avatar_border as AvatarBorder"
-            :avatar-color="peekEntry.avatar_color as AvatarColor"
-            :effect="peekEntry.avatar_effect as AvatarEffect"
-            :shadow="peekEntry.avatar_shadow as AvatarShadow"
-          />
+          <UiAvatar :src="getAvatarUrl(peekEntry)" :alt="displayUserName(peekEntry).charAt(0).toUpperCase()" :size="80"
+            :border="peekEntry.avatar_border as AvatarBorder" :avatar-color="peekEntry.avatar_color as AvatarColor"
+            :effect="peekEntry.avatar_effect as AvatarEffect" :shadow="peekEntry.avatar_shadow as AvatarShadow" />
 
           <div class="peek-name-block">
             <h2 class="peek-name">{{ displayUserName(peekEntry) }}</h2>
@@ -432,7 +408,7 @@ watch(timeFilter, () => {
 
 <style scoped>
 .rankings {
-  padding: 32px 16px;
+  padding: var(--space-500) var(--space-400);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -440,10 +416,10 @@ watch(timeFilter, () => {
 }
 
 .filters-wrapper {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-500);
   z-index: 10;
   width: 100%;
-  max-width: 680px;
+  max-width: 42.5rem;
 }
 
 .filters-card {
@@ -457,7 +433,7 @@ watch(timeFilter, () => {
 .filters-card-row {
   display: flex;
   align-items: stretch;
-  gap: 0;
+  flex-wrap: wrap;
 }
 
 .filters-seg-block {
@@ -466,6 +442,7 @@ watch(timeFilter, () => {
   flex-direction: column;
   gap: var(--space-200);
   padding: var(--space-300) var(--space-400);
+  min-width: 0;
 }
 
 .filters-label {
@@ -488,17 +465,17 @@ watch(timeFilter, () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-200);
+  gap: var(--space-150);
   padding: var(--space-300) var(--space-400);
   border: none;
   background: var(--color-wild-200);
   font-family: var(--font-base);
-  color: var(--color-mirage-700);
   cursor: pointer;
   transition: background 0.15s ease;
   flex-shrink: 0;
   text-align: center;
-  min-width: 140px;
+  min-width: 9.25rem;
+  width: clamp(9.25rem, 22vw, 14rem);
 }
 
 .search-trigger:hover {
@@ -543,8 +520,7 @@ watch(timeFilter, () => {
   color: var(--color-mirage-400);
 }
 
-/* ── Modal de pesquisa ── */
-
+/* Modal de pesquisa */
 .search-overlay {
   position: fixed;
   inset: 0;
@@ -552,15 +528,15 @@ watch(timeFilter, () => {
   display: grid;
   place-items: center;
   z-index: 9999;
-  padding: clamp(16px, 4vw, 32px);
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 .search-modal {
-  width: min(560px, 100%);
-  max-height: 85vh;
+  width: min(35rem, 100%);
+  max-height: 85dvh;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 20px;
+  border-radius: 1.25rem;
   box-shadow: 8px 8px 0 var(--color-shadow);
   display: flex;
   flex-direction: column;
@@ -572,7 +548,7 @@ watch(timeFilter, () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-300);
-  padding: 22px 24px 14px;
+  padding: var(--space-400) var(--space-500) var(--space-300);
   border-bottom: 2px solid var(--color-wild-400);
   flex-shrink: 0;
 }
@@ -588,7 +564,7 @@ watch(timeFilter, () => {
 
 .search-modal__title {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
   font-family: var(--font-display);
   color: var(--color-mirage-800);
@@ -609,8 +585,8 @@ watch(timeFilter, () => {
 .search-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: var(--space-200) var(--space-500);
+  gap: 0.75rem;
+  padding: var(--space-200) var(--space-400);
   width: 100%;
   text-align: left;
   background: transparent;
@@ -660,6 +636,7 @@ watch(timeFilter, () => {
   box-shadow: 2px 2px 0 var(--color-shadow);
   color: var(--color-mirage-700);
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .search-pts {
@@ -667,6 +644,8 @@ watch(timeFilter, () => {
   font-weight: 800;
   color: var(--color-deep-700);
   flex-shrink: 0;
+  min-width: 5.5rem;
+  text-align: right;
 }
 
 .search-empty {
@@ -708,8 +687,8 @@ watch(timeFilter, () => {
   gap: 0;
   width: 100%;
   max-width: 800px;
-  margin-top: 24px;
-  margin-bottom: 0px;
+  margin-top: var(--space-500);
+  margin-bottom: 0;
 }
 
 .podium-col {
@@ -742,7 +721,7 @@ watch(timeFilter, () => {
 }
 
 .list-card {
-  padding: 16px;
+  padding: var(--space-400);
   overflow: hidden;
   background: var(--color-wild-100);
 }
@@ -770,8 +749,8 @@ watch(timeFilter, () => {
 /* --- Botão Flutuante (FAB) --- */
 .fab-container {
   position: fixed;
-  bottom: 32px;
-  right: 32px;
+  bottom: var(--space-600);
+  right: var(--space-600);
   z-index: 50;
 }
 
@@ -785,16 +764,144 @@ watch(timeFilter, () => {
 }
 
 @keyframes pulse-green {
-  0%   { transform: scale(1); }
-  15%  { transform: scale(1.04); }
-  50%  { transform: scale(1.01); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  15% {
+    transform: scale(1.04);
+  }
+
+  50% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48em) {
+  .rankings {
+    padding: var(--space-400) var(--space-300);
+  }
+
+  .filters-wrapper {
+    margin-bottom: var(--space-400);
+  }
+
   .fab-container {
-    bottom: 16px;
-    right: 16px;
+    bottom: var(--space-400);
+    right: var(--space-300);
+  }
+
+  .podium {
+    max-width: 100%;
+  }
+
+  .list-container {
+    margin-top: calc(var(--rankings-list-overlap, -40px) / 2);
+  }
+}
+
+@media (max-width: 37.5em) {
+  .filters-card-row {
+    flex-direction: column;
+  }
+
+  .filters-divider {
+    display: none;
+  }
+
+  .search-trigger {
+    flex-direction: row;
+    justify-content: flex-start;
+    min-width: unset;
+    width: 100%;
+    padding: var(--space-200) var(--space-300);
+    gap: var(--space-300);
+    text-align: left;
+    border-top: 1px solid var(--color-wild-300);
+  }
+
+  .search-trigger-text {
+    flex: 1;
+  }
+
+  .search-trigger-arrow {
+    margin-left: auto;
+  }
+
+  .filters-seg-block {
+    padding: var(--space-200) var(--space-300);
+  }
+
+  .filters-wrapper {
+    max-width: 100%;
+  }
+
+  .podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 0;
+    max-width: 85%;
+    margin: var(--space-600) auto 0;
+  }
+
+  .podium-col {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .place-1-col {
+    order: 0;
+  }
+
+  .place-2-col {
+    order: 0;
+  }
+
+  .place-3-col {
+    order: 0;
+  }
+
+  .podium-state {
+    height: 160px;
+  }
+
+  .search-overlay {
+    padding: var(--space-300);
+  }
+
+  .search-modal {
+    width: min(35rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 1.25rem;
+  }
+
+  .peek-card {
+    width: min(22.5rem, calc(100vw - 1.5rem));
+    border-radius: 1.5rem;
+    border-bottom: 2px solid var(--color-mirage-800);
+    box-shadow: 6px 6px 0 var(--color-shadow);
+    animation: peek-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .list-container {
+    margin-top: 0;
+  }
+
+  .search-modal__input-area {
+    padding: var(--space-300);
+  }
+
+  .list-card {
+    padding: var(--space-300);
+  }
+
+  .peek-overlay {
+    padding: var(--space-300);
   }
 }
 
@@ -806,30 +913,37 @@ watch(timeFilter, () => {
   display: grid;
   place-items: center;
   z-index: 9999;
-  padding: 16px;
+  padding: 1rem;
 }
 
 .peek-card {
   position: relative;
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 24px;
+  border-radius: 1.5rem;
   box-shadow: 6px 6px 0 var(--color-shadow);
-  padding: 36px 24px 24px;
-  width: min(360px, 100%);
-  max-height: calc(100dvh - 48px);
+  padding: var(--space-600) var(--space-500) var(--space-500);
+  width: min(22.5rem, 100%);
+  max-height: calc(100dvh - 3rem);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-400);
   text-align: center;
   animation: peek-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @keyframes peek-pop {
-  from { transform: scale(0.88) translateY(16px); opacity: 0; }
-  to   { transform: scale(1) translateY(0); opacity: 1; }
+  from {
+    transform: scale(0.88) translateY(16px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 .peek-name-block {
@@ -947,7 +1061,7 @@ watch(timeFilter, () => {
   flex-wrap: wrap;
 }
 
-.peek-actions > * {
+.peek-actions>* {
   flex: 1 1 120px;
   min-width: 0;
 }
@@ -957,6 +1071,7 @@ watch(timeFilter, () => {
 .peek-fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .peek-fade-enter-from,
 .peek-fade-leave-to {
   opacity: 0;

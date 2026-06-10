@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { EyeIcon } from '@heroicons/vue/24/outline'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
@@ -20,7 +20,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'click-user': [string] }>()
 
-const isFirst = computed(() => props.position === 1)
+const isMobile = ref(false)
+let mq: MediaQueryList | null = null
+const onMqChange = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 37.5em)')
+  isMobile.value = mq.matches
+  mq.addEventListener('change', onMqChange)
+})
+onUnmounted(() => { mq?.removeEventListener('change', onMqChange) })
+
+const avatarSize = computed(() => {
+  if (isMobile.value) return props.position === 1 ? 72 : props.position === 2 ? 60 : 52
+  return props.position === 1 ? 190 : props.position === 2 ? 160 : 140
+})
 </script>
 
 <template>
@@ -37,7 +50,7 @@ const isFirst = computed(() => props.position === 1)
         <div class="podium-header">
             <div class="avatar-wrap">
                 <UiAvatar :src="avatarUrl || undefined" :alt="displayName.charAt(0).toUpperCase()"
-                    :size="isFirst ? 190 : (position === 2 ? 160 : 140)"
+                    :size="avatarSize"
                     :border="avatarBorder"
                     :avatar-color="avatarColor"
                     :effect="avatarEffect"
@@ -172,16 +185,16 @@ const isFirst = computed(() => props.position === 1)
 .points-pill {
     background-color: var(--color-wild-100);
     border: 2px solid var(--color-mirage-800);
-    box-shadow: 4px 4px 0 var(--color-shadow);
+    box-shadow: 3px 3px 0 var(--color-shadow);
     border-radius: 999px;
-    padding: 10px 24px;
+    padding: 5px 14px;
 }
 
 .points-text {
     color: var(--color-mirage-800);
     font-weight: 800;
-    font-size: 17px;
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
     text-transform: uppercase;
 }
 
@@ -279,5 +292,61 @@ const isFirst = computed(() => props.position === 1)
 .place-3 .block-top {
     background: var(--color-teal-200);
     border-left: none;
+}
+
+@media (max-width: 37.5em) {
+    .podium-item {
+        gap: 0;
+    }
+
+    .podium-header {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .avatar-wrap {
+        transform: scale(1.15);
+        transform-origin: bottom center;
+        margin-bottom: 12px;
+    }
+
+    .name {
+        font-size: 0.8rem;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .points-pill {
+        padding: 4px 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .points-text {
+        font-size: 0.7rem;
+    }
+
+    .level-pill {
+        font-size: 0.6rem;
+        padding: 2px 0.45rem;
+        bottom: -10px;
+    }
+
+    .place-badge {
+        width: 1.6rem;
+        height: 1.6rem;
+        font-size: 0.7rem;
+        border-radius: 0.45rem;
+        top: -8px;
+        left: -8px;
+    }
+
+    .place-1 .block-front { height: 6.5rem; padding-top: 0.6rem; font-size: 1.6rem; }
+    .place-2 .block-front { height: 4.8rem; padding-top: 0.5rem; font-size: 1.3rem; }
+    .place-3 .block-front { height: 3.8rem; padding-top: 0.4rem; font-size: 1.2rem; }
+    .block-top-wrapper { height: 1.6rem; }
 }
 </style>

@@ -238,4 +238,24 @@ h1 {
   font-size: 12px;
   color: var(--color-mirage-500);
 }
+
+@media (max-width: 37.5em) {
+  h1 {
+    font-size: 22px;
+  }
+
+  .account-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-300);
+  }
+
+  .account-name {
+    font-size: 17px;
+  }
+
+  .links-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

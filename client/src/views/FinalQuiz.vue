@@ -453,30 +453,32 @@ watch(currentIndex, () => {
 
     <!-- Quiz active -->
     <template v-else-if="state === 'quiz'">
-      <div class="runner-stats">
-        <UiStatCard label="Certas" :value="answeredCorrect">
-          <template #icon><CheckCircleIcon class="stat-icon stat-icon--correct" aria-hidden="true" /></template>
-        </UiStatCard>
-        <UiStatCard label="Erradas" :value="answeredWrong">
-          <template #icon><XCircleIcon class="stat-icon stat-icon--wrong" aria-hidden="true" /></template>
-        </UiStatCard>
-        <UiStatCard label="Pergunta" :value="currentIndex + 1">
-          <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ questions.length }}</span></template>
-        </UiStatCard>
-      </div>
-
       <div class="runner">
-        <QuestionCard :question-text="currentQuestionText" :time-left="timeLeft" :timer-dash="timerDash">
-          <template #label>
-            Pergunta <span class="question-num">{{ String(currentIndex + 1).padStart(2, '0') }}</span>
-          </template>
-          <template #actions>
-            <UiResultPill v-if="feedback" :result="feedback.type" />
-            <div v-else-if="!isTrueFalse" class="attempts-pill">
-              {{ `${Math.max(0, maxAttempts - attemptedOptions.length)} tentativas` }}
-            </div>
-          </template>
-        </QuestionCard>
+        <div class="runner-top">
+          <div class="runner-stats">
+            <UiStatCard label="Certas" :value="answeredCorrect">
+              <template #icon><CheckCircleIcon class="stat-icon stat-icon--correct" aria-hidden="true" /></template>
+            </UiStatCard>
+            <UiStatCard label="Erradas" :value="answeredWrong">
+              <template #icon><XCircleIcon class="stat-icon stat-icon--wrong" aria-hidden="true" /></template>
+            </UiStatCard>
+            <UiStatCard label="Pergunta" :value="currentIndex + 1">
+              <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ questions.length }}</span></template>
+            </UiStatCard>
+          </div>
+
+          <QuestionCard :question-text="currentQuestionText" :time-left="timeLeft" :timer-dash="timerDash">
+            <template #label>
+              Pergunta <span class="question-num">{{ String(currentIndex + 1).padStart(2, '0') }}</span>
+            </template>
+            <template #actions>
+              <UiResultPill v-if="feedback" :result="feedback.type" />
+              <div v-else-if="!isTrueFalse" class="attempts-pill">
+                {{ `${Math.max(0, maxAttempts - attemptedOptions.length)} tentativas` }}
+              </div>
+            </template>
+          </QuestionCard>
+        </div>
 
         <div class="options options-grid-2">
           <ExerciseOption v-for="(option, index) in options" :key="option" :value="option" :index="index"
@@ -823,6 +825,11 @@ watch(currentIndex, () => {
   border-top: 2px solid var(--color-wild-400);
 }
 
+.runner-top {
+  display: grid;
+  gap: var(--space-200);
+}
+
 .question-num {
   color: var(--color-teal-600);
 }
@@ -853,8 +860,94 @@ watch(currentIndex, () => {
     grid-template-columns: 1fr;
   }
 
+  .info-card__actions,
+  .complete-header,
+  .history-header,
+  .attempt-header,
+  .attempt-meta,
+  .result-actions,
+  .pass-badge,
+  .quiz-card__title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .complete-header,
+  .history-header,
+  .attempt-header {
+    gap: var(--space-200);
+  }
+
+  .pass-badge {
+    align-items: flex-start;
+  }
+
+  .attempt-score {
+    white-space: normal;
+  }
+
+  .attempt-question {
+    flex-direction: column;
+  }
+
+  .runner-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-200);
+  }
+
+  .complete-card {
+    padding: 18px;
+  }
+
+  .history-header {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
   .options-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .options {
+    gap: 12px;
+  }
+
+  .quiz-runner {
+    gap: var(--space-200);
+  }
+
+  .runner-header h1 {
+    font-size: 20px;
+  }
+
+  .meta {
+    font-size: 11px;
+  }
+
+  .runner-top {
+    gap: var(--space-100);
+  }
+
+  .runner-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-100);
+  }
+
+  .runner-stats :deep(.stat-card) {
+    padding: 8px 10px;
+    gap: 6px;
+    border-radius: 10px;
+    box-shadow: 3px 3px 0 var(--color-shadow);
+  }
+
+  .runner-stats :deep(.stat-card__label) {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .runner-stats :deep(.stat-card__value) {
+    font-size: 15px;
   }
 }
 </style>

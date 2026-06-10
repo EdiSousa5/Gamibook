@@ -335,4 +335,41 @@ const toggleWrong = () => { if (hasWrong.value) includeWrong.value = !includeWro
   color: var(--color-mirage-400);
   text-align: right;
 }
+
+@media (max-width: 640px) {
+  .mode-modal {
+    width: 100%;
+    padding: 18px;
+  }
+
+  .mode-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-option {
+    padding: 14px;
+    align-items: flex-start;
+  }
+
+  .filter-option__icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .filter-option__title {
+    font-size: 14px;
+  }
+
+  .mode-actions {
+    flex-direction: column;
+  }
+
+  .mode-actions :deep(.ui-button) {
+    width: 100%;
+  }
+
+  .xp-footnote {
+    text-align: left;
+  }
+}
 </style>

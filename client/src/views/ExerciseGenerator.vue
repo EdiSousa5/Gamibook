@@ -717,7 +717,7 @@ onMounted(async () => {
 
         <div v-if="isLoadingData" class="loading-banner">A carregar os dados da plataforma...</div>
 
-        <div class="workspace">
+        <div class="workspace" data-tour="generator-workspace">
             <div class="main-column">
                 <UiCard class="workspace-panel step1-panel">
                     <div class="panel-header" :class="{ 'panel-header--selected': !!selectedBookId }">

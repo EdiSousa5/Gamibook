@@ -19,6 +19,7 @@ import {
   SparklesIcon,
   LockClosedIcon,
   TrophyIcon,
+  StarIcon,
 } from '@heroicons/vue/24/outline'
 import { fetchUserBooks, fetchModule } from '../services/books'
 import { fetchUsers, getUserDisplayName, updateUser } from '../services/auth'
@@ -97,6 +98,9 @@ const totalBadges = computed(() =>
   userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
 )
 
+const currentRank = ref<number | null>(null)
+const bestRank = computed(() => user.value?.best_rank ?? null)
+
 const formatDailyCooldown = computed(() => {
   const h = Math.floor(dailyCooldownSeconds.value / 3600)
   const m = Math.floor((dailyCooldownSeconds.value % 3600) / 60)
@@ -160,6 +164,33 @@ const loadDailyStatus = async (userId: string, books: UserBook[]) => {
       return typeof b === 'object' ? !!b?.book_id : typeof b === 'number'
     })
     dailyStatus.value = hasBooks ? 'ready' : 'no-exercises'
+
+    // Notificação de aviso de streak
+    const streak = auth.user?.exercises_daily_streak ?? 0
+    if (lastDateStr && streak > 0) {
+      const ONE_DAY = 24 * 60 * 60 * 1000
+      const elapsed = Date.now() - new Date(lastDateStr).getTime()
+      const msLeft = 2 * ONE_DAY - elapsed
+      const hoursLeft = msLeft / 3_600_000
+      let threshold: string | null = null
+      if (hoursLeft <= 0.25) threshold = '15min'
+      else if (hoursLeft <= 1) threshold = '1h'
+      else if (hoursLeft <= 2) threshold = '2h'
+      else if (hoursLeft <= 5) threshold = '5h'
+      if (threshold) {
+        const warnKey = `gb_streak_warn_${userId}_${new Date(lastDateStr).toISOString().slice(0, 10)}_${threshold}`
+        if (!localStorage.getItem(warnKey)) {
+          localStorage.setItem(warnKey, '1')
+          const labels: Record<string, string> = { '15min': '15 minutos', '1h': '1 hora', '2h': '2 horas', '5h': '5 horas' }
+          notifStore.add({
+            user: userId,
+            title: 'Streak em risco!',
+            message: `Tens menos de ${labels[threshold]} para fazeres o exercício diário e manteres o teu streak de ${streak} dia${streak === 1 ? '' : 's'}.`,
+            type: 'streak_warning',
+          })
+        }
+      }
+    }
   } catch {
     dailyStatus.value = 'no-exercises'
   }
@@ -277,13 +308,32 @@ onUnmounted(() => {
     </header>
 
     <!-- ── PROFILE CARD ───────────────────────────────────── -->
-    <section class="profile-card">
+    <section class="profile-card" data-tour="profile">
       <template v-if="isLoadingProfile && !user">
-        <div class="profile-head">
-          <UiSkeleton width="72px" height="72px" radius="50%" />
-          <div style="flex:1;display:grid;gap:10px">
-            <UiSkeleton height="22px" width="160px" radius="6px" />
-            <UiSkeleton height="10px" width="100%" radius="999px" />
+        <div class="profile-top">
+          <UiSkeleton width="6.25rem" height="6.25rem" radius="22px" />
+          <div class="profile-info">
+            <UiSkeleton height="28px" width="180px" radius="8px" />
+            <UiSkeleton height="10px" radius="999px" />
+          </div>
+        </div>
+        <div class="profile-stats">
+          <UiSkeleton v-for="i in 6" :key="i" height="64px" radius="14px" />
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="profile-top">
+          <div class="profile-avatar-wrapper">
+            <UiAvatar
+              :src="avatarUrl || undefined"
+              :alt="getUserDisplayName(user).charAt(0)"
+              :size="100"
+              :border="avatarConfig.border"
+              :avatar-color="avatarConfig.avatarColor"
+              :effect="avatarConfig.effect"
+              :shadow="avatarConfig.shadow"
+            />
           </div>
         </div>
         <div class="stats-grid">
@@ -312,7 +362,11 @@ onUnmounted(() => {
               </RouterLink>
               <div class="level-chip">Nível {{ progress.level }}</div>
             </div>
-            <div class="xp-row">
+            <div class="profile-progress">
+              <div class="progress-info">
+                <span>Nível {{ progress.level }}</span>
+                <span>{{ progress.progress }}/{{ progress.nextLevelXp }} XP</span>
+              </div>
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${progressPct}%` }" />
               </div>
@@ -321,47 +375,35 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="stats-grid">
-          <div class="mini-stat" :class="{ 'mini-stat--hot': dailyStreak >= 2 }">
-            <div class="mini-icon"><FireIcon class="icon" aria-hidden="true" /></div>
-            <div class="mini-text">
-              <strong>{{ dailyStreak }}</strong>
-              <span>Streak atual</span>
-            </div>
-          </div>
+        <div class="profile-stats">
           <div class="mini-stat" :class="{ 'mini-stat--hot': bestStreak >= 2 }">
             <div class="mini-icon"><FireIcon class="icon" aria-hidden="true" /></div>
-            <div class="mini-text">
-              <strong>{{ bestStreak }}</strong>
-              <span>Melhor streak</span>
-            </div>
+            <div class="mini-text"><strong>{{ bestStreak }}</strong><span>Melhor Streak</span></div>
           </div>
-          <div class="mini-stat">
-            <div class="mini-icon"><TrophyIcon class="icon" aria-hidden="true" /></div>
-            <div class="mini-text">
-              <strong>{{ currentRank != null ? `#${currentRank}` : '—' }}</strong>
-              <span>Posição atual</span>
-            </div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-icon"><TrophyIcon class="icon" aria-hidden="true" /></div>
-            <div class="mini-text">
-              <strong>{{ bestRank != null ? `#${bestRank}` : '—' }}</strong>
-              <span>Melhor posição</span>
-            </div>
+          <div class="mini-stat" :class="{ 'mini-stat--hot': dailyStreak >= 2 }">
+            <div class="mini-icon"><FireIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text"><strong>{{ dailyStreak }}</strong><span>Streak Atual</span></div>
           </div>
           <div class="mini-stat">
             <div class="mini-icon"><BookOpenIcon class="icon" aria-hidden="true" /></div>
-            <div class="mini-text">
-              <strong>{{ booksObtained }}</strong>
-              <span>Livros</span>
-            </div>
+            <div class="mini-text"><strong>{{ booksObtained }}</strong><span>Livros</span></div>
           </div>
           <div class="mini-stat">
             <div class="mini-icon"><SparklesIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text"><strong>{{ totalBadges }}</strong><span>Badges</span></div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><TrophyIcon class="icon" aria-hidden="true" /></div>
             <div class="mini-text">
-              <strong>{{ totalBadges }}</strong>
-              <span>Badges</span>
+              <strong>{{ currentRank !== null ? `#${currentRank}` : '—' }}</strong>
+              <span>Rank Atual</span>
+            </div>
+          </div>
+          <div class="mini-stat">
+            <div class="mini-icon"><StarIcon class="icon" aria-hidden="true" /></div>
+            <div class="mini-text">
+              <strong>{{ bestRank !== null ? `#${bestRank}` : '—' }}</strong>
+              <span>Melhor Rank</span>
             </div>
           </div>
         </div>
@@ -372,7 +414,7 @@ onUnmounted(() => {
     <div class="two-col">
 
       <!-- DESAFIO DIÁRIO -->
-      <section class="daily-card" :class="`daily-card--${dailyStatus}`">
+      <section class="daily-card" :class="`daily-card--${dailyStatus}`" data-tour="daily">
         <div class="daily-top">
           <div>
             <h2 class="daily-heading">Desafio Diário</h2>
@@ -438,7 +480,7 @@ onUnmounted(() => {
       </section>
 
       <!-- RETOMAR APRENDIZAGEM -->
-      <section class="resume-card">
+      <section class="resume-card" data-tour="resume">
         <h2 class="resume-heading">Retomar Aprendizagem</h2>
 
         <div v-if="isLoadingProfile && !recentBook" class="resume-skeleton">
@@ -561,7 +603,7 @@ onUnmounted(() => {
 
 .hero-copy h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
   font-weight: 900;
   color: var(--color-mirage-800);
   line-height: 1.2;
@@ -569,7 +611,7 @@ onUnmounted(() => {
 
 .subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--color-mirage-600);
   line-height: 1.6;
 }
@@ -580,7 +622,7 @@ onUnmounted(() => {
 }
 
 .hero-visual img {
-  width: min(260px, 100%);
+  width: min(16.25rem, 100%);
   height: auto;
 }
 
@@ -595,6 +637,12 @@ onUnmounted(() => {
   gap: var(--space-400);
 }
 
+.profile-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-400);
+}
+
 .profile-head {
   display: flex;
   align-items: center;
@@ -606,6 +654,8 @@ onUnmounted(() => {
   min-width: 0;
   display: grid;
   gap: var(--space-200);
+  flex: 1;
+  min-width: 0;
 }
 
 .name-row {
@@ -616,17 +666,12 @@ onUnmounted(() => {
 
 .name-row h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: clamp(1.125rem, 3vw, 1.375rem);
   font-weight: 800;
-  color: var(--color-mirage-800);
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.name-row .level-chip {
-  margin-left: auto;
+  white-space: nowrap;
 }
 
 .edit-link {
@@ -634,6 +679,8 @@ onUnmounted(() => {
 }
 
 .level-chip {
+  margin-left: auto;
+  flex-shrink: 0;
   padding: 3px 12px;
   border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
@@ -643,7 +690,6 @@ onUnmounted(() => {
   font-weight: 800;
   color: var(--color-deep-700);
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .xp-row {
@@ -730,8 +776,8 @@ onUnmounted(() => {
 
 .mini-stat strong {
   display: block;
-  font-size: 18px;
-  font-weight: 900;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-weight: 800;
   color: var(--color-mirage-800);
   line-height: 1;
   font-family: var(--font-display);
@@ -739,7 +785,8 @@ onUnmounted(() => {
 
 .mini-stat span {
   display: block;
-  font-size: 11px;
+  font-size: 0.75rem;
+  color: var(--color-mirage-500);
   font-weight: 600;
   color: var(--color-mirage-500);
   white-space: nowrap;
@@ -782,14 +829,14 @@ onUnmounted(() => {
 
 .daily-heading {
   margin: 0;
-  font-size: 20px;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: 800;
   color: var(--color-mirage-800);
 }
 
 .daily-sub-head {
-  margin: 4px 0 0;
-  font-size: 12px;
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
   color: var(--color-mirage-500);
   font-weight: 600;
 }
@@ -938,7 +985,7 @@ onUnmounted(() => {
 }
 
 .timer-value {
-  font-size: 38px;
+  font-size: clamp(1.5rem, 5vw, 2.375rem);
   font-weight: 900;
   color: var(--color-mirage-800);
   font-variant-numeric: tabular-nums;
@@ -1042,7 +1089,7 @@ onUnmounted(() => {
 
 .resume-heading {
   margin: 0;
-  font-size: 20px;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: 800;
   color: var(--color-mirage-800);
 }
@@ -1106,7 +1153,7 @@ onUnmounted(() => {
 
 .resume-title {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(1rem, 2.5vw, 1.125rem);
   font-weight: 800;
   color: var(--color-mirage-800);
   line-height: 1.2;
@@ -1186,7 +1233,7 @@ onUnmounted(() => {
 
 .badges-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   font-weight: 800;
   flex: 1;
 }
@@ -1330,7 +1377,7 @@ onUnmounted(() => {
 }
 
 /* ── RESPONSIVE ─────────────────────────────────────────── */
-@media (max-width: 860px) {
+@media (max-width: 53.75em) {
   .two-col {
     grid-template-columns: 1fr;
   }
@@ -1342,15 +1389,71 @@ onUnmounted(() => {
   .hero-visual {
     display: none;
   }
-}
 
-@media (max-width: 600px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .profile-top {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 
-  .timer-value {
-    font-size: 28px;
+  .profile-info {
+    width: 100%;
+  }
+
+  .name-row {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .badges-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .resume-body {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .resume-info {
+    width: 100%;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 37.5em) {
+  .dashboard {
+    gap: var(--space-400);
+  }
+
+  .badges-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .badge-row {
+    padding: var(--space-200) var(--space-200);
+  }
+
+  .daily-card,
+  .resume-card,
+  .hero,
+  .profile-card {
+    padding: var(--space-400);
+  }
+
+  .mini-stat {
+    padding: var(--space-150) var(--space-200);
+    gap: var(--space-200);
+  }
+
+  .mini-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+@media (max-width: 30em) {
+  .profile-stats {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .badges-list {
@@ -1359,6 +1462,11 @@ onUnmounted(() => {
 
   .badge-row {
     padding: var(--space-200) var(--space-300);
+  }
+
+  .level-chip {
+    font-size: 0.625rem;
+    padding: 2px 0.625rem;
   }
 }
 </style>

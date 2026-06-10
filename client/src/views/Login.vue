@@ -102,28 +102,31 @@ const submit = async () => {
 
 <style scoped>
 .auth-layout {
-  min-height: calc(100vh - 140px);
-  display: grid;
-  place-items: center;
-  padding: var(--space-400);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-600) var(--space-400);
 }
 
 .card {
-  width: min(420px, 100%);
+  width: min(26.25rem, 100%);
 }
 
 h1 {
   margin-top: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
 }
 
 .hint {
   color: var(--color-mirage-600);
+  font-size: 0.875rem;
 }
 
 form {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: var(--space-400);
+  margin-top: var(--space-400);
 }
 
 .cta {
@@ -134,16 +137,18 @@ form {
 .error {
   color: var(--color-error-strong);
   font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .info {
   color: var(--color-primary-strong);
   font-weight: 600;
+  font-size: 0.875rem;
 }
 
 .alt {
-  margin-top: 16px;
-  font-size: 14px;
+  margin-top: var(--space-400);
+  font-size: 0.875rem;
 }
 
 .alt a {
@@ -160,7 +165,7 @@ form {
 
 .label {
   color: var(--color-mirage-600);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .password-wrap {
@@ -170,8 +175,8 @@ form {
 .password-wrap input {
   width: 100%;
   padding: var(--space-200) var(--space-300);
-  padding-right: 44px;
-  border-radius: 12px;
+  padding-right: 2.75rem;
+  border-radius: 0.75rem;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -187,15 +192,15 @@ form {
 
 .eye-btn {
   position: absolute;
-  right: 10px;
+  right: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  padding: 4px;
+  padding: 0.25rem;
   cursor: pointer;
   color: var(--color-mirage-500);
-  border-radius: 6px;
+  border-radius: 0.375rem;
   display: grid;
   place-items: center;
   transition: color 0.15s ease;
@@ -206,8 +211,19 @@ form {
 }
 
 .eye-icon {
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   stroke-width: 1.8;
+}
+
+@media (max-width: 30em) {
+  .auth-layout {
+    padding: var(--space-400) var(--space-300);
+    align-items: center;
+  }
+
+  .card {
+    width: 100%;
+  }
 }
 </style>

@@ -19,6 +19,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   ListBulletIcon,
+  InformationCircleIcon,
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { fetchBook, fetchModulesByBook } from '@/services/books'
@@ -43,10 +44,8 @@ const bookId = computed(() => Number(route.params.bookId))
 type Phase = 'config' | 'runner' | 'summary'
 const phase = ref<Phase>('config')
 
-type ExerciseStatus = 'correct' | 'wrong'
 type ExerciseItem = {
   exercise: Exercise
-  status: ExerciseStatus
   moduleTitle: string
   moduleId: number
 }
@@ -59,7 +58,6 @@ const loadingExercises = ref(false)
 const configError = ref('')
 
 const typeFilter = ref<'all' | 'multiple-choice' | 'true-false'>('all')
-const statusFilter = ref<'all' | 'correct' | 'wrong'>('all')
 
 const orderMode = ref<'random' | 'module' | 'manual'>('random')
 
@@ -68,6 +66,7 @@ const repeatWrong = ref(false)
 const showCorrectAnswer = ref(true)
 
 const showManualModal = ref(false)
+const showInfoModal = ref(false)
 
 const filteredItemsByModule = computed<Map<number, ExerciseItem[]>>(() => {
   const result = new Map<number, ExerciseItem[]>()
@@ -75,7 +74,6 @@ const filteredItemsByModule = computed<Map<number, ExerciseItem[]>>(() => {
     const items = allExercisesByModule.value.get(mod.modules_id) ?? []
     let filtered = items
     if (typeFilter.value !== 'all') filtered = filtered.filter((i) => i.exercise.type === typeFilter.value)
-    if (statusFilter.value !== 'all') filtered = filtered.filter((i) => i.status === statusFilter.value)
     if (filtered.length > 0) result.set(mod.modules_id, filtered)
   }
   return result
@@ -213,19 +211,16 @@ const visibleModules = computed(() =>
       loadingExercises.value = true
       const results = await Promise.all(
         mainMods.map(async (m) => {
-          const [, allAttempted, correctItems, modExercises] = await Promise.all([
+          const [, correctItems, modExercises] = await Promise.all([
             fetchApprovedExerciseCountsByModule(m.modules_id),
-            fetchUserExercisesByModule(userId, m.modules_id),
             fetchUserExercisesByModule(userId, m.modules_id, true),
             fetchExercisesByModule(m.modules_id),
           ])
           const correctIds = new Set(correctItems.map((ue) => Number(ue.exercise_id)).filter((n) => Number.isFinite(n)))
-          const attemptedIds = new Set(allAttempted.map((ue) => Number(ue.exercise_id)).filter((n) => Number.isFinite(n)))
           const items: ExerciseItem[] = modExercises
-            .filter((ex) => ex.exercise_id != null && attemptedIds.has(Number(ex.exercise_id)))
+            .filter((ex) => ex.exercise_id != null && correctIds.has(Number(ex.exercise_id)))
             .map((ex) => ({
               exercise: ex,
-              status: correctIds.has(Number(ex.exercise_id)) ? 'correct' : 'wrong',
               moduleTitle: m.module_title || `Módulo ${m.modules_id}`,
               moduleId: m.modules_id,
             }))
@@ -429,6 +424,9 @@ onUnmounted(stopTimer)
             Sem pontos, sem pressão.
           </p>
         </div>
+        <button type="button" class="info-btn" @click="showInfoModal = true" aria-label="Como funciona o Modo Livre">
+          <InformationCircleIcon class="info-btn__icon" aria-hidden="true" />
+        </button>
       </header>
 
       <p v-if="loadingConfig" class="state-msg">A carregar…</p>
@@ -478,7 +476,7 @@ onUnmounted(stopTimer)
                     <span v-else-if="isModulePartiallySelected(mod.modules_id)" class="partial-dash" />
                   </button>
                   <span class="module-block__name">{{ mod.module_title || `Módulo ${mod.modules_id}` }}</span>
-                  <span class="module-count-badge">
+                  <span class="module-count-badge" :class="{ 'module-count-badge--has-sel': countSelectedInModule(mod.modules_id) > 0 }">
                     <span class="module-count-badge__sel">{{ countSelectedInModule(mod.modules_id) }}</span>
                     <span class="module-count-badge__sep">/</span>
                     <span>{{ countTotalInModule(mod.modules_id) }}</span>
@@ -502,11 +500,6 @@ onUnmounted(stopTimer)
                       @update="toggleExercise(Number(item.exercise.exercise_id))"
                     />
                     <span class="ex-row__text">{{ getQuestionText(item.exercise) }}</span>
-                    <div class="ex-row__meta">
-                      <span class="ex-row__type-pill">{{ typeLabel(item.exercise) }}</span>
-                      <CheckCircleIcon v-if="item.status === 'correct'" class="ex-row__status-icon ex-row__status-icon--ok" aria-hidden="true" />
-                      <XCircleIcon v-else class="ex-row__status-icon ex-row__status-icon--err" aria-hidden="true" />
-                    </div>
                   </label>
                 </div>
               </div>
@@ -532,20 +525,6 @@ onUnmounted(stopTimer)
                 ]" :key="opt.value" type="button" class="nb-btn nb-btn--pill"
                   :class="{ 'nb-btn--active': typeFilter === opt.value }"
                   @click="typeFilter = opt.value as typeof typeFilter">
-                  {{ opt.label }}
-                </button>
-              </div>
-            </div>
-            <div class="sidebar-field">
-              <label class="sidebar-label">Desempenho</label>
-              <div class="filter-pills">
-                <button v-for="opt in [
-                  { label: 'Todos', value: 'all' },
-                  { label: 'Acertados', value: 'correct' },
-                  { label: 'Errados', value: 'wrong' },
-                ]" :key="opt.value" type="button" class="nb-btn nb-btn--pill"
-                  :class="{ 'nb-btn--active': statusFilter === opt.value }"
-                  @click="statusFilter = opt.value as typeof statusFilter">
                   {{ opt.label }}
                 </button>
               </div>
@@ -626,6 +605,50 @@ onUnmounted(stopTimer)
         </aside>
       </div>
 
+      <!-- ── Info modal ── -->
+      <UiModal :visible="showInfoModal" :close-on-overlay="true" @close="showInfoModal = false">
+        <div class="modal-panel info-modal">
+          <div class="modal-header">
+            <h2 class="modal-title">Como funciona o Modo Livre</h2>
+            <p class="modal-sub">Uma sessão de estudo personalizada, sem pontos nem pressão.</p>
+          </div>
+          <div class="modal-body">
+            <ul class="info-list">
+              <li class="info-item">
+                <span class="info-item__title">Só exercícios que acertaste</span>
+                <span class="info-item__desc">Apenas aparecem aqui os exercícios que respondeste corretamente nos módulos do livro.</span>
+              </li>
+              <li class="info-item">
+                <span class="info-item__title">Seleciona o que queres praticar</span>
+                <span class="info-item__desc">Escolhe exercícios individualmente ou seleciona módulos inteiros de uma vez. Usa os botões "Todos" e "Nenhum" para selecção rápida.</span>
+              </li>
+              <li class="info-item">
+                <span class="info-item__title">Filtra por tipo</span>
+                <span class="info-item__desc">Podes limitar a sessão a exercícios de Escolha Múltipla ou de Verdadeiro/Falso.</span>
+              </li>
+              <li class="info-item">
+                <span class="info-item__title">Define a ordem</span>
+                <span class="info-item__desc">Aleatória mistura tudo. Por módulo respeita a estrutura do livro. Manual permite-te arrastar e definir a ordem exata.</span>
+              </li>
+              <li class="info-item">
+                <span class="info-item__title">Temporizador opcional</span>
+                <span class="info-item__desc">Podes definir um limite de tempo por pergunta entre 5 e 60 segundos, ou desligar completamente.</span>
+              </li>
+              <li class="info-item">
+                <span class="info-item__title">Repetir erradas</span>
+                <span class="info-item__desc">Quando ativo, as perguntas que errares durante a sessão são adicionadas ao fim da fila para praticares mais.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <span />
+            <div class="modal-footer__actions">
+              <UiButton variant="primary" size="sm" @click="showInfoModal = false">Entendido</UiButton>
+            </div>
+          </div>
+        </div>
+      </UiModal>
+
       <!-- ── Manual order modal ── -->
       <UiModal :visible="showManualModal" :close-on-overlay="true" @close="showManualModal = false">
         <div class="modal-panel">
@@ -687,27 +710,28 @@ onUnmounted(stopTimer)
     <!-- ═══════════ RUNNER ═══════════ -->
     <div v-else-if="phase === 'runner'" class="runner-page">
 
-      <div class="runner-top">
-        <div class="runner-progress">
-          <div class="runner-progress__fill" :style="{ width: `${progress}%` }" />
+      <div class="runner-section">
+        <div class="runner-top">
+          <div class="runner-progress">
+            <div class="runner-progress__fill" :style="{ width: `${progress}%` }" />
+          </div>
+          <div class="runner-stats">
+            <UiStatCard label="Certas" :value="countCorrect">
+              <template #icon><CheckCircleIcon class="stat-icon stat-icon--ok" /></template>
+            </UiStatCard>
+            <UiStatCard label="Erradas" :value="countWrong">
+              <template #icon><XCircleIcon class="stat-icon stat-icon--err" /></template>
+            </UiStatCard>
+            <UiStatCard label="Saltadas" :value="countSkipped">
+              <template #icon><ForwardIcon class="stat-icon" /></template>
+            </UiStatCard>
+            <UiStatCard label="Pergunta" :value="currentIndex + 1">
+              <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ initialQueueLength }}</span></template>
+            </UiStatCard>
+          </div>
         </div>
-        <div class="runner-stats">
-          <UiStatCard label="Certas" :value="countCorrect">
-            <template #icon><CheckCircleIcon class="stat-icon stat-icon--ok" /></template>
-          </UiStatCard>
-          <UiStatCard label="Erradas" :value="countWrong">
-            <template #icon><XCircleIcon class="stat-icon stat-icon--err" /></template>
-          </UiStatCard>
-          <UiStatCard label="Saltadas" :value="countSkipped">
-            <template #icon><ForwardIcon class="stat-icon" /></template>
-          </UiStatCard>
-          <UiStatCard label="Pergunta" :value="currentIndex + 1">
-            <template #value>{{ currentIndex + 1 }}<span class="stat-sep"> / {{ initialQueueLength }}</span></template>
-          </UiStatCard>
-        </div>
-      </div>
 
-      <QuestionCard :question-text="currentQuestionText" :time-left="timerSeconds > 0 ? timeLeft : -1" :timer-dash="timerDash">
+        <QuestionCard :question-text="currentQuestionText" :time-left="timerSeconds > 0 ? timeLeft : -1" :timer-dash="timerDash">
         <template #label>
           <div class="runner-label">
             <span>Pergunta <span class="q-num">{{ String(currentIndex + 1).padStart(2, '0') }}</span></span>
@@ -720,6 +744,7 @@ onUnmounted(stopTimer)
           </div>
         </template>
       </QuestionCard>
+      </div>
 
       <div class="options-grid">
         <ExerciseOption
@@ -860,6 +885,43 @@ onUnmounted(stopTimer)
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
+}
+
+.info-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.info-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 2px 4px 0 var(--color-shadow);
+  background: var(--color-wild-300);
+}
+
+.info-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-shadow);
+}
+
+.info-btn__icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
+  color: var(--color-mirage-600);
 }
 
 .page-header h1 {
@@ -1149,6 +1211,12 @@ onUnmounted(stopTimer)
   font-weight: 800;
   color: var(--color-mirage-700);
   flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.module-count-badge--has-sel {
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
 }
 
 .module-count-badge__sel { color: var(--color-deep-600); }
@@ -1178,7 +1246,7 @@ onUnmounted(stopTimer)
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
@@ -1190,51 +1258,30 @@ onUnmounted(stopTimer)
 }
 
 .ex-row--selected {
-  background: var(--color-wild-100);
-  border-color: var(--color-mirage-600);
-  box-shadow: 1px 1px 0 var(--color-shadow);
+  background: var(--color-deep-50, #f0faf9);
+  border-color: var(--color-deep-400);
+  box-shadow: 1px 1px 0 var(--color-deep-200);
 }
 
 .ex-row__text {
   flex: 1;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-mirage-600);
+  color: var(--color-mirage-500);
   line-height: 1.45;
   min-width: 0;
+  word-break: break-word;
 }
 
-.ex-row--selected .ex-row__text { color: var(--color-mirage-900); }
-
-.ex-row__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.ex-row__type-pill {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
+.ex-row--selected .ex-row__text {
+  color: var(--color-mirage-900);
   font-weight: 700;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  color: var(--color-mirage-800);
-  white-space: nowrap;
-  box-shadow: 2px 2px 0 var(--color-shadow);
 }
 
-.ex-row__status-icon {
-  width: 16px;
-  height: 16px;
+.ex-row :deep(.ui-checkbox) {
+  margin-top: 1px;
   flex-shrink: 0;
-  stroke-width: 1.8;
 }
-
-.ex-row__status-icon--ok { color: var(--color-deep-600); }
-.ex-row__status-icon--err { color: var(--color-error-strong); }
 
 /* ── Right sidebar ─────────────────────────────── */
 .config-sidebar {
@@ -1572,6 +1619,11 @@ onUnmounted(stopTimer)
   gap: var(--space-400);
 }
 
+.runner-section {
+  display: grid;
+  gap: var(--space-200);
+}
+
 .runner-top {
   display: grid;
   gap: 16px;
@@ -1845,6 +1897,42 @@ onUnmounted(stopTimer)
   flex-wrap: wrap;
 }
 
+/* ── Info modal ────────────────────────────────── */
+.info-modal .modal-body {
+  padding: 20px 24px;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.info-item {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.info-item__title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.info-item__desc {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-mirage-500);
+  line-height: 1.5;
+}
+
 /* ── Responsive ────────────────────────────────── */
 @media (max-width: 780px) {
   .config-layout {
@@ -1857,15 +1945,52 @@ onUnmounted(stopTimer)
 
   .runner-stats {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .options-grid {
-    grid-template-columns: 1fr;
+    gap: var(--space-200);
   }
 
   .summary-hero {
     flex-direction: column;
     padding: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .runner-page {
+    gap: var(--space-200);
+  }
+
+  .runner-section {
+    gap: var(--space-100);
+  }
+
+  .runner-top {
+    gap: 8px;
+  }
+
+  .runner-stats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .runner-stats :deep(.stat-card) {
+    padding: 7px 8px;
+    gap: 5px;
+    border-radius: 10px;
+    box-shadow: 3px 3px 0 var(--color-shadow);
+  }
+
+  .runner-stats :deep(.stat-card__label) {
+    font-size: 7px;
+    letter-spacing: 0.4px;
+  }
+
+  .runner-stats :deep(.stat-card__value) {
+    font-size: 13px;
   }
 }
 </style>

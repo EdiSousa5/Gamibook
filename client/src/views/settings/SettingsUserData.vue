@@ -52,6 +52,7 @@ onMounted(loadUser)
 .settings-section {
     display: grid;
     gap: var(--space-300);
+    width: 100%;
 }
 
 .section-header {
@@ -66,16 +67,24 @@ onMounted(loadUser)
 
 .field-row {
     display: grid;
-    grid-template-columns: minmax(120px, 180px) 1fr;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
     gap: 12px;
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid #d7d7d7;
     background: #fff;
+    min-width: 0;
 }
 
 .field-key {
     font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.field-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .meta {
@@ -89,5 +98,19 @@ onMounted(loadUser)
 
 .error {
     color: var(--color-error-strong);
+}
+
+@media (max-width: 45em) {
+    .field-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .field-key {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--color-mirage-500);
+    }
 }
 </style>

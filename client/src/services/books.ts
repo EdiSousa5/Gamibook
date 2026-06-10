@@ -12,6 +12,7 @@ const BOOK_FIELDS = [
   'editora.*',
   'is_approved',
   'has_minimum_content',
+  'site_url',
   'date_created',
   'date_updated',
 ]

@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import {
-  MagnifyingGlassCircleIcon,
-  EyeIcon,
-  SunIcon,
-} from '@heroicons/vue/24/outline'
+import { MagnifyingGlassCircleIcon, EyeIcon, SunIcon } from '@heroicons/vue/24/outline'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -170,7 +166,6 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
       </div>
     </div>
 
-    <!-- Reset -->
     <div class="reset-row">
       <UiButton variant="outline" @click="resetAll">Repor predefinições</UiButton>
     </div>
@@ -181,19 +176,12 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
 .settings-section {
   display: grid;
   gap: var(--space-400);
-  max-width: 680px;
+  max-width: 42.5rem;
+  width: 100%;
 }
 
-.section-header h2 {
-  margin: 0;
-  font-family: var(--font-display);
-}
-
-.meta {
-  margin: 0;
-  color: var(--color-mirage-500);
-  font-size: 13px;
-}
+.section-header h2 { margin: 0; font-family: var(--font-display); font-size: clamp(1.125rem, 3vw, 1.375rem); }
+.meta { margin: 0; color: var(--color-mirage-500); font-size: 0.8125rem; }
 
 .a11y-group {
   border: 2px solid var(--color-mirage-800);
@@ -212,9 +200,9 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
 }
 
 .group-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -223,26 +211,9 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
   flex-shrink: 0;
 }
 
-.group-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--color-deep-700);
-  stroke-width: 2;
-}
-
-.group-header h3 {
-  margin: 0 0 2px;
-  font-size: 15px;
-  font-weight: 800;
-  font-family: var(--font-display);
-  color: var(--color-mirage-800);
-}
-
-.group-header p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-mirage-500);
-}
+.group-icon { width: 1.125rem; height: 1.125rem; color: var(--color-deep-700); stroke-width: 2; }
+.group-header h3 { margin: 0 0 2px; font-size: 0.9375rem; font-weight: 800; font-family: var(--font-display); color: var(--color-mirage-800); }
+.group-header p { margin: 0; font-size: 0.75rem; color: var(--color-mirage-500); }
 
 .group-body {
   padding: var(--space-400);
@@ -251,7 +222,6 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
   background: var(--color-wild-100);
 }
 
-/* Option cards */
 .option-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -268,44 +238,23 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
   gap: var(--space-150);
   padding: var(--space-300);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 14px;
+  border-radius: 0.875rem;
   background: var(--color-wild-100);
   box-shadow: 3px 3px 0 var(--color-shadow);
   cursor: pointer;
   text-align: left;
   font-family: var(--font-base);
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.1s ease, box-shadow 0.1s ease;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.1s;
 }
 
 .option-card:hover { background: var(--color-wild-200); }
-
-.option-card:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--color-shadow);
-}
-
-.option-card--active {
-  background: var(--color-deep-100);
-  border-color: var(--color-deep-600);
-  box-shadow: 3px 3px 0 var(--color-deep-300);
-}
-
+.option-card:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-shadow); }
+.option-card--active { background: var(--color-deep-100); border-color: var(--color-deep-600); box-shadow: 3px 3px 0 var(--color-deep-300); }
 .option-card--active:hover { background: var(--color-deep-100); }
 
-.option-label {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-}
+.option-label { font-size: 0.8125rem; font-weight: 800; color: var(--color-mirage-800); }
+.option-desc { font-size: 0.6875rem; font-weight: 600; color: var(--color-mirage-500); line-height: 1.4; }
 
-.option-desc {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-mirage-500);
-  line-height: 1.4;
-}
-
-/* Font size demo */
 .option-font-demo {
   font-family: var(--font-display);
   font-weight: 900;
@@ -314,74 +263,46 @@ const COLOR_OPTIONS: { value: ColorMode; label: string; desc: string }[] = [
   margin-bottom: var(--space-100);
 }
 
-.option-font-demo[data-size="normal"] { font-size: 20px; }
-.option-font-demo[data-size="large"]  { font-size: 24px; }
-.option-font-demo[data-size="xl"]     { font-size: 28px; }
+.option-font-demo[data-size="normal"] { font-size: 1.25rem; }
+.option-font-demo[data-size="large"]  { font-size: 1.5rem; }
+.option-font-demo[data-size="xl"]     { font-size: 1.75rem; }
 
-/* Color blindness demo */
-.color-demo {
-  display: flex;
-  gap: 5px;
-  margin-bottom: var(--space-100);
-}
-
-.cd-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-mirage-800);
-}
-
+.color-demo { display: flex; gap: 0.3125rem; margin-bottom: var(--space-100); }
+.cd-dot { width: 0.875rem; height: 0.875rem; border-radius: 50%; border: 1.5px solid var(--color-mirage-800); }
 .cd-dot--r { background: #e84040; }
 .cd-dot--g { background: #38a169; }
 .cd-dot--b { background: #3b82f6; }
-
 .color-demo--deuteranopia .cd-dot--r { background: #c89a20; }
 .color-demo--deuteranopia .cd-dot--g { background: #b3a020; }
 .color-demo--deuteranopia .cd-dot--b { background: #3b82f6; }
-
 .color-demo--protanopia .cd-dot--r { background: #888800; }
 .color-demo--protanopia .cd-dot--g { background: #aaaa00; }
 .color-demo--protanopia .cd-dot--b { background: #3b82f6; }
-
 .color-demo--tritanopia .cd-dot--r { background: #e84040; }
 .color-demo--tritanopia .cd-dot--g { background: #38a169; }
 .color-demo--tritanopia .cd-dot--b { background: #a0a0c0; }
 
-/* Contrast demo */
 .contrast-demo {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.5rem;
   margin-bottom: var(--space-100);
 }
+.contrast-demo--normal { background: var(--color-wild-200); border: 1.5px solid var(--color-wild-500); }
+.contrast-demo--high { background: #000; border: 2px solid #fff; }
+.contrast-text { font-size: 0.8125rem; font-weight: 700; }
+.contrast-demo--normal .contrast-text { color: var(--color-mirage-600); }
+.contrast-demo--high .contrast-text { color: #fff; }
 
-.contrast-demo--normal {
-  background: var(--color-wild-200);
-  border: 1.5px solid var(--color-wild-500);
+.reset-row { display: flex; justify-content: flex-end; }
+
+@media (max-width: 37.5em) {
+  .group-body { padding: var(--space-300); }
+  .group-header { padding: var(--space-200) var(--space-300); }
 }
 
-.contrast-demo--high {
-  background: #000;
-  border: 2px solid #fff;
-}
-
-.contrast-text {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.contrast-demo--normal .contrast-text {
-  color: var(--color-mirage-600);
-}
-
-.contrast-demo--high .contrast-text {
-  color: #fff;
-}
-
-/* Reset */
-.reset-row {
-  display: flex;
-  justify-content: flex-end;
+@media (max-width: 30em) {
+  .option-card { padding: var(--space-200); }
+  .option-cards--4 { grid-template-columns: 1fr 1fr; gap: var(--space-150); }
 }
 </style>

@@ -179,4 +179,10 @@ const onModalClose = () => {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 48em) {
+  .unlock-card {
+    padding: 32px 24px;
+  }
+}
 </style>

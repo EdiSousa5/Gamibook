@@ -108,4 +108,12 @@ h2 { margin: 0; }
   --btn-face: #fce8e6;
   --btn-face-hover: #fad2ce;
 }
+
+@media (max-width: 40em) {
+    .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-300);
+    }
+}
 </style>

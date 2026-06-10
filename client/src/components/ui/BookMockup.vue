@@ -253,4 +253,37 @@ withDefaults(defineProps<Props>(), {
       rgba(0, 0, 0, 0.2) 100%);
   pointer-events: none;
 }
+
+@media (max-width: 45em) {
+  .book-scene.lg .book {
+    width: 160px;
+    height: 232px;
+    --d: 32px;
+  }
+
+  .book-scene.sm .book {
+    width: 84px;
+    height: 122px;
+    --d: 16px;
+  }
+
+  .book-scene.lg .book-badge-overlay {
+    transform: translateZ(1px) scale(0.68);
+    transform-origin: bottom right;
+  }
+}
+
+@media (max-width: 30em) {
+  .book-scene.lg .book {
+    width: 140px;
+    height: 203px;
+    --d: 28px;
+  }
+
+  .book-scene.sm .book {
+    width: 72px;
+    height: 104px;
+    --d: 14px;
+  }
+}
 </style>

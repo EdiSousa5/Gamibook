@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import {
-  CheckIcon, LockClosedIcon, InformationCircleIcon, LockOpenIcon,
-  PaintBrushIcon, SparklesIcon, PhotoIcon, FilmIcon, SwatchIcon,
-} from '@heroicons/vue/24/outline'
-import UiSegmented from '@/components/ui/UiSegmented.vue'
+import { CheckIcon, LockClosedIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { updateUser } from '@/services/auth'
 import { useToast } from '@/composables/useToast'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
 const authStore = useAuthStore()
@@ -221,15 +218,10 @@ const levelGroups = computed(() => {
   return groups
 })
 
-const sortedLevelKeys = computed(() =>
-  Object.keys(levelGroups.value).map(Number).sort((a, b) => a - b)
-)
-
-const levelUnlocked = (level: number) =>
-  isAdmin.value || devUnlockAll.value || userLevel.value >= level
-
-const isRowUnlocked = (row: UnlockRow) =>
-  isUnlocked({ id: '', name: '', minLevel: row.minLevel })
+const categoryOptions = computed(() => [
+  { label: 'Todas as categorias', value: '' },
+  ...CATEGORIES.value.map(c => ({ label: c, value: c })),
+])
 
 const filteredUnlockables = computed(() => {
   const specificLevel = filterSpecificLevel.value ? parseInt(filterSpecificLevel.value, 10) : null
@@ -255,7 +247,7 @@ const filteredUnlockables = computed(() => {
 </script>
 
 <template>
-  <div class="settings-section">
+  <div class="settings-section" data-tour="settings-appearance">
     <div class="section-heading">
       <div>
         <h2>Aparência</h2>
@@ -465,44 +457,27 @@ const filteredUnlockables = computed(() => {
   <Teleport to="body">
     <Transition name="modal-fade">
       <div v-if="unlockModalOpen" class="unlock-modal-overlay" @click.self="unlockModalOpen = false">
-        <div class="unlock-modal">
+        <div class="unlock-modal" role="dialog" aria-modal="true" aria-label="Desbloqueios por nível">
           <div class="unlock-modal__header">
             <div>
               <p class="unlock-modal__eyebrow">Aparência</p>
               <h3>Desbloqueios por nível</h3>
             </div>
-            <UiButton variant="outline" size="sm" @click="unlockModalOpen = false">Fechar</UiButton>
+            <button class="unlock-close-btn" type="button" aria-label="Fechar" @click="unlockModalOpen = false">
+              <XMarkIcon class="unlock-close-icon" aria-hidden="true" />
+            </button>
           </div>
 
           <div class="unlock-modal__filters">
-            <div class="unlock-filters-row">
-              <UiSegmented
-                :model-value="filterLevel"
-                :options="[
-                  { value: 'all', label: 'Todos' },
-                  { value: 'unlocked', label: 'Desbloqueados' },
-                  { value: 'locked', label: 'Bloqueados' },
-                ]"
-                @update="filterLevel = $event as typeof filterLevel"
-              />
-              <input
-                v-model="filterSpecificLevel"
-                class="level-input"
-                type="number"
-                min="1"
-                max="50"
-                placeholder="Nível..."
-                aria-label="Filtrar por nível específico"
-              />
-            </div>
-            <div class="cat-chips">
-              <button
-                v-for="chip in CATEGORY_CHIPS"
-                :key="chip.value"
-                class="cat-chip"
-                :class="{ 'cat-chip--active': filterCategory === chip.value }"
-                @click="filterCategory = chip.value"
-              >{{ chip.label }}</button>
+            <UiSelect
+              :model-value="filterCategory"
+              :options="categoryOptions"
+              @update="filterCategory = $event as string"
+            />
+            <div class="filter-pills">
+              <button class="filter-pill" :class="{ active: filterLevel === 'all' }" @click="filterLevel = 'all'">Todos</button>
+              <button class="filter-pill" :class="{ active: filterLevel === 'unlocked' }" @click="filterLevel = 'unlocked'">Desbloqueados</button>
+              <button class="filter-pill" :class="{ active: filterLevel === 'locked' }" @click="filterLevel = 'locked'">Bloqueados</button>
             </div>
           </div>
 
@@ -575,6 +550,7 @@ const filteredUnlockables = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-400);
+  max-width: 100%;
 }
 
 .section-heading {
@@ -582,6 +558,11 @@ const filteredUnlockables = computed(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-300);
+}
+
+.info-btn {
+  margin-left: auto;
+  align-self: flex-start;
 }
 
 .info-btn {
@@ -663,7 +644,7 @@ h2 {
 
 .av-editor {
   display: grid;
-  grid-template-columns: 130px 1fr;
+  grid-template-columns: minmax(7.5rem, 8.75rem) minmax(0, 1fr);
   gap: var(--space-500);
   width: 100%;
   align-items: start;
@@ -680,6 +661,7 @@ h2 {
   background: var(--color-deep-100);
   box-shadow: 4px 4px 0 var(--color-deep-300);
   aspect-ratio: 1;
+  min-width: 0;
 }
 
 .av-panel {
@@ -929,13 +911,14 @@ h2 {
 .bg-selector {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-300);
+  gap: var(--space-200);
 }
 
 .bg-btn {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
   border-radius: 12px;
   border: 2px solid var(--color-deep-800);
   cursor: pointer;
@@ -1098,13 +1081,48 @@ h2 {
 }
 
 .unlock-modal__header {
-  padding: 20px 24px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-300);
+  padding: 22px 24px 14px;
   border-bottom: 2px solid var(--color-wild-400);
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-300);
+}
+
+.unlock-close-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.unlock-close-btn:hover {
+  background: var(--color-wild-300);
+  transform: translateY(-1px);
+}
+
+.unlock-close-btn:active {
+  transform: translate(1px, 2px);
+  box-shadow: 0 0 0 var(--color-shadow);
+}
+
+.unlock-close-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-mirage-700);
+  stroke-width: 2.5;
 }
 
 .unlock-modal__eyebrow {
@@ -1133,37 +1151,7 @@ h2 {
   flex-shrink: 0;
 }
 
-.unlock-filters-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-250, 10px);
-}
-
-.level-input {
-  width: 80px;
-  flex-shrink: 0;
-  padding: 7px 10px;
-  border-radius: var(--radius-200);
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--font-base);
-  color: var(--color-mirage-800);
-  outline: none;
-}
-
-.level-input:focus {
-  border-color: var(--color-deep-600);
-}
-
-.level-input::placeholder {
-  color: var(--color-mirage-400);
-  font-weight: 600;
-}
-
-.cat-chips {
+.filter-pills {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-150);
@@ -1445,5 +1433,76 @@ h2 {
   0%   { background-position: 0% 0%, 100% 100%, 0% 0%; }
   50%  { background-position: 100% 0%, 0% 100%, 0% 0%; }
   100% { background-position: 0% 100%, 100% 0%, 0% 0%; }
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  .av-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .av-preview-box {
+    display: flex;
+    justify-content: center;
+    justify-self: center;
+    max-width: 9rem;
+    padding: var(--space-400);
+  }
+
+  .unlock-modal__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-pills {
+    flex-wrap: wrap;
+  }
+
+  .unlock-modal__header {
+    padding: 18px 18px 12px;
+  }
+
+  .unlock-modal__filters {
+    padding: 12px 18px;
+  }
+
+  .unlock-row {
+    padding: 10px 18px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .unlock-row__category {
+    width: auto;
+  }
+
+  .unlock-row__item {
+    min-width: 0;
+  }
+
+  .unlock-modal__footer {
+    padding: 14px 18px;
+  }
+
+  .unlock-row__category {
+    width: 80px;
+  }
+}
+
+@media (max-width: 40em) {
+  .bg-btn {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .av-preview-box {
+    max-width: 7.75rem;
+  }
 }
 </style>

@@ -57,6 +57,26 @@ export const fetchUserPointsFromHistory = async (userId: string, startDate?: str
   return items.reduce((sum, item) => sum + Number(item.points ?? 0), 0)
 }
 
+export type PointsHistoryEntry = {
+  points: number
+  source: 'exercise' | 'daily'
+  reference_id: number
+  date_created: string
+}
+
+export const fetchUserPointsHistoryList = async (userId: string, limit = 80): Promise<PointsHistoryEntry[]> => {
+  const params = new URLSearchParams({
+    fields: 'points,source,reference_id,date_created',
+    limit: String(limit),
+    sort: '-date_created',
+  })
+  params.set('filter[user_id][_eq]', userId)
+  const response = await authFetch(`/items/user_points_history?${params.toString()}`)
+  if (!response.ok) return []
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as PointsHistoryEntry[]
+}
+
 export const createUserPointsHistory = async (payload: {
   user_id: string
   points: number

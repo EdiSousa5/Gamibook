@@ -62,12 +62,8 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
           </div>
 
           <div class="confetti-wrap" aria-hidden="true">
-            <span
-              v-for="p in confetti"
-              :key="p.id"
-              class="cp"
-              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }"
-            />
+            <span v-for="p in confetti" :key="p.id" class="cp"
+              :style="{ '--c': p.color, '--l': p.left, '--d': p.delay, '--dur': p.dur, width: p.w, height: p.h, '--r': p.rot }" />
           </div>
 
         </div>
@@ -82,8 +78,9 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   inset: 0;
   z-index: 9999;
   background: rgba(0, 0, 0, 0.55);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: clamp(16px, 4vw, 32px);
   will-change: opacity;
 }
@@ -99,13 +96,22 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   text-align: center;
   box-shadow: 6px 6px 0 var(--color-shadow);
   overflow: hidden;
+  max-height: 90vh;
+  overflow-y: auto;
   animation: card-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   will-change: transform, opacity;
 }
 
 @keyframes card-pop {
-  from { transform: scale(0.82) translateY(20px); opacity: 0; }
-  to   { transform: scale(1)    translateY(0);    opacity: 1; }
+  from {
+    transform: scale(0.82) translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Confetti */
@@ -127,9 +133,19 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
 }
 
 @keyframes fall {
-  0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateY(600px) rotate(360deg); opacity: 0; }
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(600px) rotate(360deg);
+    opacity: 0;
+  }
 }
 
 /* Label */
@@ -151,8 +167,15 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
 }
 
 @keyframes cover-reveal {
-  from { transform: scale(0.6) translateY(16px) rotate(-4deg); opacity: 0; }
-  to   { transform: scale(1)   translateY(0)    rotate(0deg);  opacity: 1; }
+  from {
+    transform: scale(0.6) translateY(16px) rotate(-4deg);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0) rotate(0deg);
+    opacity: 1;
+  }
 }
 
 .cover-inner {
@@ -204,14 +227,22 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   animation: fade-up 0.5s 0.6s ease both;
 }
 
 @keyframes fade-up {
-  from { transform: translateY(10px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .actions {
@@ -220,21 +251,64 @@ const confetti = Array.from({ length: 32 }, (_, i) => ({
   animation: fade-up 0.5s 0.7s ease both;
 }
 
-.btn-primary { flex: 1; }
+.btn-primary {
+  flex: 1;
+}
 
-@media (max-width: 400px) {
-  .unlock-card { padding: 36px 24px 28px; }
-  .cover-wrap { width: 100px; }
-  .actions { flex-direction: column; }
-  .btn-primary { flex: unset; }
+@media (max-width: 48em) {
+  .unlock-overlay {
+    padding: 16px;
+  }
+
+  .unlock-card {
+    padding: 24px 16px 20px;
+    width: 90%;
+    max-width: 290px;
+    margin: 0;
+    max-height: 85vh;
+  }
+
+  .cover-wrap {
+    width: 85px;
+    margin-bottom: 12px;
+  }
+
+  .book-title {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .book-desc {
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn-primary {
+    flex: unset;
+    width: 100%;
+  }
 }
 
 /* Overlay transition */
-.overlay-fade-enter-active { animation: overlay-in 0.3s ease both; }
-.overlay-fade-leave-active { animation: overlay-in 0.2s ease reverse both; }
+.overlay-fade-enter-active {
+  animation: overlay-in 0.3s ease both;
+}
+
+.overlay-fade-leave-active {
+  animation: overlay-in 0.2s ease reverse both;
+}
 
 @keyframes overlay-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 </style>

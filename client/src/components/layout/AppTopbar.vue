@@ -5,7 +5,7 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon, Bars3Icon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
 import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
@@ -22,6 +22,7 @@ type Props = {
   progressValue?: number
   progressTotal?: number
   isAdmin?: boolean
+  mobileNavOpen?: boolean
 }
 
 const UNLOCK_URL_RE = /\/unlock\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
@@ -30,7 +31,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-owned' | 'not-found' | 'error'
 
 const props = defineProps<Props>()
-const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book] }>()
+const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book]; 'toggle-nav': [] }>()
 
 const notifStore = useNotificationsStore()
 const authStore = useAuthStore()
@@ -309,13 +310,23 @@ onBeforeUnmount(() => {
 
 <template>
   <header class="topbar">
-    <div v-if="showBack" class="back">
-      <UiPillButton class="back-button" @click="goBack">
-        <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
-        Voltar para trás
-      </UiPillButton>
+    <div class="topbar-left">
+      <button
+        class="hamburger-btn"
+        :aria-expanded="mobileNavOpen"
+        aria-label="Abrir menu de navegação"
+        @click="emit('toggle-nav')"
+      >
+        <XMarkIcon v-if="mobileNavOpen" class="icon" aria-hidden="true" />
+        <Bars3Icon v-else class="icon" aria-hidden="true" />
+      </button>
+      <div v-if="showBack" class="back">
+        <UiPillButton class="back-button" @click="goBack">
+          <ArrowUturnLeftIcon class="icon" aria-hidden="true" />
+          <span class="back-label">Voltar para trás</span>
+        </UiPillButton>
+      </div>
     </div>
-    <div v-else class="back-spacer"></div>
     <div class="actions">
       <div class="bell-anchor" ref="bellRef">
         <UiIconButton variant="outline" size="lg" aria-label="Notificações" @click="toggleBell">
@@ -347,9 +358,11 @@ onBeforeUnmount(() => {
           </div>
         </Transition>
       </div>
-      <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
-        <QrCodeIcon class="icon" aria-hidden="true" />
-      </UiIconButton>
+      <span v-if="!isAdmin" data-tour="topbar-qr">
+        <UiIconButton variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
+          <QrCodeIcon class="icon" aria-hidden="true" />
+        </UiIconButton>
+      </span>
       <div class="profile" ref="profileRef">
         <button class="profile-button" :class="{ 'is-open': menuOpen }" type="button" @click="toggleMenu">
           <UiAvatar
@@ -521,31 +534,57 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-400);
+  gap: var(--space-300);
   padding: var(--space-400) var(--space-500);
   background: var(--color-wild-100);
   border-bottom: 2px solid var(--color-mirage-800);
   position: sticky;
   top: 0;
-  height: var(--topbar-height, 72px);
+  height: var(--topbar-height, 4.5rem);
   z-index: 20;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
 .back { display: flex; align-items: center; }
-.back-spacer { width: 160px; }
+
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-200);
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--color-mirage-800);
+  transition: background 0.15s ease;
+}
+
+.hamburger-btn:hover { background: var(--color-wild-300); }
 
 .back-button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-150);
-  font-size: 11px;
-  padding: 4px 12px;
+  font-size: 0.6875rem;
+  padding: var(--space-100) var(--space-300);
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-400);
+  gap: var(--space-300);
   margin-left: auto;
 }
 
@@ -558,8 +597,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: var(--space-200);
-  padding: 6px 10px;
-  border-radius: 18px;
+  padding: var(--space-150) var(--space-300);
+  border-radius: 1.125rem;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 3px 3px 0 var(--color-shadow);
@@ -570,7 +609,7 @@ onBeforeUnmount(() => {
 
 .profile-details {
   display: grid;
-  gap: 4px;
+  gap: var(--space-100);
   text-align: left;
 }
 
@@ -578,12 +617,12 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-200);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--color-mirage-600);
 }
 
 .level-bar {
-  width: 160px;
+  width: clamp(6rem, 12vw, 10rem);
   height: 6px;
   border-radius: 999px;
   overflow: hidden;
@@ -613,19 +652,19 @@ onBeforeUnmount(() => {
   top: calc(100% + var(--space-200));
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 12px;
+  border-radius: var(--radius-200);
   box-shadow: 4px 4px 0 var(--color-shadow);
   min-width: 100%;
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: var(--space-150);
   z-index: 2;
 }
 
 .menu-item {
-  padding: 10px 12px;
+  padding: var(--space-300) var(--space-300);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-200);
   background: transparent;
   text-align: left;
   font-size: 14px;
@@ -647,23 +686,49 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   background: rgba(2, 29, 32, 0.55);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
-  padding: 16px;
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
 .qr-modal {
-  width: min(460px, 100%);
+  width: min(28.75rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   background: var(--color-wild-100);
-  border-radius: 20px;
+  border-radius: 1.25rem;
   border: 2px solid var(--color-mirage-800);
   box-shadow: 6px 6px 0 var(--color-shadow);
   padding: var(--space-500);
   display: grid;
   gap: var(--space-400);
   position: relative;
-  overflow: hidden;
+}
+
+@media (max-width: 64em) {
+  .qr-modal {
+    width: min(28.75rem, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+    padding: var(--space-400);
+  }
+}
+
+@media (max-width: 40em) {
+  .qr-modal {
+    width: 90%;
+    max-width: 320px;
+    padding: var(--space-400);
+  }
+
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-btn {
+    padding: var(--space-400);
+  }
 }
 
 .qr-header {
@@ -1058,6 +1123,14 @@ onBeforeUnmount(() => {
   z-index: 101;
 }
 
+@media (max-width: 40em) {
+  .notif-popup {
+    width: min(280px, calc(100vw - 1rem));
+    right: 0;
+    left: auto;
+  }
+}
+
 .notif-popup__icon {
   flex-shrink: 0;
   width: 34px;
@@ -1113,6 +1186,7 @@ onBeforeUnmount(() => {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1132,5 +1206,69 @@ onBeforeUnmount(() => {
 @keyframes notif-pop-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Tablet + Mobile: topbar fixa + hamburger ── */
+@media (max-width: 64em) {
+  .topbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    padding: var(--space-200) var(--space-300);
+    gap: var(--space-200);
+  }
+
+  .hamburger-btn {
+    display: inline-flex;
+  }
+
+  .profile-details {
+    display: none;
+  }
+}
+
+/* ── Mobile apenas: back button compacto (só ícone) ── */
+@media (max-width: 45em) {
+  .back {
+    display: flex;
+  }
+
+  .back-label {
+    display: none;
+  }
+
+  .back-button {
+    padding: 6px 8px;
+  }
+
+  .back-button .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .profile-button {
+    padding: var(--space-100) var(--space-150);
+    gap: var(--space-150);
+  }
+
+  .actions {
+    gap: var(--space-200);
+  }
+
+  .notif-popup {
+    width: min(16.25rem, calc(100vw - var(--space-600)));
+    right: calc(-1 * var(--space-400));
+  }
+}
+
+@media (max-width: 25em) {
+  .topbar {
+    padding: var(--space-150) var(--space-200);
+  }
+
+  .actions {
+    gap: var(--space-150);
+  }
 }
 </style>

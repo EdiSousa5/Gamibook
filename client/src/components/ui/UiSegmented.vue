@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{ update: [string] }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-const indicatorStyle = ref({ left: '4px', width: '0px' })
+const indicatorStyle = ref({ left: '6px', top: '6px', width: '0px', height: 'auto' })
 
 const updateIndicator = () => {
   if (!containerRef.value) return
@@ -24,7 +24,9 @@ const updateIndicator = () => {
   if (activeBtn) {
     indicatorStyle.value = {
       left: `${activeBtn.offsetLeft}px`,
-      width: `${activeBtn.offsetWidth}px`
+      top: `${activeBtn.offsetTop}px`,
+      width: `${activeBtn.offsetWidth}px`,
+      height: `${activeBtn.offsetHeight}px`
     }
   }
 }
@@ -71,13 +73,18 @@ watch(() => props.modelValue, () => {
   padding: 6px 12px;
   box-shadow: 4px 4px 0 var(--color-shadow);
   z-index: 1;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ui-segmented::-webkit-scrollbar {
+  display: none;
 }
 
 .segmented-indicator {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
   border-radius: 999px;
   background: var(--color-teal-500);
   transition: all 0.3s ease-out;
@@ -110,5 +117,19 @@ watch(() => props.modelValue, () => {
 
 .ui-segmented button:focus-visible {
   box-shadow: 0 0 0 2px var(--color-teal-500);
+}
+
+@media (max-width: 37.5em) {
+  .ui-segmented {
+    padding: 4px 8px;
+    flex-wrap: nowrap;
+  }
+
+  .ui-segmented button {
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 }
 </style>

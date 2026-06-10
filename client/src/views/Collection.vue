@@ -32,6 +32,7 @@ const isAdmin = computed(() => isAdminUser(user.value))
 const viewFilter = ref<'all' | 'owned' | 'missing' | 'completed'>('all')
 const publisherFilter = ref('all')
 const sortBy = ref<'default' | 'title' | 'date'>('default')
+const showMobileFilters = ref(false)
 
 const viewOptions = [
   { label: 'Todos os livros', value: 'all' },
@@ -108,9 +109,9 @@ const completedBookIds = computed(() => {
 
 const uniquePublishers = computed(() => {
   const pubs = new Set<string>()
-  ;[...ownedBooks.value, ...missingBooks.value].forEach((b) => {
-    if (b.editora?.nome_editora) pubs.add(b.editora.nome_editora)
-  })
+    ;[...ownedBooks.value, ...missingBooks.value].forEach((b) => {
+      if (b.editora?.nome_editora) pubs.add(b.editora.nome_editora)
+    })
   return Array.from(pubs).sort()
 })
 
@@ -148,7 +149,13 @@ const displayedOwnedBooks = computed(() => {
   return applyBookFilters(list)
 })
 
-const displayedMissingBooks = computed(() => applyBookFilters(missingBooks.value))
+const displayedMissingBooks = computed(() => {
+  const featured = featuredBook.value
+  const list = (featured && !isFeaturedBookOwned.value)
+    ? missingBooks.value.filter(b => b.book_id !== featured.book_id)
+    : missingBooks.value
+  return applyBookFilters(list)
+})
 
 const showOwnedSection = computed(() => viewFilter.value !== 'missing')
 const showMissingSection = computed(() => viewFilter.value === 'all' || viewFilter.value === 'missing')
@@ -161,8 +168,11 @@ const containerWidth = ref(1000)
 let resizeObserver: ResizeObserver | null = null
 
 const itemsPerShelf = computed(() => {
-  const available = containerWidth.value - 64
-  return Math.max(2, Math.floor(available / 132))
+  const isMobile = containerWidth.value <= 720
+  const itemWidth = isMobile ? 96 : 132
+  const padding = isMobile ? 32 : 64
+  const available = containerWidth.value - padding
+  return Math.max(2, Math.floor(available / itemWidth))
 })
 
 const ownedShelves = computed(() => {
@@ -261,7 +271,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="collection" ref="collectionRef">
+  <section class="collection" ref="collectionRef" data-tour="collection-main">
     <div class="header">
       <div>
         <h1>Catálogo de Livros</h1>
@@ -273,8 +283,15 @@ onUnmounted(() => {
     <p v-else-if="error" class="state error">{{ error }}</p>
 
     <template v-else-if="ownedBooks.length || missingBooks.length">
+
+      <div class="filters-mobile-toggle">
+        <UiButton variant="outline" size="sm" @click="showMobileFilters = !showMobileFilters" style="width: 100%">
+          {{ showMobileFilters ? 'Ocultar Filtros' : 'Mostrar Filtros' }}
+        </UiButton>
+      </div>
+
       <!-- Filter bar -->
-      <div class="filters-bar">
+      <div class="filters-bar" :class="{ 'is-visible': showMobileFilters }">
         <div class="filter-item filter-item--search">
           <UiSearch :model-value="searchQuery" @update="searchQuery = $event" />
         </div>
@@ -282,7 +299,8 @@ onUnmounted(() => {
           <UiSelect :model-value="viewFilter" :options="viewOptions" @update="viewFilter = $event as any" />
         </div>
         <div class="filter-item">
-          <UiSelect :model-value="publisherFilter" :options="publisherOptions" @update="publisherFilter = $event as any" />
+          <UiSelect :model-value="publisherFilter" :options="publisherOptions"
+            @update="publisherFilter = $event as any" />
         </div>
         <div class="filter-item">
           <UiSelect :model-value="sortBy" :options="sortOptions" @update="sortBy = $event as any" />
@@ -296,8 +314,8 @@ onUnmounted(() => {
           <div class="destaque-info">
             <div class="destaque-top">
               <div class="destaque-tags">
-                <UiChip v-if="featuredBook.publish_date" :label="String(new Date(featuredBook.publish_date).getFullYear())"
-                  variant="outline" />
+                <UiChip v-if="featuredBook.publish_date"
+                  :label="String(new Date(featuredBook.publish_date).getFullYear())" variant="outline" />
                 <UiChip v-if="featuredBook.editora?.nome_editora" :label="featuredBook.editora.nome_editora"
                   variant="soft" />
               </div>
@@ -311,12 +329,17 @@ onUnmounted(() => {
                 <UiButton size="lg" variant="primary">Fazer Exercícios</UiButton>
               </RouterLink>
             </div>
+            <div class="destaque-actions" v-else-if="featuredBook.site_url">
+              <a :href="featuredBook.site_url" target="_blank" rel="noopener noreferrer" class="buy-link">
+                <UiButton size="lg" variant="outline">Adquirir Livro</UiButton>
+              </a>
+            </div>
           </div>
 
           <div class="destaque-visual">
             <Transition name="book-swap" mode="out-in">
-              <BookMockup :key="featuredBook.book_id" :cover-url="getAssetUrl(featuredBook.cover_img)" :title="featuredBook.title" size="lg"
-                :badge="badgeForBook(featuredBook.book_id)" />
+              <BookMockup :key="featuredBook.book_id" :cover-url="getAssetUrl(featuredBook.cover_img)"
+                :title="featuredBook.title" size="lg" :badge="badgeForBook(featuredBook.book_id)" />
             </Transition>
           </div>
         </div>
@@ -349,7 +372,8 @@ onUnmounted(() => {
           </div>
         </template>
 
-        <p v-else-if="showOwnedSection && (searchQuery || publisherFilter !== 'all' || viewFilter === 'completed')" class="state state-inline">
+        <p v-else-if="showOwnedSection && (searchQuery || publisherFilter !== 'all' || viewFilter === 'completed')"
+          class="state state-inline">
           Nenhum livro encontrado com os filtros atuais.
         </p>
 
@@ -416,9 +440,14 @@ onUnmounted(() => {
   min-width: 220px;
 }
 
+.filters-mobile-toggle {
+  display: none;
+}
+
 .cartao-principal {
   padding: var(--space-600) 0 0 0 !important;
   overflow: visible !important;
+  position: relative;
 }
 
 /* =========================================
@@ -483,6 +512,10 @@ onUnmounted(() => {
   margin-top: var(--space-500);
 }
 
+.buy-link {
+  text-decoration: none;
+}
+
 /* =========================================
    2. ESTRUTURA DA ESTANTE 3D
    ========================================= */
@@ -493,12 +526,12 @@ onUnmounted(() => {
   perspective: 500px;
 }
 
-/* Estante Principal (Sai para fora do cartão) */
+/* Estante Principal (alinhada com o stroke do cartão) */
 .estante-wrapper.grande {
   left: 0 !important;
   bottom: auto !important;
-  margin: -12px -24px var(--space-600);
-  width: calc(100% + 48px);
+  margin: -12px -2px var(--space-600);
+  width: calc(100% + 4px);
 }
 
 :deep(.estante-wrapper.grande .estante-topo) {
@@ -635,29 +668,184 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25em) {
+  .filters-mobile-toggle {
+    display: block;
+    margin-bottom: var(--space-400);
+  }
+
+  .filters-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-200);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    transition: max-height 0.35s ease, opacity 0.35s ease, margin-bottom 0.35s ease;
+  }
+
+  .filters-bar.is-visible {
+    max-height: 500px;
+    opacity: 1;
+    margin-bottom: var(--space-400);
+  }
+
   .destaque-wrapper {
-    flex-direction: column-reverse;
-    align-items: center;
-    text-align: center;
+    flex-direction: row;
+    align-items: flex-end;
+    text-align: left;
+    gap: var(--space-300);
   }
 
   .destaque-visual {
     padding-right: 0;
-    margin-bottom: var(--space-400);
+    margin-bottom: 0;
+    transform: scale(0.85);
+    transform-origin: bottom right;
+    flex-shrink: 0;
   }
 
   .destaque-info {
     padding-bottom: var(--space-400);
+    flex: 1;
   }
 
-  .filters-bar {
-    flex-direction: column;
+  .destaque-tags {
+    justify-content: flex-start;
   }
 
   .filter-item {
-    min-width: unset;
     width: 100%;
+    min-width: 0;
+  }
+
+  .filter-item--search {
+    min-width: 0;
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 45em) {
+  .collection {
+    gap: var(--space-300);
+  }
+
+  /* No mobile, a prateleira usa position: relative para ficar no fluxo normal
+     e margens negativas para sair do card, alinhada com o stroke externo */
+  :deep(.estante-wrapper.grande) {
+    position: relative !important;
+    left: auto !important;
+    bottom: auto !important;
+    width: calc(100% + 4px) !important;
+    margin-left: -2px !important;
+    margin-right: -2px !important;
+    margin-top: -6px !important;
+    margin-bottom: var(--space-300) !important;
+  }
+
+  .destaque-wrapper {
+    padding: 0 var(--space-300);
+    min-height: unset;
+    gap: var(--space-300);
+    flex-direction: row;
+    align-items: flex-end;
+    text-align: left;
+  }
+
+  .destaque-visual {
+    margin-bottom: 0;
+    align-self: flex-end;
+    flex-shrink: 0;
+    transform: translateY(4px);
+  }
+
+  .destaque-visual :deep(.book-scene.lg .book) {
+    width: 104px;
+    height: 150px;
+    --d: 20px;
+  }
+
+  .destaque-info {
+    padding-bottom: var(--space-200);
+    max-width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .destaque-actions {
+    margin-top: var(--space-300);
+  }
+
+  .titulo-livro {
+    font-size: clamp(1rem, 4.5vw, 1.375rem);
+    margin-bottom: var(--space-100);
+  }
+
+  .descricao {
+    font-size: 0.8125rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Botão compacto no destaque — reduzir altura e sombra */
+  .destaque-actions :deep(.ui-button.lg) {
+    font-size: 13px;
+    --btn-offset-x: 3px;
+    --btn-offset-y: 4px;
+  }
+
+  .destaque-actions :deep(.ui-button.lg .ui-button-content) {
+    min-height: 38px;
+    padding: 7px var(--space-400);
+  }
+
+  .lista-wrapper {
+    padding: 0 var(--space-300);
+  }
+
+  .titulo-secao {
+    font-size: 1rem;
+  }
+
+  .livros-fila {
+    gap: var(--space-400);
+    padding: var(--space-300) var(--space-300) var(--space-100);
+  }
+
+  .livro-item {
+    width: 80px;
+    transform: translateY(14px);
+  }
+
+  .cartao-principal {
+    padding: var(--space-400) 0 0 0 !important;
+    overflow: visible !important;
+  }
+}
+
+
+@media (max-width: 30em) {
+  .destaque-visual :deep(.book-scene.lg .book) {
+    width: 84px;
+    height: 122px;
+    --d: 17px;
+  }
+
+  .livro-item {
+    width: 68px;
+    transform: translateY(14px);
+  }
+
+  .livros-fila {
+    gap: var(--space-300);
+  }
+
+  .destaque-tags {
+    display: none;
   }
 }
 </style>

@@ -104,7 +104,7 @@ const faqCategories = [
       },
       {
         q: 'Como são calculados os pontos de XP por exercício?',
-        a: 'O XP base varia com o tipo de exercício — escolha múltipla, verdadeiro/falso, preencher espaços e ordenação têm valores diferentes. Ao responder corretamente à primeira tentativa recebes o XP máximo. Cada tentativa adicional reduz ligeiramente o XP ganho. Exercícios diários têm um bónus extra.',
+        a: 'O XP varia com o tipo de exercício — escolha múltipla e verdadeiro/falso têm valores diferentes. Ao responder corretamente à primeira tentativa recebes o XP máximo. Exercícios que já erraste anteriormente não dão XP ao serem repetidos. Exercícios diários têm um bónus extra.',
       },
       {
         q: 'Como funcionam as badges de livro e quais os níveis?',
@@ -154,7 +154,7 @@ const faqCategories = [
       },
       {
         q: 'O que acontece se responder incorretamente?',
-        a: 'Podes tentar novamente sem penalização permanente. O número de tentativas é registado e afeta o XP ganho — a primeira tentativa correta vale mais XP do que tentativas subsequentes. Não há limite de tentativas por exercício.',
+        a: 'Podes tentar novamente. Para exercícios de verdadeiro/falso tens apenas 1 tentativa; para os restantes tens 2 tentativas. A primeira tentativa correta dá XP máximo — se acertares na segunda tentativa, o XP é reduzido. Se esgotares as tentativas, o exercício fica registado como errado e não dá XP.',
       },
       {
         q: 'Posso ver o meu histórico de exercícios?',
@@ -162,7 +162,7 @@ const faqCategories = [
       },
       {
         q: 'Posso repetir um módulo já concluído?',
-        a: 'Sim! Podes usar o modo "Rever" para praticar exercícios que já acertaste, sem alterar a tua pontuação original ou prejudicar as tuas estatísticas.',
+        a: 'Sim! Podes usar o Modo Estudo para rever todos os exercícios de um livro sem afetar a tua pontuação ou estatísticas. Encontra-o na página do livro.',
       }
     ]
   },
@@ -205,7 +205,7 @@ const filteredFaqCategories = computed(() => {
   <section class="help">
 
     <!-- Hero -->
-    <div class="hero">
+    <div class="hero" data-tour="help-hero">
       <div class="hero-icon-wrap">
         <QuestionMarkCircleIcon class="hero-icon" aria-hidden="true" />
       </div>
@@ -258,7 +258,7 @@ const filteredFaqCategories = computed(() => {
           <span>Exercícios</span>
         </div>
         <h2>Tipos de exercício</h2>
-        <p class="section-sub">A plataforma suporta quatro formatos de exercício, gerados por IA a partir do conteúdo
+        <p class="section-sub">A plataforma suporta dois formatos de exercício, gerados por IA a partir do conteúdo
           dos livros.</p>
       </div>
       <div class="exercise-types-grid">
@@ -651,14 +651,99 @@ const filteredFaqCategories = computed(() => {
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 53.75em) {
+  .hero {
+    padding: var(--space-400);
+  }
+
+  .hero-text h1 {
+    font-size: clamp(1.375rem, 4vw, 1.75rem);
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 37.5em) {
+  .help {
+    gap: var(--space-500);
+  }
+
   .hero {
     flex-direction: column;
-    gap: var(--space-400);
+    gap: var(--space-300);
+    padding: var(--space-300);
+  }
+
+  .hero-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .hero-icon {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+
+  .hero-text {
+    min-width: 0;
+  }
+
+  .hero-text h1 {
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+  }
+
+  .hero-sub {
+    font-size: 0.875rem;
   }
 
   .hero-chips {
     margin-left: 0;
+  }
+
+  .section {
+    gap: var(--space-400);
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-types-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exercise-type-card {
+    padding: var(--space-300);
+  }
+
+  /* FAQ filters — scroll horizontal */
+  .faq-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-100);
+    scrollbar-width: none;
+  }
+
+  .faq-filters::-webkit-scrollbar { display: none; }
+
+  .category-title {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 25em) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-content {
+    padding: var(--space-300);
   }
 }
 </style>
