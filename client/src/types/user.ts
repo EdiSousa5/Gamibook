@@ -18,4 +18,5 @@ export type User = {
   avatar_effect?: string
   avatar_shadow?: string
   background_theme?: string
+  onboarding_completed?: boolean | null
 }

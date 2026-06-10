@@ -3,6 +3,7 @@ import { onMounted, ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { fetchUserPointsHistoryList, type PointsHistoryEntry } from '@/services/exercises'
 import { StarIcon, CalendarDaysIcon, FireIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 
 const auth = useAuthStore()
 const entries = ref<PointsHistoryEntry[]>([])
@@ -165,23 +166,31 @@ onMounted(async () => {
       <!-- Filtros de fonte -->
       <div class="filter-group">
         <span class="filter-group__label">Tipo</span>
-        <div class="filter-bar">
-          <button class="filter-btn" :class="{ active: sourceFilter === 'all' }" @click="setSource('all')">Todos</button>
-          <button class="filter-btn" :class="{ active: sourceFilter === 'exercise' }" @click="setSource('exercise')">Exercícios</button>
-          <button class="filter-btn" :class="{ active: sourceFilter === 'daily' }" @click="setSource('daily')">Diários</button>
-        </div>
+        <UiSegmented
+          :model-value="sourceFilter"
+          :options="[
+            { label: 'Todos', value: 'all' },
+            { label: 'Exercícios', value: 'exercise' },
+            { label: 'Diários', value: 'daily' },
+          ]"
+          @update="setSource($event as SourceFilter)"
+        />
       </div>
 
       <!-- Filtros de período -->
       <div class="filter-group">
         <span class="filter-group__label">Período</span>
-        <div class="filter-bar">
-          <button class="filter-btn" :class="{ active: periodFilter === 'all' }" @click="setPeriod('all')">Tudo</button>
-          <button class="filter-btn" :class="{ active: periodFilter === 'today' }" @click="setPeriod('today')">Hoje</button>
-          <button class="filter-btn" :class="{ active: periodFilter === 'week' }" @click="setPeriod('week')">Semana</button>
-          <button class="filter-btn" :class="{ active: periodFilter === 'month' }" @click="setPeriod('month')">Mês</button>
-          <button class="filter-btn" :class="{ active: periodFilter === 'custom' }" @click="setPeriod('custom')">Intervalo</button>
-        </div>
+        <UiSegmented
+          :model-value="periodFilter"
+          :options="[
+            { label: 'Tudo', value: 'all' },
+            { label: 'Hoje', value: 'today' },
+            { label: 'Semana', value: 'week' },
+            { label: 'Mês', value: 'month' },
+            { label: 'Intervalo', value: 'custom' },
+          ]"
+          @update="setPeriod($event as PeriodFilter)"
+        />
       </div>
 
       <!-- Date range picker (custom) -->
@@ -385,35 +394,6 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--color-mirage-500);
-}
-
-.filter-bar {
-  display: flex;
-  gap: var(--space-150);
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--font-base);
-  color: var(--color-mirage-600);
-  cursor: pointer;
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  transition: background 0.12s ease, transform 0.12s ease;
-}
-
-.filter-btn:hover { background: var(--color-wild-200); }
-
-.filter-btn.active {
-  background: var(--color-deep-100);
-  border-color: var(--color-deep-600);
-  color: var(--color-deep-700);
-  box-shadow: 2px 2px 0 var(--color-deep-300);
 }
 
 /* ── Date range ── */

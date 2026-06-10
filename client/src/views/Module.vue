@@ -221,17 +221,25 @@ watch(
     (nextExercise, previousExercise) => {
         if (!nextExercise || nextExercise === previousExercise) return
         resetQuestionState()
+        if (!isCurrentEligible.value) {
+            toast.info('Este exercício não conta para XP nem streak.')
+        }
     },
 )
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
     if (viewState.value !== 'runner' || !pendingResults.value.length) return true
-    return openConfirm(
+    const ok = await openConfirm(
         'Sair do quiz?',
-        'Se saíres agora, as respostas desta sessão não serão guardadas.',
+        'As respostas já realizadas serão guardadas. Queres mesmo sair?',
         'Sair',
         'Ficar',
     )
+    if (!ok) return false
+    isSaving.value = true
+    await persistResults()
+    isSaving.value = false
+    return true
 })
 </script>
 
@@ -243,7 +251,7 @@ onBeforeRouteLeave(() => {
                 <p class="meta">{{ book?.title || `Livro ${bookId}` }}</p>
                 <span v-if="viewState !== 'setup'" class="mode-pill">{{ modeLabel }}</span>
             </div>
-            <UiButton v-if="viewState === 'runner'" variant="outline" class="quit-btn" @click="quitSession">
+            <UiButton v-if="viewState === 'runner'" variant="outline" size="sm" class="quit-btn" @click="quitSession">
                 <XMarkIcon class="quit-icon" aria-hidden="true" />
                 Terminar quiz
             </UiButton>
@@ -358,7 +366,6 @@ onBeforeRouteLeave(() => {
                             class="status-pill done">Ja respondido</span>
                         <span v-else-if="currentExerciseStatus === 'wrong'"
                             class="status-pill warn">Falhou antes</span>
-                        <span v-if="!isCurrentEligible" class="status-pill no-xp">Sem XP · sem streak</span>
                         <UiResultPill v-if="feedback" :result="feedback.type" :points="feedback.points" />
                         <div v-else-if="!isTrueFalse" class="attempts-pill">{{ attemptsLabel }}</div>
                     </div>
@@ -410,6 +417,7 @@ onBeforeRouteLeave(() => {
 .runner-titles {
     display: grid;
     gap: var(--space-100);
+    min-width: 0;
 }
 
 .mode-pill {
@@ -528,11 +536,6 @@ onBeforeRouteLeave(() => {
     background: var(--color-deep-100);
 }
 
-.status-pill.no-xp {
-    background: var(--color-wild-300);
-    border-color: var(--color-mirage-400);
-    color: var(--color-mirage-500);
-}
 
 .question-num {
     color: var(--color-teal-600);
@@ -891,6 +894,11 @@ onBeforeRouteLeave(() => {
         flex-shrink: 0;
     }
 
+    .mode-pill {
+        font-size: 9px;
+        padding: 3px 8px;
+    }
+
     .summary-list {
         gap: var(--space-150);
     }
@@ -922,9 +930,6 @@ onBeforeRouteLeave(() => {
         font-size: 11px;
     }
 
-    .quit-btn :deep(.ui-button-label) {
-        display: none;
-    }
 
     .runner-top {
         gap: var(--space-100);

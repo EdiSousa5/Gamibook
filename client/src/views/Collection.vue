@@ -271,7 +271,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="collection" ref="collectionRef">
+  <section class="collection" ref="collectionRef" data-tour="collection-main">
     <div class="header">
       <div>
         <h1>Catálogo de Livros</h1>
@@ -526,12 +526,12 @@ onUnmounted(() => {
   perspective: 500px;
 }
 
-/* Estante Principal (Sai para fora do cartão) */
+/* Estante Principal (alinhada com o stroke do cartão) */
 .estante-wrapper.grande {
   left: 0 !important;
   bottom: auto !important;
-  margin: -12px -24px var(--space-600);
-  width: calc(100% + 48px);
+  margin: -12px -2px var(--space-600);
+  width: calc(100% + 4px);
 }
 
 :deep(.estante-wrapper.grande .estante-topo) {
@@ -732,14 +732,14 @@ onUnmounted(() => {
   }
 
   /* No mobile, a prateleira usa position: relative para ficar no fluxo normal
-     e margens negativas para sair do card, sem clipagem por overflow-x */
+     e margens negativas para sair do card, alinhada com o stroke externo */
   :deep(.estante-wrapper.grande) {
     position: relative !important;
     left: auto !important;
     bottom: auto !important;
-    width: calc(100% + 24px) !important;
-    margin-left: -12px !important;
-    margin-right: -12px !important;
+    width: calc(100% + 4px) !important;
+    margin-left: -2px !important;
+    margin-right: -2px !important;
     margin-top: -6px !important;
     margin-bottom: var(--space-300) !important;
   }
@@ -757,14 +757,13 @@ onUnmounted(() => {
     margin-bottom: 0;
     align-self: flex-end;
     flex-shrink: 0;
-    transform: none;
+    transform: translateY(4px);
   }
 
-  /* Reduzir livro do destaque para não roubar espaço ao texto */
   .destaque-visual :deep(.book-scene.lg .book) {
-    width: 90px;
-    height: 130px;
-    --d: 18px;
+    width: 104px;
+    height: 150px;
+    --d: 20px;
   }
 
   .destaque-info {
@@ -831,9 +830,9 @@ onUnmounted(() => {
 
 @media (max-width: 30em) {
   .destaque-visual :deep(.book-scene.lg .book) {
-    width: 76px;
-    height: 110px;
-    --d: 15px;
+    width: 84px;
+    height: 122px;
+    --d: 17px;
   }
 
   .livro-item {

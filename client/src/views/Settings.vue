@@ -113,7 +113,12 @@ const isActive = (path: string) => route.path === path
 
   .side-nav-wrap {
     position: relative;
-    /* o ::after usa position:absolute e precisa de um ancestor positioned */
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    border-radius: var(--radius-200);
+    padding: var(--space-150);
+    box-shadow: 4px 4px 0 var(--color-shadow);
+    overflow: hidden;
   }
 
   .side-nav-wrap::after {
@@ -121,9 +126,9 @@ const isActive = (path: string) => route.path === path
     position: absolute;
     right: 0;
     top: 0;
-    height: calc(100% - var(--space-100));
-    width: 52px;
-    background: linear-gradient(to right, transparent, var(--color-wild-300, #f3f7f8));
+    height: 100%;
+    width: 48px;
+    background: linear-gradient(to right, transparent, var(--color-wild-100));
     pointer-events: none;
     z-index: 2;
   }
@@ -133,11 +138,10 @@ const isActive = (path: string) => route.path === path
     overflow-x: auto;
     overflow-y: visible;
     gap: var(--space-150);
-    padding-bottom: var(--space-100);
-    padding-right: var(--space-700);
+    padding-bottom: 0;
+    padding-right: var(--space-600);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    /* garantir que os itens não encolhem */
     flex-wrap: nowrap;
   }
 

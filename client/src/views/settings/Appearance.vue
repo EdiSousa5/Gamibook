@@ -206,7 +206,7 @@ const filteredUnlockables = computed(() => {
 </script>
 
 <template>
-  <div class="settings-section">
+  <div class="settings-section" data-tour="settings-appearance">
     <div class="section-heading">
       <div>
         <h2>Aparência</h2>

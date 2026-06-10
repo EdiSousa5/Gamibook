@@ -205,7 +205,7 @@ const filteredFaqCategories = computed(() => {
   <section class="help">
 
     <!-- Hero -->
-    <div class="hero">
+    <div class="hero" data-tour="help-hero">
       <div class="hero-icon-wrap">
         <QuestionMarkCircleIcon class="hero-icon" aria-hidden="true" />
       </div>

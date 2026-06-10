@@ -7,6 +7,7 @@ import UiButton from './components/ui/UiButton.vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import LevelUpModal from './components/ui/LevelUpModal.vue'
 import BookUnlockModal from './components/ui/BookUnlockModal.vue'
+import OnboardingTour, { type TourStep } from './components/OnboardingTour.vue'
 import UiToast from './components/ui/UiToast.vue'
 import { useToast } from './composables/useToast'
 import { useAuthStore } from './stores/auth'
@@ -14,6 +15,7 @@ import { useNotificationsStore } from './stores/notifications'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
 import { setUnauthorizedHandler } from './services/client'
+import { updateUser } from './services/auth'
 import { DAILY_UNLOCK_LEVEL, LEVELS_WITH_UNLOCKS } from './utils/constants'
 
 const router = useRouter()
@@ -40,8 +42,8 @@ const navItems = computed(() => {
   if (isAdmin.value) {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
-      { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate' },
-      { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide' },
+      { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate', dataTour: 'nav-generate' },
+      { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide', dataTour: 'nav-guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
     ]
@@ -54,6 +56,157 @@ const navItems = computed(() => {
     { label: 'Definições', to: '/settings', icon: 'settings' },
   ]
 })
+
+// ── Role helpers ─────────────────────────────────────────
+const userRole = computed(() => {
+  const role = auth.user?.role
+  const name = typeof role === 'string' ? role : (typeof role === 'object' && role ? role.name : null)
+  return name?.trim().toLowerCase() ?? null
+})
+
+const isEditorRole = computed(() =>
+  userRole.value !== null && ['editora', 'autor'].includes(userRole.value),
+)
+
+// ── Onboarding steps ─────────────────────────────────────
+const USER_STEPS: TourStep[] = [
+  {
+    hero: true,
+    title: 'Bem-vindo ao GamiBook!',
+    description: 'Aprende para além das páginas do livro — responde exercícios, ganha XP e sobe de nível. Vamos mostrar-te tudo em menos de um minuto!',
+    route: '/app',
+  },
+  {
+    selector: '[data-tour="sidebar"]',
+    title: 'Barra de Navegação',
+    description: 'O teu ponto de partida. Navega entre a Página Principal, Classificação, Catálogo de Livros, Ajuda e Definições.',
+    placement: 'right',
+    route: '/app',
+  },
+  {
+    selector: '[data-tour="profile"]',
+    title: 'O Teu Perfil',
+    description: 'O teu nível, XP acumulado, streak diário e estatísticas pessoais — tudo cresce automaticamente à medida que completas exercícios.',
+    placement: 'bottom',
+    route: '/app',
+  },
+  {
+    selector: '[data-tour="daily"]',
+    title: 'Desafio Diário',
+    description: 'Uma nova pergunta todos os dias! Responde para manter o streak ativo e ganhar XP extra. Desbloqueias ao atingir o nível 3.',
+    placement: 'top',
+    route: '/app',
+  },
+  {
+    selector: '[data-tour="topbar-qr"]',
+    title: 'Código QR',
+    description: 'Usa este botão para ler o código QR de um livro e adicioná-lo à tua coleção. Peça o código ao teu professor ou escola.',
+    placement: 'bottom',
+    route: '/app',
+  },
+  {
+    selector: '[data-tour="collection-main"]',
+    title: 'Catálogo de Livros',
+    description: 'Aqui vês os livros que tens e os que ainda não tens. Entra num livro para ver os módulos, responder exercícios e conquistar badges.',
+    placement: 'bottom',
+    route: '/collection',
+  },
+  {
+    selector: '[data-tour="leaderboard-main"]',
+    title: 'Classificação',
+    description: 'Compara-te com todos os outros utilizadores. Ganha XP nos exercícios para subires no ranking — por semana, mês, ano ou desde sempre.',
+    placement: 'bottom',
+    route: '/leaderboard',
+  },
+  {
+    selector: '[data-tour="help-hero"]',
+    title: 'Centro de Ajuda',
+    description: 'Tens dúvidas sobre como funciona a plataforma? Aqui encontras respostas a todas as perguntas frequentes.',
+    placement: 'bottom',
+    route: '/help',
+  },
+  {
+    selector: '[data-tour="settings-appearance"]',
+    title: 'Personalização',
+    description: 'Personaliza o teu avatar e o fundo da plataforma. Novos temas e molduras desbloqueiam automaticamente à medida que sobes de nível!',
+    placement: 'top',
+    route: '/settings/aparencia',
+  },
+  {
+    title: 'Estás pronto para começar!',
+    description: 'Explora o catálogo, responde exercícios, conquista badges e sobe no ranking. Boa sorte na tua jornada!',
+    route: '/app',
+  },
+]
+
+const ADMIN_STEPS: TourStep[] = [
+  {
+    title: 'Bem-vindo ao Painel de Gestão!',
+    description: 'Como editor ou autor, tens acesso a ferramentas exclusivas para criares e gerires conteúdo. Vamos fazer uma visita rápida!',
+    route: '/admin',
+  },
+  {
+    selector: '[data-tour="sidebar"]',
+    title: 'Navegação de Gestão',
+    description: 'A tua barra de navegação. Tens acesso ao Painel Admin, Gerador de Exercícios, Guia de Utilização e Definições.',
+    placement: 'right',
+    route: '/admin',
+  },
+  {
+    selector: '[data-tour="nav-generate"]',
+    title: 'Gerador de Exercícios',
+    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo. Tens uma quota de 50 exercícios por dia.',
+    placement: 'right',
+    route: '/admin',
+  },
+  {
+    selector: '[data-tour="generator-workspace"]',
+    title: 'Como Funciona o Gerador',
+    description: 'Seleciona um livro, escolhe os módulos que precisam de exercícios e configura os parâmetros. A IA gera e tu aprovais.',
+    placement: 'bottom',
+    route: '/exercise-generator',
+  },
+  {
+    selector: '[data-tour="nav-guide"]',
+    title: 'Guia de Utilização',
+    description: 'Tens dúvidas? O guia explica todo o processo de criação e aprovação de exercícios com exemplos detalhados.',
+    placement: 'right',
+    route: '/admin',
+  },
+  {
+    title: 'Pronto para criar conteúdo!',
+    description: 'Começa pelo Gerador de Exercícios, revê o que foi gerado e publica o melhor conteúdo. Bom trabalho!',
+    route: '/admin',
+  },
+]
+
+// ── Onboarding visibility ────────────────────────────────
+const showUserOnboarding = computed(() => {
+  if (!isAuthed.value || isAdmin.value || showLanding.value) return false
+  if (!auth.user?.id) return false
+  return auth.user.onboarding_completed === false
+})
+
+const showAdminOnboarding = computed(() => {
+  if (!isAuthed.value || !isEditorRole.value || showLanding.value) return false
+  if (!auth.user?.id) return false
+  return auth.user.onboarding_completed === false
+})
+
+const showOnboarding = computed(() => showUserOnboarding.value || showAdminOnboarding.value)
+
+const onboardingSteps = computed(() =>
+  isEditorRole.value ? ADMIN_STEPS : USER_STEPS,
+)
+
+async function completeOnboarding() {
+  const userId = auth.user?.id ? String(auth.user.id) : null
+  if (!userId) return
+  try {
+    await updateUser(userId, { onboarding_completed: true })
+    if (auth.user) auth.user.onboarding_completed = true
+  } catch { /* silent */ }
+}
 
 const onNavClick = async (label: string) => {
   if (label === 'Sair da conta') {
@@ -178,6 +331,7 @@ watch(
 
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
+  <OnboardingTour v-if="showOnboarding" :steps="onboardingSteps" @done="completeOnboarding" />
 
   <Teleport to="body">
     <div class="toast-container">

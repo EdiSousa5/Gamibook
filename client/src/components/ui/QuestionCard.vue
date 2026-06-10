@@ -155,19 +155,20 @@ defineProps<{
   }
 
   .question-top {
-    align-items: flex-start;
-    text-align: left;
+    align-items: center;
+    text-align: center;
     margin-top: var(--space-300);
   }
 
   .question-title {
     font-size: 18px;
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .question-text {
     font-size: 15px;
     line-height: 1.5;
+    text-align: center;
   }
 
   .question-timer {

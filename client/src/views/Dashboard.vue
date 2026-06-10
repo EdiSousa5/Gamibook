@@ -308,7 +308,7 @@ onUnmounted(() => {
     </header>
 
     <!-- ── PROFILE CARD ───────────────────────────────────── -->
-    <section class="profile-card">
+    <section class="profile-card" data-tour="profile">
       <template v-if="isLoadingProfile && !user">
         <div class="profile-top">
           <UiSkeleton width="6.25rem" height="6.25rem" radius="22px" />
@@ -396,7 +396,7 @@ onUnmounted(() => {
     <div class="two-col">
 
       <!-- DESAFIO DIÁRIO -->
-      <section class="daily-card" :class="`daily-card--${dailyStatus}`">
+      <section class="daily-card" :class="`daily-card--${dailyStatus}`" data-tour="daily">
         <div class="daily-top">
           <div>
             <h2 class="daily-heading">Desafio Diário</h2>
@@ -462,7 +462,7 @@ onUnmounted(() => {
       </section>
 
       <!-- RETOMAR APRENDIZAGEM -->
-      <section class="resume-card">
+      <section class="resume-card" data-tour="resume">
         <h2 class="resume-heading">Retomar Aprendizagem</h2>
 
         <div v-if="isLoadingProfile && !recentBook" class="resume-skeleton">

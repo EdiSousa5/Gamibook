@@ -208,7 +208,7 @@ watch(timeFilter, () => {
 </script>
 
 <template>
-  <section class="rankings">
+  <section class="rankings" data-tour="leaderboard-main">
     <div class="filters-wrapper">
       <div class="filters-card">
         <div class="filters-card-row">

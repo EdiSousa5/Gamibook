@@ -19,6 +19,7 @@ const USER_FIELDS = [
   'avatar_effect',
   'avatar_shadow',
   'background_theme',
+  'onboarding_completed',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {

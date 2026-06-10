@@ -358,9 +358,11 @@ onBeforeUnmount(() => {
           </div>
         </Transition>
       </div>
-      <UiIconButton v-if="!isAdmin" variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
-        <QrCodeIcon class="icon" aria-hidden="true" />
-      </UiIconButton>
+      <span v-if="!isAdmin" data-tour="topbar-qr">
+        <UiIconButton variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
+          <QrCodeIcon class="icon" aria-hidden="true" />
+        </UiIconButton>
+      </span>
       <div class="profile" ref="profileRef">
         <button class="profile-button" :class="{ 'is-open': menuOpen }" type="button" @click="toggleMenu">
           <UiAvatar
