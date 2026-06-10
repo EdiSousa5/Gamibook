@@ -32,7 +32,7 @@ import BookUnlockModal from '@/components/ui/BookUnlockModal.vue'
 import UiConfirmModal from '@/components/ui/UiConfirmModal.vue'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import type { Book } from '@/types'
-import wintonUrl from '@/assets/images/winton.webp'
+import wintonUrl from '@/assets/images/winton.jpg'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow, AvatarCracha } from '@/types/avatar'
 import {
   BellAlertIcon,

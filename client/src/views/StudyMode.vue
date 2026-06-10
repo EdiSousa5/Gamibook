@@ -1956,7 +1956,6 @@ onUnmounted(stopTimer)
 
 @media (max-width: 560px) {
   .options-grid {
-    grid-template-columns: 1fr;
     gap: 12px;
   }
 

@@ -77,28 +77,6 @@ function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
 type PeekEntry = LeaderboardEntry & { globalRank: number }
 const peekEntry = ref<PeekEntry | null>(null)
 
-const searchModalOpen = ref(false)
-const searchQuery = ref('')
-
-const filteredSearchResults = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return topGlobal.value
-  return topGlobal.value.filter(u => {
-    const name = [u.first_name, u.last_name].filter(Boolean).join(' ').toLowerCase()
-    return name.includes(q) || (u.email ?? '').toLowerCase().includes(q)
-  })
-})
-
-function openSearchModal() {
-  searchQuery.value = ''
-  searchModalOpen.value = true
-}
-
-function handleSearchSelect(entry: LeaderboardEntry & { globalRank: number }) {
-  searchModalOpen.value = false
-  goToProfile(String(entry.id))
-}
-
 onMounted(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }))
 const displayUserName = (entry?: User | null) => {
   if (!entry) return '—'

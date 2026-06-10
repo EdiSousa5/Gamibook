@@ -348,21 +348,6 @@ watch(
       </TransitionGroup>
     </div>
   </Teleport>
-  <!-- SVG color blindness filters (hidden) -->
-  <svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
-    <defs>
-      <filter id="cb-deuteranopia" color-interpolation-filters="sRGB">
-        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.700 0.300 0 0 0  0 0.300 0.700 0 0  0 0 0 1 0" />
-      </filter>
-      <filter id="cb-protanopia" color-interpolation-filters="sRGB">
-        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0" />
-      </filter>
-      <filter id="cb-tritanopia" color-interpolation-filters="sRGB">
-        <feColorMatrix type="matrix" values="0.950 0.050 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0" />
-      </filter>
-    </defs>
-  </svg>
-
   <div class="skip-links" aria-label="Navegação rápida">
     <a class="skip-link" href="#main-content">Saltar para o conteúdo principal</a>
     <a class="skip-link" href="#main-nav">Saltar para a navegação</a>

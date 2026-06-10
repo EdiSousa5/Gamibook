@@ -56,14 +56,8 @@ const totalBadgeScore = computed(() =>
   }, 0)
 )
 
-const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
-
-const totalBadgeScore = computed(() =>
-  userBooks.value.reduce((sum, ub) => {
-    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
-    if (!badge || badge === 'default') return sum
-    return sum + (BADGE_WEIGHTS[badge] ?? 0)
-  }, 0)
+const totalBadges = computed(() =>
+  Object.values(badgeCounts.value).reduce((sum, c) => sum + c, 0)
 )
 
 const getBookCover = (ub: UserBook) => {
