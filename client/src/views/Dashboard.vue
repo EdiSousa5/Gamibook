@@ -339,7 +339,7 @@ onUnmounted(() => {
       </template>
 
       <template v-else>
-        <div class="profile-head">
+        <div class="profile-head" data-tour="profile-head">
           <UiAvatar
             :src="avatarUrl || undefined"
             :alt="getUserDisplayName(user).charAt(0)"

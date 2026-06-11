@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CheckIcon, LockClosedIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import {
+  CheckIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  InformationCircleIcon,
+  XMarkIcon,
+  PaintBrushIcon,
+  SparklesIcon,
+  SwatchIcon,
+  PhotoIcon,
+  FilmIcon,
+} from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { updateUser } from '@/services/auth'
 import { useToast } from '@/composables/useToast'
@@ -218,10 +229,20 @@ const levelGroups = computed(() => {
   return groups
 })
 
+const CATEGORIES = computed(() => [...new Set(ALL_UNLOCKABLES.value.map(r => r.category))])
+
 const categoryOptions = computed(() => [
   { label: 'Todas as categorias', value: '' },
-  ...CATEGORIES.value.map(c => ({ label: c, value: c })),
+  ...CATEGORIES.value.map((c: string) => ({ label: c, value: c })),
 ])
+
+function isRowUnlocked(row: UnlockRow): boolean {
+  return isAdmin.value || devUnlockAll.value || userLevel.value >= row.minLevel
+}
+
+function levelUnlocked(level: number): boolean {
+  return isAdmin.value || devUnlockAll.value || userLevel.value >= level
+}
 
 const filteredUnlockables = computed(() => {
   const specificLevel = filterSpecificLevel.value ? parseInt(filterSpecificLevel.value, 10) : null
@@ -244,6 +265,10 @@ const filteredUnlockables = computed(() => {
     return true
   })
 })
+
+const sortedLevelKeys = computed(() =>
+  Object.keys(levelGroups.value).map(Number).sort((a, b) => a - b),
+)
 </script>
 
 <template>

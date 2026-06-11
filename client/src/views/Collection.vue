@@ -351,7 +351,7 @@ onUnmounted(() => {
         <template v-if="showOwnedSection && displayedOwnedBooks.length">
           <div v-for="(shelf, index) in visibleOwnedShelves" :key="'owned-shelf-' + index">
             <div class="lista-wrapper">
-              <h3 v-if="index === 0" class="titulo-secao">A Tua Coleção</h3>
+              <h3 v-if="index === 0" class="titulo-secao" data-tour="collection-owned">A Tua Coleção</h3>
 
               <div class="livros-fila">
                 <div v-for="book in shelf" :key="book.book_id" class="livro-item"
@@ -381,7 +381,7 @@ onUnmounted(() => {
         <template v-if="showMissingSection && displayedMissingBooks.length">
           <div v-for="(shelf, index) in visibleMissingShelves" :key="'missing-shelf-' + index">
             <div class="lista-wrapper">
-              <h3 v-if="index === 0" class="titulo-secao">Livros que Não Tens</h3>
+              <h3 v-if="index === 0" class="titulo-secao" data-tour="collection-missing">Livros que Não Tens</h3>
 
               <div class="livros-fila">
                 <div v-for="book in shelf" :key="book.book_id" class="livro-item is-not-owned"

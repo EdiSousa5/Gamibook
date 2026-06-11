@@ -312,7 +312,7 @@ watch(
   <section class="book-page">
 
     <!-- HERO -->
-    <header class="book-hero">
+    <header class="book-hero" data-tour="book-hero">
       <div class="book-hero__info">
         <UiChip label="Biblioteca" variant="outline" />
         <h1 class="book-title">{{ book?.title || 'A carregar...' }}</h1>
@@ -326,7 +326,7 @@ watch(
     </header>
 
     <!-- BADGES -->
-    <section v-if="approvedModules.length && !isLoading" class="badge-roadmap">
+    <section v-if="approvedModules.length && !isLoading" class="badge-roadmap" data-tour="book-badges">
       <div class="roadmap-header">
         <div class="roadmap-header__text">
           <h2>Badges</h2>
@@ -405,7 +405,7 @@ watch(
     </section>
 
     <!-- MODULES -->
-    <section class="modules-section">
+    <section class="modules-section" data-tour="book-modules">
       <div class="modules-header">
         <h2>Módulos</h2>
         <span v-if="approvedModules.length && !isLoading" class="modules-pill">
@@ -612,7 +612,7 @@ watch(
     </section>
 
     <!-- FINAL QUIZ -->
-    <section v-if="userBook && !isLoading" ref="quizSectionRef" class="quiz-section">
+    <section v-if="userBook && !isLoading" ref="quizSectionRef" class="quiz-section" data-tour="book-quiz">
       <div class="modules-header">
         <h2>Quiz Final</h2>
       </div>

@@ -14,8 +14,9 @@ import { useAuthStore } from './stores/auth'
 import { useNotificationsStore } from './stores/notifications'
 import { storeToRefs } from 'pinia'
 import type { Book } from './types'
-import { setUnauthorizedHandler } from './services/client'
+import { setUnauthorizedHandler, getAssetUrl } from './services/client'
 import { updateUser } from './services/auth'
+import { fetchBook } from './services/books'
 import { DAILY_UNLOCK_LEVEL, LEVELS_WITH_UNLOCKS } from './utils/constants'
 
 const router = useRouter()
@@ -32,6 +33,9 @@ const canGoBack = ref(false)
 
 const unlockVisible = ref(false)
 const unlockedBook = ref<Book | null>(null)
+
+const DEMO_BOOK_ID = 14
+const demoCoverUrl = ref<string | undefined>(undefined)
 
 const handleBookUnlocked = (book: Book) => {
   unlockedBook.value = book
@@ -53,7 +57,7 @@ const navItems = computed(() => {
     { label: 'Classificação', to: '/leaderboard', icon: 'rank' },
     { label: 'Catálogo de Livros', to: '/collection', icon: 'books' },
     { label: 'Ajuda', to: '/help', icon: 'help' },
-    { label: 'Definições', to: '/settings', icon: 'settings' },
+    { label: 'Definições', to: '/settings', icon: 'settings', dataTour: 'nav-settings' },
   ]
 })
 
@@ -72,8 +76,8 @@ const isEditorRole = computed(() =>
 const USER_STEPS: TourStep[] = [
   {
     hero: true,
-    title: 'Bem-vindo ao GamiBook!',
-    description: 'Aprende para além das páginas do livro — responde exercícios, ganha XP e sobe de nível. Vamos mostrar-te tudo em menos de um minuto!',
+    title: 'Bem-vindo!',
+    description: 'Aprende para além das páginas do livro — responde exercícios, ganha XP e sobe de nível. Vamos mostrar-te como funciona em menos de um minuto!',
     route: '/app',
   },
   {
@@ -82,13 +86,15 @@ const USER_STEPS: TourStep[] = [
     description: 'O teu ponto de partida. Navega entre a Página Principal, Classificação, Catálogo de Livros, Ajuda e Definições.',
     placement: 'right',
     route: '/app',
+    spotlightRadius: '0px',
   },
   {
-    selector: '[data-tour="profile"]',
+    selector: '[data-tour="profile-head"]',
     title: 'O Teu Perfil',
     description: 'O teu nível, XP acumulado, streak diário e estatísticas pessoais — tudo cresce automaticamente à medida que completas exercícios.',
     placement: 'bottom',
     route: '/app',
+    spotlightRadius: '14px',
   },
   {
     selector: '[data-tour="daily"]',
@@ -96,20 +102,73 @@ const USER_STEPS: TourStep[] = [
     description: 'Uma nova pergunta todos os dias! Responde para manter o streak ativo e ganhar XP extra. Desbloqueias ao atingir o nível 3.',
     placement: 'top',
     route: '/app',
+    spotlightRadius: '20px',
   },
   {
     selector: '[data-tour="topbar-qr"]',
-    title: 'Código QR',
-    description: 'Usa este botão para ler o código QR de um livro e adicioná-lo à tua coleção. Peça o código ao teu professor ou escola.',
+    title: 'Desbloquear um Livro',
+    description: 'Usa o botão QR para leres o código do teu livro físico e adicioná-lo à coleção. Peça o código ao teu professor ou escola.',
     placement: 'bottom',
     route: '/app',
+    demoType: 'qr-unlock',
+    spotlightRadius: '12px',
   },
   {
-    selector: '[data-tour="collection-main"]',
-    title: 'Catálogo de Livros',
-    description: 'Aqui vês os livros que tens e os que ainda não tens. Entra num livro para ver os módulos, responder exercícios e conquistar badges.',
+    selector: '[data-tour="collection-owned"]',
+    title: 'A Tua Coleção',
+    description: 'Aqui estão os livros que já tens. O "GamiBook — Guia da Plataforma" já está disponível — carrega nele para explorares módulos, exercícios e badges!',
     placement: 'bottom',
     route: '/collection',
+    spotlightRadius: '8px',
+  },
+  {
+    selector: '[data-tour="collection-missing"]',
+    title: 'Livros que Não Tens',
+    description: 'Estes livros ainda não estão na tua coleção. Para os desbloquear, pede o código QR ao teu professor ou escola e usa o botão QR no topo.',
+    placement: 'top',
+    route: '/collection',
+    spotlightRadius: '8px',
+  },
+  {
+    selector: '[data-tour="book-hero"]',
+    title: 'Página do Livro',
+    description: 'Cada livro mostra o teu progresso, percurso de badges e acesso a todos os módulos. Experimenta o "GamiBook — Guia da Plataforma"!',
+    placement: 'bottom',
+    route: '/book/14',
+    noScroll: true,
+    routeDelay: 1200,
+    spotlightRadius: '0px',
+  },
+  {
+    hero: true,
+    title: 'Responder Exercícios',
+    description: 'Em cada módulo encontras perguntas de escolha múltipla e verdadeiro/falso. Responde corretamente para ganhares XP!',
+    route: '/book/14',
+    demoType: 'exercise',
+  },
+  {
+    selector: '[data-tour="book-badges"]',
+    title: 'Sistema de Badges',
+    description: 'Ao completares módulos, sobres de tier: Bronze (25%) → Silver (50%) → Gold (75%) → Diamond (100%). Ao atingir Diamond, desbloqueias o Quiz Final para tentares o Galaxy!',
+    placement: 'bottom',
+    route: '/book/14',
+    spotlightRadius: '16px',
+  },
+  {
+    selector: '[data-tour="book-modules"]',
+    title: 'Módulos',
+    description: 'Os exercícios estão divididos em módulos por tema. Completa-os todos para avançar no percurso de badges e subir de nível.',
+    placement: 'top',
+    route: '/book/14',
+    spotlightRadius: '16px',
+  },
+  {
+    selector: '[data-tour="book-quiz"]',
+    title: 'Quiz Final & Modo Livre',
+    description: 'Ao atingir o Diamond, o Quiz Final com 10 perguntas fica disponível aqui. Também podes aceder ao Modo Livre para rever todos os exercícios sem pontuação.',
+    placement: 'top',
+    route: '/book/14',
+    spotlightRadius: '16px',
   },
   {
     selector: '[data-tour="leaderboard-main"]',
@@ -117,6 +176,8 @@ const USER_STEPS: TourStep[] = [
     description: 'Compara-te com todos os outros utilizadores. Ganha XP nos exercícios para subires no ranking — por semana, mês, ano ou desde sempre.',
     placement: 'bottom',
     route: '/leaderboard',
+    noScroll: true,
+    spotlightRadius: '0px',
   },
   {
     selector: '[data-tour="help-hero"]',
@@ -124,6 +185,16 @@ const USER_STEPS: TourStep[] = [
     description: 'Tens dúvidas sobre como funciona a plataforma? Aqui encontras respostas a todas as perguntas frequentes.',
     placement: 'bottom',
     route: '/help',
+    noScroll: true,
+    spotlightRadius: '0px',
+  },
+  {
+    selector: '[data-tour="nav-settings"]',
+    title: 'Definições',
+    description: 'Nas definições podes editar a tua conta, dados pessoais, notificações, aparência e preferências de privacidade.',
+    placement: 'right',
+    route: '/settings/conta',
+    spotlightRadius: '12px',
   },
   {
     selector: '[data-tour="settings-appearance"]',
@@ -131,6 +202,7 @@ const USER_STEPS: TourStep[] = [
     description: 'Personaliza o teu avatar e o fundo da plataforma. Novos temas e molduras desbloqueiam automaticamente à medida que sobes de nível!',
     placement: 'top',
     route: '/settings/aparencia',
+    spotlightRadius: '16px',
   },
   {
     title: 'Estás pronto para começar!',
@@ -243,6 +315,14 @@ function applyAccessibilitySettings() {
   if (contrastVal !== 'normal') html.setAttribute('data-contrast', contrastVal)
 }
 
+watch(showOnboarding, (active) => {
+  if (active && !demoCoverUrl.value) {
+    fetchBook(DEMO_BOOK_ID).then(book => {
+      if (book?.cover_img) demoCoverUrl.value = getAssetUrl(book.cover_img)
+    }).catch(() => { /* silent */ })
+  }
+})
+
 onMounted(() => {
   applyAccessibilitySettings()
   if (!showLanding.value) applyUserBg()
@@ -331,7 +411,7 @@ watch(
 
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
-  <OnboardingTour v-if="showOnboarding" :steps="onboardingSteps" @done="completeOnboarding" />
+  <OnboardingTour v-if="showOnboarding" :steps="onboardingSteps" :demo-cover-url="demoCoverUrl" @done="completeOnboarding" />
 
   <Teleport to="body">
     <div class="toast-container">
