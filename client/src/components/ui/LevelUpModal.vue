@@ -285,7 +285,7 @@ const borderClass = (item: UnlockItem) => {
               <p class="group-label">{{ group.label }}</p>
 
               <!-- Features (funcionalidades) -->
-              <div v-if="group.items[0].type === 'feature'" class="feature-list">
+              <div v-if="group.items[0]?.type === 'feature'" class="feature-list">
                 <div v-for="item in group.items" :key="item.label" class="feature-item">
                   <div class="feature-icon-wrap" aria-hidden="true">
                     <BoltIcon class="feature-icon" />
