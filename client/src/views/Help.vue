@@ -11,7 +11,7 @@ import {
   TrophyIcon,
   ChartBarIcon,
   StarIcon,
-  QrCodeIcon,
+  KeyIcon,
   QuestionMarkCircleIcon,
   ArrowRightIcon,
   LightBulbIcon,
@@ -64,9 +64,9 @@ const features = [
     chip: 'Progressão',
   },
   {
-    icon: QrCodeIcon,
-    title: 'QR Code',
-    desc: 'Lê o QR Code impresso na capa do livro físico para o adicionar à tua coleção digital. Usa a câmara ou carrega uma imagem.',
+    icon: KeyIcon,
+    title: 'Código de Ativação',
+    desc: 'Insere o código presente na tua fatura de compra para adicionar o livro à tua coleção digital. Usa o ícone de chave na barra superior.',
     to: null,
     cta: null,
     chip: 'Desbloqueio',
@@ -87,7 +87,7 @@ const exerciseTypes = [
 ]
 
 const steps = [
-  { label: 'Desbloqueia um livro', desc: 'Usa o leitor de QR Code para escanear a capa do livro físico e adicioná-lo à tua coleção.' },
+  { label: 'Desbloqueia um livro', desc: 'Usa o ícone de chave na barra superior para inserir o código de ativação que recebeste na fatura de compra.' },
   { label: 'Navega pelos módulos', desc: 'Acede ao livro na tua coleção e abre o primeiro módulo disponível.' },
   { label: 'Responde a exercícios', desc: 'Completa os exercícios de cada módulo. Precisas de um mínimo de respostas corretas para avançar.' },
   { label: 'Ganha XP e badges', desc: 'Cada resposta correta dá XP. Completa módulos para subir de nível e evoluir a badge do livro.' },
@@ -125,11 +125,11 @@ const faqCategories = [
     faqs: [
       {
         q: 'Como desbloqueio novos livros?',
-        a: 'Os livros são desbloqueados lendo o QR Code impresso na capa física do livro. Usa o botão de QR Code na barra superior — podes usar a câmara do dispositivo ou carregar uma imagem. Se tiveres dificuldade, pede a um administrador que adicione o livro à tua coleção.',
+        a: 'Os livros são desbloqueados com um código de ativação único fornecido na fatura de compra. Clica no ícone de chave na barra superior, insere o código e clica em "Ativar livro". O livro é adicionado imediatamente à tua coleção. Se tiveres dificuldade, contacta o teu administrador.',
       },
       {
-        q: 'O que fazer se o QR Code não for reconhecido?',
-        a: 'Assegura-te de que a imagem está nítida e bem iluminada. Tenta a opção de carregar uma fotografia em vez da câmara ao vivo. Se o problema persistir, a capa pode estar danificada — contacta um administrador para que adicione o livro manualmente à tua coleção.',
+        q: 'O que fazer se o código de ativação não for aceite?',
+        a: 'Verifica se copiaste o código exatamente como aparece na fatura, incluindo os hífens. Os códigos têm o formato XXXX-XXXX-XXXX (letras maiúsculas e números). Se o problema persistir, o código pode já ter sido utilizado ou pode estar incorreto — contacta o administrador da tua instituição.',
       },
       {
         q: 'Os módulos têm uma ordem obrigatória?',

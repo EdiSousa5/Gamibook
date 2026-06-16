@@ -46,7 +46,7 @@ const navItems = computed(() => {
   if (isAdmin.value) {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
-      { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate', dataTour: 'nav-generate' },
+      { label: 'Gerir Livros', to: '/exercise-generator', icon: 'books', dataTour: 'nav-generate' },
       { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide', dataTour: 'nav-guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },

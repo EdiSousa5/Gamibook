@@ -54,7 +54,7 @@ import { CogIcon, SparklesIcon, SwatchIcon, AcademicCapIcon } from '@heroicons/v
 import AdminActivityLog from '@/components/ui/AdminActivityLog.vue'
 
 const quickLinks = [
-  { label: 'Gerar exercícios', desc: 'Criar exercícios com IA', to: '/exercise-generator', icon: SparklesIcon },
+  { label: 'Gerir Livros', desc: 'Livros, módulos, códigos e exercícios', to: '/exercise-generator', icon: SparklesIcon },
   { label: 'Guia de utilização', desc: 'Manual para editoras e autores', to: '/admin/guide', icon: AcademicCapIcon },
   { label: 'Definições', desc: 'Configurações da conta', to: '/settings', icon: CogIcon },
   { label: 'UI Kit', desc: 'Componentes visuais', to: '/ui-kit', icon: SwatchIcon },
