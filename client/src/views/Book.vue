@@ -701,7 +701,7 @@ watch(
 
 .book-title {
   margin: 0;
-  font-size: 30px;
+  font-size: clamp(1.375rem, 4vw, 1.875rem);
   font-weight: 800;
   color: var(--color-mirage-800);
   line-height: 1.15;
@@ -1267,13 +1267,13 @@ watch(
 
 .quiz-card--reveal .quiz-card__icon,
 .quiz-card--unlocked .quiz-card__icon {
-  background: #0d0020;
-  box-shadow: 4px 4px 0 #0a001a;
+  background: var(--color-badge-galaxy);
+  box-shadow: 4px 4px 0 var(--color-badge-galaxy-shadow);
 }
 
 .quiz-card--cooldown .quiz-card__icon {
-  background: #0d0020;
-  box-shadow: 4px 4px 0 #0a001a;
+  background: var(--color-badge-galaxy);
+  box-shadow: 4px 4px 0 var(--color-badge-galaxy-shadow);
   opacity: 0.55;
 }
 

@@ -710,7 +710,7 @@ watch(timeFilter, () => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-200);
 }
 
 .out-of-top-divider {
@@ -756,6 +756,12 @@ watch(timeFilter, () => {
 
   100% {
     transform: scale(1);
+  }
+}
+
+@media (max-width: 60em) {
+  .podium {
+    max-width: 640px;
   }
 }
 

@@ -124,23 +124,23 @@ withDefaults(
 
 /* Gold — true gold yellow */
 .book-badge--gold {
-  --badge-bg: #FFD700;
-  --badge-shadow-color: #a67c00;
-  --badge-icon-color: #5c4e00;
+  --badge-bg: var(--color-badge-gold);
+  --badge-shadow-color: var(--color-badge-gold-shadow);
+  --badge-icon-color: var(--color-badge-gold-icon);
 }
 
 /* Diamond — icy crystal */
 .book-badge--diamond {
-  --badge-bg: #8bd6e4;
-  --badge-shadow-color: #2f5161;
-  --badge-icon-color: #374852;
+  --badge-bg: var(--color-badge-diamond);
+  --badge-shadow-color: var(--color-badge-diamond-shadow);
+  --badge-icon-color: var(--color-badge-diamond-icon);
 }
 
 /* Galaxy — deep violet cosmic */
 .book-badge--galaxy {
-  --badge-bg: #0d0020;
-  --badge-shadow-color: #3b0066;
-  --badge-icon-color: #ddb4fe;
+  --badge-bg: var(--color-badge-galaxy);
+  --badge-shadow-color: var(--color-badge-galaxy-shadow);
+  --badge-icon-color: var(--color-badge-galaxy-icon);
 }
 
 /* ── Diamond glint ─────────────────── */

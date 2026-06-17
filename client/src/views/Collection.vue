@@ -356,6 +356,7 @@ onUnmounted(() => {
               <div class="livros-fila">
                 <div v-for="book in shelf" :key="book.book_id" class="livro-item"
                   :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
+                  @keydown.enter="selectedBookId = book.book_id" @keydown.space.prevent="selectedBookId = book.book_id"
                   tabindex="0" role="button">
                   <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm"
                     :badge="badgeForBook(book.book_id)" />
@@ -386,6 +387,7 @@ onUnmounted(() => {
               <div class="livros-fila">
                 <div v-for="book in shelf" :key="book.book_id" class="livro-item is-not-owned"
                   :class="{ 'is-selected': book.book_id === selectedBookId }" @click="selectedBookId = book.book_id"
+                  @keydown.enter="selectedBookId = book.book_id" @keydown.space.prevent="selectedBookId = book.book_id"
                   tabindex="0" role="button">
                   <BookMockup :cover-url="getAssetUrl(book.cover_img)" :title="book.title" size="sm" />
                 </div>
@@ -526,12 +528,13 @@ onUnmounted(() => {
   perspective: 500px;
 }
 
-/* Estante Principal (alinhada com o stroke do cartão) */
+/* Estante Principal — sobressai dos limites do cartão */
 .estante-wrapper.grande {
-  left: 0 !important;
+  position: relative !important;
+  left: auto !important;
   bottom: auto !important;
-  margin: -12px -2px var(--space-600);
-  width: calc(100% + 4px);
+  margin: -12px -26px var(--space-600);
+  width: calc(100% + 52px);
 }
 
 :deep(.estante-wrapper.grande .estante-topo) {
@@ -541,16 +544,16 @@ onUnmounted(() => {
   border-top: none;
   border-bottom: none;
   transform-origin: bottom;
-  transform: rotateX(45deg);
+  transform: perspective(600px) rotateX(40deg);
 }
 
 :deep(.estante-wrapper.grande .estante-frente) {
-  height: 18px;
+  height: 20px;
   background: var(--color-deep-600);
   border: 2px solid var(--color-mirage-800);
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0 16px 20px -8px rgba(2, 29, 32, 0.5);
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 16px 24px -8px rgba(2, 29, 32, 0.6);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
@@ -731,15 +734,10 @@ onUnmounted(() => {
     gap: var(--space-300);
   }
 
-  /* No mobile, a prateleira usa position: relative para ficar no fluxo normal
-     e margens negativas para sair do card, alinhada com o stroke externo */
   :deep(.estante-wrapper.grande) {
-    position: relative !important;
-    left: auto !important;
-    bottom: auto !important;
-    width: calc(100% + 4px) !important;
-    margin-left: -2px !important;
-    margin-right: -2px !important;
+    width: calc(100% + 32px) !important;
+    margin-left: -16px !important;
+    margin-right: -16px !important;
     margin-top: -6px !important;
     margin-bottom: var(--space-300) !important;
   }

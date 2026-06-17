@@ -930,17 +930,16 @@ h2 {
 }
 
 .bg-selector {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 4rem));
   gap: var(--space-200);
 }
 
 .bg-btn {
   position: relative;
-  width: 3.75rem;
-  height: 3.75rem;
-  flex-shrink: 0;
-  border-radius: 12px;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-deep-800);
   cursor: pointer;
   box-shadow: 3px 3px 0 var(--color-deep-300);
@@ -1487,9 +1486,8 @@ h2 {
 }
 
 @media (max-width: 40em) {
-  .bg-btn {
-    width: 3.25rem;
-    height: 3.25rem;
+  .bg-selector {
+    grid-template-columns: repeat(auto-fill, minmax(2.75rem, 3.25rem));
   }
 
   .av-preview-box {

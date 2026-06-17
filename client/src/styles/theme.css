@@ -87,6 +87,17 @@
   --color-brand-black: #1a1a1a;
   --color-brand-white: #f5f5f5;
 
+  /* Badge tier brand colours (tier-specific, outside main palette) */
+  --color-badge-gold: #FFD700;
+  --color-badge-gold-shadow: #a67c00;
+  --color-badge-gold-icon: #5c4e00;
+  --color-badge-diamond: #8bd6e4;
+  --color-badge-diamond-shadow: #2f5161;
+  --color-badge-diamond-icon: #374852;
+  --color-badge-galaxy: #0d0020;
+  --color-badge-galaxy-shadow: #3b0066;
+  --color-badge-galaxy-icon: #ddb4fe;
+
   /* Tokens de layout responsivo */
   --nav-bottom-height: 64px;
 

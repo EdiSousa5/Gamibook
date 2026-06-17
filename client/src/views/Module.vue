@@ -906,6 +906,10 @@ onBeforeRouteLeave(async () => {
     .options {
         gap: 12px;
     }
+
+    .options-grid-2 {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 560px) {

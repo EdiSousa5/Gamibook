@@ -155,9 +155,9 @@ const classes = computed(() => {
 .cracha-level     { background: var(--color-deep-100);   color: var(--color-deep-700); border-color: var(--color-deep-500); box-shadow: 2px 2px 0 var(--color-deep-400); }
 .cracha-bronze    { background: var(--color-amber-300);  color: var(--color-amber-900); }
 .cracha-silver    { background: var(--color-mirage-200); color: var(--color-mirage-700); }
-.cracha-gold      { background: #FFD700;                  color: #5c4e00; }
-.cracha-diamond   { background: #8bd6e4;                  color: #374852; }
-.cracha-galaxy    { background: #0d0020;                  color: #ddb4fe; border-color: #4c1d95; box-shadow: 2px 2px 0 #3b0066; }
+.cracha-gold      { background: var(--color-badge-gold);     color: var(--color-badge-gold-icon); }
+.cracha-diamond   { background: var(--color-badge-diamond);  color: var(--color-badge-diamond-icon); }
+.cracha-galaxy    { background: var(--color-badge-galaxy);   color: var(--color-badge-galaxy-icon); border-color: var(--color-badge-galaxy-shadow); box-shadow: 2px 2px 0 var(--color-badge-galaxy-shadow); }
 
 .status {
   position: absolute;

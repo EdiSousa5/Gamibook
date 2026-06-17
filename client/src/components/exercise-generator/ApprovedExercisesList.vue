@@ -178,8 +178,7 @@ const getAnswer = (exercise: Exercise) => {
                 <div class="confirm-header">
                     <div class="confirm-icon-title">
                         <h3>Detalhes do Exercício</h3>
-                        <UiIconButton size="md" shape="square" variant="outline" @click="confirmRemove"
-                            title="Apagar exercício">
+                        <UiIconButton size="md" shape="square" variant="outline" aria-label="Apagar exercício" @click="confirmRemove">
                             <TrashIcon class="remove-icon" aria-hidden="true" />
                         </UiIconButton>
                     </div>
