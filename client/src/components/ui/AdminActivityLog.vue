@@ -325,13 +325,13 @@ onMounted(load)
   border: 2px solid transparent;
 }
 
-.action--create  { background: #d1fae5; border-color: #059669; color: #065f46; }
-.action--update  { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }
-.action--delete  { background: #fee2e2; border-color: #dc2626; color: #7f1d1d; }
-.action--login   { background: #ede9fe; border-color: #7c3aed; color: #4c1d95; }
-.action--logout  { background: var(--color-wild-300); border-color: var(--color-mirage-500); color: var(--color-mirage-600); }
-.action--comment { background: #fef3c7; border-color: #d97706; color: #78350f; }
-.action--upload  { background: #e0f2fe; border-color: #0284c7; color: #0c4a6e; }
+.action--create  { background: var(--color-teal-100);    border-color: var(--color-teal-600);    color: var(--color-teal-900); }
+.action--update  { background: var(--color-deep-100);    border-color: var(--color-deep-600);    color: var(--color-deep-900); }
+.action--delete  { background: var(--color-crimson-100); border-color: var(--color-crimson-600); color: var(--color-crimson-900); }
+.action--login   { background: var(--color-mirage-100);  border-color: var(--color-mirage-500);  color: var(--color-mirage-800); }
+.action--logout  { background: var(--color-wild-300);    border-color: var(--color-mirage-500);  color: var(--color-mirage-600); }
+.action--comment { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-700); color: var(--color-pumpkin-1000); }
+.action--upload  { background: var(--color-deep-100);    border-color: var(--color-deep-500);    color: var(--color-deep-800); }
 .action--other   { background: var(--color-wild-200); border-color: var(--color-mirage-400); color: var(--color-mirage-600); }
 
 /* User cell */

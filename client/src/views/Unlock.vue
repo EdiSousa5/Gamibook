@@ -4,11 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import UiButton from '@/components/ui/UiButton.vue'
 import BookUnlockModal from '@/components/ui/BookUnlockModal.vue'
-import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
+import { redeemActivationCode } from '@/services/books'
 import { getStoredUserId } from '@/services/storage'
 import type { Book } from '@/types'
 
-type State = 'loading' | 'success' | 'already-owned' | 'not-found' | 'error'
+type State = 'loading' | 'success' | 'already-owned' | 'already-used' | 'not-found' | 'error'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,25 +26,21 @@ onMounted(async () => {
   }
 
   try {
-    const found = await fetchBookByQrCode(code)
-    if (!found) {
-      state.value = 'not-found'
-      return
-    }
+    const result = await redeemActivationCode(code, userId)
 
-    const owned = await checkBookOwnership(userId, found.book_id)
-    if (owned) {
-      book.value = found
+    if (result.status === 'not-found') { state.value = 'not-found'; return }
+    if (result.status === 'already-used') { state.value = 'already-used'; return }
+    if (result.status === 'already-owned') {
+      book.value = result.book!
       state.value = 'already-owned'
       return
     }
 
-    await unlockBook(userId, found.book_id)
-    book.value = found
+    book.value = result.book!
     state.value = 'success'
     modalVisible.value = true
   } catch {
-    errorMsg.value = 'Ocorreu um erro ao desbloquear o livro.'
+    errorMsg.value = 'Ocorreu um erro ao ativar o código.'
     state.value = 'error'
   }
 })
@@ -86,7 +82,17 @@ const onModalClose = () => {
         <XCircleIcon class="status-svg" />
       </div>
       <h1 class="unlock-title">Código inválido</h1>
-      <p class="unlock-msg">Este QR Code não corresponde a nenhum livro.</p>
+      <p class="unlock-msg">Este código não corresponde a nenhum livro GamiBook.</p>
+      <UiButton variant="outline" @click="router.replace('/app')">Voltar ao início</UiButton>
+    </div>
+
+    <!-- Already used -->
+    <div v-else-if="state === 'already-used'" class="unlock-card">
+      <div class="status-icon status-icon--error">
+        <XCircleIcon class="status-svg" />
+      </div>
+      <h1 class="unlock-title">Código já utilizado</h1>
+      <p class="unlock-msg">Este código já foi utilizado por outro utilizador.</p>
       <UiButton variant="outline" @click="router.replace('/app')">Voltar ao início</UiButton>
     </div>
 

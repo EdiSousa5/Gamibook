@@ -50,11 +50,19 @@ const roleLabel = computed(() => {
 
 const isAbsoluteAdmin = computed(() => roleName.value?.trim().toLowerCase() === 'admin absoluto')
 
+const userId = computed(() => user.value?.id ?? '—')
+const lastAccess = computed(() => {
+  const raw = user.value?.last_access
+  if (!raw) return '—'
+  return new Date(raw).toLocaleString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+})
+const userLevel = computed(() => user.value?.level ?? '—')
+
 import { CogIcon, SparklesIcon, SwatchIcon, AcademicCapIcon } from '@heroicons/vue/24/outline'
 import AdminActivityLog from '@/components/ui/AdminActivityLog.vue'
 
 const quickLinks = [
-  { label: 'Gerar exercícios', desc: 'Criar exercícios com IA', to: '/exercise-generator', icon: SparklesIcon },
+  { label: 'Gerir Livros', desc: 'Livros, módulos, códigos e exercícios', to: '/exercise-generator', icon: SparklesIcon },
   { label: 'Guia de utilização', desc: 'Manual para editoras e autores', to: '/admin/guide', icon: AcademicCapIcon },
   { label: 'Definições', desc: 'Configurações da conta', to: '/settings', icon: CogIcon },
   { label: 'UI Kit', desc: 'Componentes visuais', to: '/ui-kit', icon: SwatchIcon },
@@ -88,6 +96,21 @@ const quickLinks = [
           <span class="account-joined">Conta criada em {{ joinedAt }}</span>
         </div>
       </div>
+      <div class="account-divider" />
+      <dl class="account-details">
+        <div class="detail-row">
+          <dt>ID</dt>
+          <dd class="detail-mono">{{ userId }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Nível</dt>
+          <dd>{{ userLevel }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Último acesso</dt>
+          <dd>{{ lastAccess }}</dd>
+        </div>
+      </dl>
     </UiCard>
 
     <AdminActivityLog v-if="isAbsoluteAdmin" />
@@ -172,6 +195,45 @@ h1 {
   font-size: 12px;
   color: var(--color-mirage-400);
   font-weight: 500;
+}
+
+.account-divider {
+  height: 1px;
+  background: var(--color-mirage-200);
+  margin-top: var(--space-400);
+}
+
+.account-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-300) var(--space-500);
+  margin: var(--space-400) 0 0;
+}
+
+.detail-row {
+  display: grid;
+  gap: var(--space-050);
+}
+
+.detail-row dt {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--color-mirage-400);
+}
+
+.detail-row dd {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-mirage-700);
+  margin: 0;
+  word-break: break-all;
+}
+
+.detail-mono {
+  font-family: monospace;
+  font-size: 12px;
 }
 
 .links-grid {

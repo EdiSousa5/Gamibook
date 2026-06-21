@@ -68,6 +68,60 @@ const showCorrectAnswer = ref(true)
 const showManualModal = ref(false)
 const showInfoModal = ref(false)
 
+// ---- localStorage session persistence ----
+const LS_KEY = computed(() => `gb_study_${bookId.value}`)
+const hasSavedSession = ref(false)
+
+type SavedSession = {
+  typeFilter: 'all' | 'multiple-choice' | 'true-false'
+  orderMode: 'random' | 'module' | 'manual'
+  timerSeconds: number
+  repeatWrong: boolean
+  showCorrectAnswer: boolean
+  selectedIds: number[]
+}
+
+const checkSavedSession = () => {
+  hasSavedSession.value = !!localStorage.getItem(LS_KEY.value)
+}
+
+const saveSession = () => {
+  const data: SavedSession = {
+    typeFilter: typeFilter.value,
+    orderMode: orderMode.value,
+    timerSeconds: timerSeconds.value,
+    repeatWrong: repeatWrong.value,
+    showCorrectAnswer: showCorrectAnswer.value,
+    selectedIds: orderedSelectedIds.value,
+  }
+  localStorage.setItem(LS_KEY.value, JSON.stringify(data))
+  hasSavedSession.value = true
+}
+
+const loadLastSession = () => {
+  const raw = localStorage.getItem(LS_KEY.value)
+  if (!raw) return
+  try {
+    const data = JSON.parse(raw) as SavedSession
+    typeFilter.value = data.typeFilter ?? 'all'
+    orderMode.value = data.orderMode ?? 'random'
+    timerSeconds.value = data.timerSeconds ?? 0
+    repeatWrong.value = data.repeatWrong ?? false
+    showCorrectAnswer.value = data.showCorrectAnswer ?? true
+    const validIds = new Set(filteredItems.value.map((i) => Number(i.exercise.exercise_id)).filter((n) => Number.isFinite(n)))
+    orderedSelectedIds.value = (data.selectedIds ?? []).filter((id) => validIds.has(id))
+  } catch { /* ignore */ }
+}
+
+const resetToDefaults = () => {
+  typeFilter.value = 'all'
+  orderMode.value = 'random'
+  timerSeconds.value = 0
+  repeatWrong.value = false
+  showCorrectAnswer.value = true
+  orderedSelectedIds.value = []
+}
+
 const filteredItemsByModule = computed<Map<number, ExerciseItem[]>>(() => {
   const result = new Map<number, ExerciseItem[]>()
   for (const mod of modules.value) {
@@ -91,16 +145,10 @@ const hasAnyExercises = computed(() => {
 })
 
 const orderedSelectedIds = ref<number[]>([])
-const exercisesEverLoaded = ref(false)
 
 watch(filteredItems, (newItems) => {
   const validIds = new Set(newItems.map((i) => Number(i.exercise.exercise_id)).filter((n) => Number.isFinite(n)))
-  if (!exercisesEverLoaded.value && newItems.length > 0) {
-    orderedSelectedIds.value = [...validIds]
-    exercisesEverLoaded.value = true
-  } else {
-    orderedSelectedIds.value = orderedSelectedIds.value.filter((id) => validIds.has(id))
-  }
+  orderedSelectedIds.value = orderedSelectedIds.value.filter((id) => validIds.has(id))
 })
 
 const isSelected = (id: number) => orderedSelectedIds.value.includes(id)
@@ -229,6 +277,7 @@ const visibleModules = computed(() =>
       )
       allExercisesByModule.value = new Map(results)
       loadingExercises.value = false
+      checkSavedSession()
     }
   } catch {
     configError.value = 'Erro ao carregar os dados do livro.'
@@ -301,6 +350,7 @@ const startTimer = () => {
 const getCorrectOption = (ex: Exercise) => buildOptions(ex).find((opt) => isOptionCorrect(ex, opt)) ?? ''
 
 const startSession = () => {
+  saveSession()
   let selectedExercises: Exercise[]
   if (orderMode.value === 'module') {
     const selectedSet = new Set(orderedSelectedIds.value)
@@ -586,6 +636,31 @@ onUnmounted(stopTimer)
                 <span class="toggle-row__desc">Após errar</span>
               </div>
               <UiSwitch :model-value="showCorrectAnswer" size="sm" @update="showCorrectAnswer = $event" />
+            </div>
+          </div>
+
+          <div class="sidebar-divider" />
+
+          <!-- Sessão anterior -->
+          <div class="sidebar-section sidebar-section--prev">
+            <div class="prev-session-row">
+              <button
+                type="button"
+                class="nb-btn nb-btn--prev"
+                :disabled="!hasSavedSession"
+                @click="loadLastSession"
+              >
+                <ArrowPathIcon class="nb-btn-icon" aria-hidden="true" />
+                Copiar última sessão
+              </button>
+              <button
+                type="button"
+                class="nb-btn nb-btn--reset"
+                @click="resetToDefaults"
+              >
+                <XMarkIcon class="nb-btn-icon" aria-hidden="true" />
+                Redefinir
+              </button>
             </div>
           </div>
 
@@ -881,7 +956,7 @@ onUnmounted(stopTimer)
 
 .page-header {
   padding: var(--space-400) var(--space-500);
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -949,7 +1024,7 @@ onUnmounted(stopTimer)
   justify-items: center;
   text-align: center;
   padding: var(--space-700) var(--space-400);
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -967,7 +1042,7 @@ onUnmounted(stopTimer)
 
 /* ── Left: exercise list ───────────────────────── */
 .config-main {
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -978,7 +1053,7 @@ onUnmounted(stopTimer)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: var(--space-400) var(--space-500);
   background: var(--color-wild-200);
   border-bottom: 2px solid var(--color-mirage-800);
 }
@@ -986,7 +1061,7 @@ onUnmounted(stopTimer)
 .list-header__left {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-150);
 }
 
 .list-count {
@@ -1004,7 +1079,7 @@ onUnmounted(stopTimer)
 
 .list-header__actions {
   display: flex;
-  gap: 6px;
+  gap: var(--space-150);
 }
 
 /* ── Neo-brutalist small buttons ───────────────── */
@@ -1013,7 +1088,7 @@ onUnmounted(stopTimer)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-150);
   border: 2px solid var(--color-mirage-800);
   border-radius: 10px;
   background: var(--color-wild-100);
@@ -1049,7 +1124,7 @@ onUnmounted(stopTimer)
 
 .nb-btn--active {
   background: var(--color-deep-600);
-  color: #fff;
+  color: var(--color-brand-white);
   border-color: var(--color-deep-700);
   box-shadow: 2px 2px 0 var(--color-deep-500);
 }
@@ -1104,7 +1179,7 @@ onUnmounted(stopTimer)
 .order-count-badge {
   margin-left: auto;
   background: var(--color-deep-600);
-  color: #fff;
+  color: var(--color-brand-white);
   border-radius: 999px;
   font-size: 10px;
   font-weight: 800;
@@ -1115,19 +1190,62 @@ onUnmounted(stopTimer)
 .filter-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-150);
+}
+
+/* ── Previous session buttons ─────────────────── */
+.sidebar-section--prev { padding-top: 0; }
+
+.prev-session-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
+}
+
+.nb-btn--prev {
+  justify-content: center;
+  font-size: 12px;
+  padding: 7px 10px;
+  background: var(--color-deep-100);
+  border-color: var(--color-deep-600);
+  color: var(--color-deep-800);
+  box-shadow: 2px 2px 0 var(--color-deep-400);
+}
+
+.nb-btn--prev:hover:not(:disabled) {
+  background: var(--color-deep-200);
+}
+
+.nb-btn--prev:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.nb-btn--reset {
+  justify-content: center;
+  font-size: 12px;
+  padding: 7px 10px;
+  background: var(--color-wild-200);
+  border-color: var(--color-mirage-600);
+  color: var(--color-mirage-700);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+}
+
+.nb-btn--reset:hover {
+  background: var(--color-wild-300);
 }
 
 .list-body {
-  padding: 16px;
+  padding: var(--space-400);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-200);
 }
 
 /* ── Module blocks ─────────────────────────────── */
 .module-block {
-  border-radius: 12px;
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -1137,8 +1255,8 @@ onUnmounted(stopTimer)
 .module-block__header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: var(--space-200);
+  padding: var(--space-300) var(--space-400);
   cursor: pointer;
   user-select: none;
   transition: background 0.1s;
@@ -1170,7 +1288,7 @@ onUnmounted(stopTimer)
 .module-check--full {
   background: var(--color-deep-600);
   border-color: var(--color-mirage-900);
-  color: #fff;
+  color: var(--color-brand-white);
 }
 
 .module-check--full:hover {
@@ -1236,18 +1354,18 @@ onUnmounted(stopTimer)
 .module-block__list {
   border-top: 2px solid var(--color-mirage-800);
   background: var(--color-wild-200);
-  padding: 6px;
+  padding: var(--space-150);
   display: grid;
-  gap: 2px;
+  gap: var(--space-050);
 }
 
 /* ── Exercise rows ─────────────────────────────── */
 .ex-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: var(--space-200);
+  padding: var(--space-200) var(--space-200);
+  border-radius: var(--radius-200);
   border: 2px solid transparent;
   cursor: pointer;
   transition: background 0.1s, border-color 0.1s;
@@ -1287,7 +1405,7 @@ onUnmounted(stopTimer)
 .config-sidebar {
   position: sticky;
   top: var(--space-400);
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -1297,10 +1415,10 @@ onUnmounted(stopTimer)
 }
 
 .sidebar-section {
-  padding: 16px 18px;
+  padding: var(--space-400) var(--space-500);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-300);
 }
 
 .sidebar-divider {
@@ -1396,10 +1514,10 @@ onUnmounted(stopTimer)
 .drag-item__pos {
   font-size: 11px;
   font-weight: 800;
-  color: #fff;
+  color: var(--color-brand-white);
   background: var(--color-deep-500);
   border: 1.5px solid var(--color-mirage-900);
-  border-radius: 5px;
+  border-radius: var(--radius-100);
   width: 22px;
   height: 22px;
   display: grid;
@@ -1439,8 +1557,8 @@ onUnmounted(stopTimer)
 
 .modal-header {
   display: grid;
-  gap: 4px;
-  padding: 24px 28px 20px;
+  gap: var(--space-100);
+  padding: var(--space-500) var(--space-600) var(--space-400);
   border-bottom: 2px solid var(--color-wild-400);
   background: var(--color-wild-200);
 }
@@ -1461,13 +1579,13 @@ onUnmounted(stopTimer)
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: var(--space-400) var(--space-500);
 }
 
 .drag-list-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-200);
   position: relative;
 }
 
@@ -1495,8 +1613,8 @@ onUnmounted(stopTimer)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 28px;
+  gap: var(--space-400);
+  padding: var(--space-400) var(--space-600);
   border-top: 2px solid var(--color-wild-400);
   background: var(--color-wild-200);
 }
@@ -1509,7 +1627,7 @@ onUnmounted(stopTimer)
 
 .modal-footer__actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-200);
   align-items: center;
 }
 
@@ -1517,7 +1635,7 @@ onUnmounted(stopTimer)
   width: 22px;
   height: 22px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-100);
   border: 2px solid var(--color-mirage-500);
   background: var(--color-wild-200);
   box-shadow: 1px 1px 0 var(--color-shadow);
@@ -1556,9 +1674,9 @@ onUnmounted(stopTimer)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: var(--space-200);
+  padding: var(--space-200) var(--space-300);
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-200);
 }
@@ -1583,17 +1701,17 @@ onUnmounted(stopTimer)
 
 /* CTA */
 .sidebar-cta {
-  padding: 16px 18px;
+  padding: var(--space-400) var(--space-500);
   background: var(--color-wild-200);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-200);
 }
 
 .cta-count {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-150);
 }
 
 .cta-count__num {
@@ -1626,13 +1744,13 @@ onUnmounted(stopTimer)
 
 .runner-top {
   display: grid;
-  gap: 16px;
+  gap: var(--space-400);
 }
 
 .runner-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: var(--space-300);
 }
 
 .stat-icon {
@@ -1684,7 +1802,7 @@ onUnmounted(stopTimer)
 }
 
 .attempts-pill {
-  padding: 5px 12px;
+  padding: var(--space-100) var(--space-300);
   border-radius: 999px;
   border: 2px solid var(--color-pumpkin-700, #a34d00);
   background: var(--color-pumpkin-100, #fff0e0);
@@ -1702,7 +1820,7 @@ onUnmounted(stopTimer)
 .options-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: var(--space-400);
 }
 
 /* ── Summary ───────────────────────────────────── */
@@ -1715,8 +1833,8 @@ onUnmounted(stopTimer)
   display: flex;
   align-items: center;
   gap: var(--space-500);
-  padding: 28px 32px;
-  border-radius: 20px;
+  padding: var(--space-600) var(--space-700);
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-deep-100);
   box-shadow: 6px 6px 0 rgba(46, 127, 123, 0.3);
@@ -1725,7 +1843,7 @@ onUnmounted(stopTimer)
 
 .summary-score {
   display: grid;
-  gap: 4px;
+  gap: var(--space-100);
   text-align: center;
   flex-shrink: 0;
 }
@@ -1741,7 +1859,7 @@ onUnmounted(stopTimer)
 .summary-score__numbers {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: var(--space-100);
   justify-content: center;
 }
 
@@ -1776,13 +1894,13 @@ onUnmounted(stopTimer)
 
 .summary-chips {
   display: flex;
-  gap: 8px;
+  gap: var(--space-200);
   flex-wrap: wrap;
 }
 
 .chip {
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: var(--space-200) var(--space-400);
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -1801,7 +1919,7 @@ onUnmounted(stopTimer)
 .chip__lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-mirage-500); }
 
 .summary-detail {
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-100);
   box-shadow: 4px 4px 0 var(--color-shadow);
@@ -1824,16 +1942,16 @@ onUnmounted(stopTimer)
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: var(--space-150);
 }
 
 .summary-item {
   display: grid;
   grid-template-columns: 22px 1fr;
-  gap: 10px;
+  gap: var(--space-200);
   align-items: start;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: var(--space-300) var(--space-400);
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-200);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -1850,7 +1968,7 @@ onUnmounted(stopTimer)
 .sicon--err { color: var(--color-error-strong); }
 .sicon--skip { color: var(--color-mirage-400); }
 
-.summary-item__body { display: grid; gap: 6px; min-width: 0; }
+.summary-item__body { display: grid; gap: var(--space-150); min-width: 0; }
 
 .summary-item__q {
   margin: 0;
@@ -1866,14 +1984,14 @@ onUnmounted(stopTimer)
   margin-right: 4px;
 }
 
-.summary-answers { display: grid; gap: 3px; }
+.summary-answers { display: grid; gap: var(--space-050); }
 
 .answer-tag {
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  gap: var(--space-100);
+  padding: var(--space-100) var(--space-200);
+  border-radius: var(--radius-100);
   font-size: 12px;
   font-weight: 600;
 }
@@ -1899,7 +2017,7 @@ onUnmounted(stopTimer)
 
 /* ── Info modal ────────────────────────────────── */
 .info-modal .modal-body {
-  padding: 20px 24px;
+  padding: var(--space-400) var(--space-500);
 }
 
 .info-list {
@@ -1907,14 +2025,14 @@ onUnmounted(stopTimer)
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 10px;
+  gap: var(--space-200);
 }
 
 .info-item {
   display: grid;
-  gap: 3px;
-  padding: 14px 16px;
-  border-radius: 12px;
+  gap: var(--space-050);
+  padding: var(--space-400);
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-200);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -1950,13 +2068,14 @@ onUnmounted(stopTimer)
 
   .summary-hero {
     flex-direction: column;
-    padding: 20px;
+    padding: var(--space-400);
   }
 }
 
 @media (max-width: 560px) {
   .options-grid {
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: var(--space-300);
   }
 
   .runner-page {
@@ -1968,12 +2087,12 @@ onUnmounted(stopTimer)
   }
 
   .runner-top {
-    gap: 8px;
+    gap: var(--space-200);
   }
 
   .runner-stats {
     grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    gap: var(--space-150);
   }
 
   .runner-stats :deep(.stat-card) {

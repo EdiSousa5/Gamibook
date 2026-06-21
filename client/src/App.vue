@@ -46,7 +46,7 @@ const navItems = computed(() => {
   if (isAdmin.value) {
     return [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
-      { label: 'Gerar exercícios', to: '/exercise-generator', icon: 'generate', dataTour: 'nav-generate' },
+      { label: 'Gerir Livros', to: '/exercise-generator', icon: 'books', dataTour: 'nav-generate' },
       { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide', dataTour: 'nav-guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
       { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
@@ -227,7 +227,7 @@ const ADMIN_STEPS: TourStep[] = [
   {
     selector: '[data-tour="nav-generate"]',
     title: 'Gerador de Exercícios',
-    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo. Tens uma quota de 50 exercícios por dia.',
+    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo.',
     placement: 'right',
     route: '/admin',
   },

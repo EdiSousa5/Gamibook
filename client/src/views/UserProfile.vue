@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { FireIcon } from '@heroicons/vue/24/solid'
-import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, TrophyIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, TrophyIcon, SparklesIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
@@ -13,6 +13,7 @@ import { fetchUserBookBadges, fetchUserBooks } from '@/services/books'
 import { fetchUserPointsFromHistory } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
+import { useAuthStore } from '@/stores/auth'
 import type { User, UserBook, Book } from '@/types'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
@@ -20,6 +21,7 @@ import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/ty
 type BadgeCounts = Record<BookBadgeTier, number>
 
 const route = useRoute()
+const auth = useAuthStore()
 const userId = computed(() => route.params.id as string)
 
 const user = ref<User | null>(null)
@@ -28,6 +30,9 @@ const badgeCounts = ref<BadgeCounts>({ bronze: 0, silver: 0, gold: 0, diamond: 0
 const userBooks = ref<UserBook[]>([])
 const isLoading = ref(true)
 const error = ref('')
+
+const isOwnProfile = computed(() => !!auth.user?.id && String(auth.user.id) === userId.value)
+const isPrivateOtherProfile = computed(() => !!user.value?.profile_private && !isOwnProfile.value)
 
 
 const displayName = computed(() => getUserDisplayName(user.value))
@@ -103,14 +108,19 @@ const shiftCarousel = (dir: 1 | -1) => {
 
 onMounted(async () => {
   try {
-    const [userData, totalPoints, allBadges, books] = await Promise.all([
-      fetchUserById(userId.value),
+    const userData = await fetchUserById(userId.value)
+    user.value = userData
+
+    if (userData.profile_private && String(auth.user?.id) !== userId.value) {
+      return
+    }
+
+    const [totalPoints, allBadges, books] = await Promise.all([
       fetchUserPointsFromHistory(userId.value).catch(() => 0),
       fetchUserBookBadges().catch(() => [] as UserBook[]),
       fetchUserBooks(userId.value).catch(() => [] as UserBook[]),
     ])
 
-    user.value = userData
     points.value = totalPoints
     userBooks.value = books
 
@@ -163,6 +173,13 @@ onMounted(async () => {
       <p>{{ error }}</p>
     </div>
 
+    <!-- Perfil privado -->
+    <div v-else-if="isPrivateOtherProfile" class="card private-card">
+      <LockClosedIcon class="private-icon" aria-hidden="true" />
+      <strong>Perfil privado</strong>
+      <p>Este utilizador optou por manter o perfil privado.</p>
+    </div>
+
     <!-- Content -->
     <template v-else>
 
@@ -180,6 +197,12 @@ onMounted(async () => {
 
         <strong class="profile-name">{{ displayName }}</strong>
         <span v-if="joinDate" class="join-date">Membro desde {{ joinDate }}</span>
+
+        <div v-if="isOwnProfile && user?.profile_private" class="private-notice">
+          <LockClosedIcon class="notice-icon" aria-hidden="true" />
+          <span>O teu perfil está privado — outros utilizadores não o conseguem ver.</span>
+          <RouterLink to="/settings/privacidade" class="notice-link">Alterar</RouterLink>
+        </div>
 
         <div class="level-row">
           <div class="level-badge">
@@ -227,8 +250,8 @@ onMounted(async () => {
         </div>
         <div class="card stat-card">
           <SparklesIcon class="stat-icon badges" aria-hidden="true" />
-          <span class="stat-value">{{ totalBadgeScore }}</span>
-          <span class="stat-label">Badges</span>
+          <span class="stat-value">{{ totalBadges }}</span>
+          <span class="stat-label">Conquistas</span>
         </div>
       </div>
 
@@ -318,7 +341,7 @@ onMounted(async () => {
 .card {
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 18px;
+  border-radius: var(--radius-400);
   box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
@@ -327,7 +350,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-400);
+  gap: var(--space-300);
   padding: var(--space-700) var(--space-600) var(--space-600);
   text-align: center;
 }
@@ -343,7 +366,6 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 600;
   color: var(--color-mirage-400);
-  margin-top: -6px;
 }
 
 .level-row {
@@ -359,12 +381,12 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-050);
   background: var(--color-deep-500);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 12px;
+  border-radius: var(--radius-200);
   box-shadow: 3px 3px 0 var(--color-shadow);
-  padding: 8px 16px;
+  padding: var(--space-200) var(--space-400);
 }
 
 .level-eyebrow {
@@ -377,9 +399,9 @@ onMounted(async () => {
 }
 
 .level-num {
-  font-size: 30px;
+  font-size: clamp(1.5rem, 5vw, 1.875rem);
   font-weight: 800;
-  color: #fff;
+  color: var(--color-brand-white);
   line-height: 1;
 }
 
@@ -387,7 +409,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-150);
   min-width: 0;
 }
 
@@ -411,7 +433,7 @@ onMounted(async () => {
 .xp-labels {
   display: flex;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-100);
   font-size: 10px;
   font-weight: 600;
   color: var(--color-mirage-500);
@@ -422,6 +444,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-300);
+  align-items: stretch;
 }
 
 .stat-card {
@@ -445,7 +468,7 @@ onMounted(async () => {
 }
 
 .stat-icon.pts        { stroke-width: 1.5; color: var(--color-deep-600); }
-.stat-icon.streak     { color: #f97316; }
+.stat-icon.streak     { color: var(--color-amber-600); }
 .stat-icon.best-streak { color: var(--color-amber-600); }
 .stat-icon.rank       { stroke-width: 1.5; color: var(--color-pumpkin-600); }
 .stat-icon.books      { stroke-width: 1.5; color: var(--color-deep-500); }
@@ -491,9 +514,9 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 12px 4px 10px;
-  border-radius: 10px;
+  gap: var(--space-100);
+  padding: var(--space-300) var(--space-100);
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-mirage-800);
   background: var(--color-wild-200);
   box-shadow: 2px 2px 0 var(--color-shadow);
@@ -519,7 +542,7 @@ onMounted(async () => {
 }
 
 .empty-hint {
-  margin: 10px 0 0;
+  margin: var(--space-200) 0 0;
   font-size: 13px;
   color: var(--color-mirage-400);
   text-align: center;
@@ -527,7 +550,7 @@ onMounted(async () => {
 
 /* ── Coleção / Carousel ── */
 .books-section {
-  padding: 24px 24px 28px; /* 28px bottom cria margem entre estante e fundo do card */
+  padding: var(--space-500) var(--space-500) var(--space-600);
 }
 
 .carousel-wrap {
@@ -607,6 +630,71 @@ onMounted(async () => {
   color: var(--color-mirage-500);
 }
 
+/* ── Perfil privado (estado externo) ── */
+.private-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-200);
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.private-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--color-mirage-400);
+  stroke-width: 1.5;
+}
+
+.private-card strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-mirage-700);
+}
+
+.private-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-500);
+}
+
+/* ── Aviso de perfil privado no próprio perfil ── */
+.private-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding: var(--space-200) var(--space-300);
+  border-radius: var(--radius-200);
+  background: var(--color-wild-300);
+  border: 2px solid var(--color-mirage-800);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-mirage-600);
+  max-width: 420px;
+  width: 100%;
+}
+
+.notice-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke-width: 2;
+  color: var(--color-mirage-500);
+}
+
+.notice-link {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--color-primary-strong);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.notice-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 600px) {
   .profile-page { padding: var(--space-400) var(--space-300) var(--space-700); }
   .hero-card { padding: var(--space-600) var(--space-400) var(--space-500); }
@@ -621,7 +709,7 @@ onMounted(async () => {
   }
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: var(--space-200);
   }
   .level-row {
     flex-direction: column;

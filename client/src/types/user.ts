@@ -12,7 +12,7 @@ export type User = {
   date_created?: string | null
   exercises_daily_streak?: number
   best_exercises_daily_streak?: number
-  last_login?: string | null
+  last_access?: string | null
   avatar_border?: string
   avatar_color?: string | null
   avatar_effect?: string

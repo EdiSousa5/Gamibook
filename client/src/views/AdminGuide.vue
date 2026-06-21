@@ -55,9 +55,9 @@ const toggleAccordion = (key: string) => {
         <div class="info-card__body">
           <strong>O que podes fazer na plataforma</strong>
           <p>
-            Como editora ou autor tens acesso ao painel de administração, onde podes gerar exercícios com IA,
-            rever e aprovar os melhores e gerir o estado de publicação de cada livro.
-            O processo está dividido em passos sequenciais, descritos em detalhe abaixo.
+            Como editora ou autor tens acesso ao painel de administração, onde podes gerir os teus livros,
+            gerar exercícios com IA, rever e aprovar os melhores, gerar códigos de ativação e publicar o livro.
+            A página está organizada em três secções sequenciais, descritas em detalhe abaixo.
           </p>
         </div>
       </section>
@@ -65,15 +65,15 @@ const toggleAccordion = (key: string) => {
       <div class="section-block">
         <div class="section-title">
           <SparklesIcon class="section-title__icon" aria-hidden="true" />
-          <h2>Passo a passo: gerar exercícios</h2>
+          <h2>Passo a passo: gerir e publicar um livro</h2>
         </div>
 
         <div class="steps-grid">
           <div class="step-card">
             <div class="step-number">1</div>
             <div class="step-body">
-              <h3>Acede ao Gerador de Exercícios</h3>
-              <p>No menu lateral, clica em <strong>Gerar exercícios</strong>. Serás levado para o gerador, onde verás todos os livros disponíveis.</p>
+              <h3>Acede a Gerir Livros</h3>
+              <p>No menu lateral, clica em <strong>Gerir Livros</strong>. Serás levado para a lista de todos os livros disponíveis.</p>
             </div>
           </div>
 
@@ -81,7 +81,7 @@ const toggleAccordion = (key: string) => {
             <div class="step-number">2</div>
             <div class="step-body">
               <h3>Escolhe um livro</h3>
-              <p>Usa a pesquisa e os filtros para encontrar o teu livro. Podes filtrar por estado e por editora. Clica no livro para o selecionar.</p>
+              <p>Usa a pesquisa e os filtros para encontrar o teu livro. Podes filtrar por estado e por editora. Clica no livro para ver os seus detalhes.</p>
               <div class="tip-box">
                 <strong>Etiquetas do livro</strong>
                 <ul>
@@ -97,16 +97,48 @@ const toggleAccordion = (key: string) => {
           <div class="step-card">
             <div class="step-number">3</div>
             <div class="step-body">
-              <h3>Seleciona os módulos</h3>
-              <p>Após escolheres o livro, aparecem os seus módulos. Clica nos módulos que precisam de novos exercícios para os selecionar (ficam destacados). Podes selecionar até <strong>4 módulos de cada vez</strong>.</p>
+              <h3>Consulta o detalhe do livro</h3>
+              <p>Após escolheres o livro, aparece a página de detalhe com informações completas: capa 3D, metadados, lista de módulos com o estado de aprovação e contagem de exercícios, e a secção de códigos de ativação.</p>
+              <div class="tip-box">
+                <strong>Módulos em acordeão</strong>
+                Clica num módulo que tenha descrição adicional para a expandir. A descrição é usada pela IA para gerar melhores exercícios — quanto mais detalhada, melhor o resultado.
+              </div>
             </div>
           </div>
 
           <div class="step-card">
             <div class="step-number">4</div>
             <div class="step-body">
-              <h3>Configura a geração</h3>
-              <p>No painel lateral direito, define quantas perguntas queres por módulo. O sistema ajusta automaticamente o máximo permitido com base no número de módulos selecionados (máximo de <strong>40 perguntas no total</strong> por geração).</p>
+              <h3>Gera códigos de ativação</h3>
+              <p>Na secção de <strong>Códigos de Ativação</strong>, define a quantidade e clica em <strong>Gerar códigos</strong>. Os utilizadores precisam de um código para desbloquear o livro.</p>
+              <div class="tip-box">
+                <strong>Mínimo para publicar</strong>
+                São necessários pelo menos <strong>100 códigos gerados</strong> para que o livro possa ser publicado. O campo "Mínimo de códigos" mostra se essa condição está atingida.
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">5</div>
+            <div class="step-body">
+              <h3>Acede ao gerador de exercícios</h3>
+              <p>Na página de detalhe do livro, clica em <strong>Gerar Exercícios</strong> para entrar no gerador. O livro fica visível no topo da página como contexto.</p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">6</div>
+            <div class="step-body">
+              <h3>Seleciona os módulos</h3>
+              <p>No gerador, clica nos módulos que precisam de novos exercícios para os selecionar (ficam destacados). Podes selecionar até <strong>4 módulos de cada vez</strong>.</p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">7</div>
+            <div class="step-body">
+              <h3>Configura e gera</h3>
+              <p>No painel lateral direito, define quantas perguntas queres por módulo (máximo de <strong>40 no total</strong>). Clica em <strong>Gerar Exercícios</strong> e aguarda alguns segundos.</p>
               <div class="tip-box">
                 <strong>Limite por módulo</strong>
                 Cada módulo pode ter no máximo <strong>15 exercícios aprovados</strong>. Módulos que já atingiram esse limite são ignorados na geração.
@@ -115,15 +147,7 @@ const toggleAccordion = (key: string) => {
           </div>
 
           <div class="step-card">
-            <div class="step-number">5</div>
-            <div class="step-body">
-              <h3>Gera os exercícios</h3>
-              <p>Clica em <strong>Gerar Exercícios</strong>. A IA irá criar as perguntas com base no conteúdo dos módulos. O processo pode demorar alguns segundos.</p>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-number">6</div>
+            <div class="step-number">8</div>
             <div class="step-body">
               <h3>Revê e aprova</h3>
               <p>Cada exercício gerado aparece na secção <em>Exercícios Gerados pela IA</em>. Para cada um, podes:</p>
@@ -139,13 +163,16 @@ const toggleAccordion = (key: string) => {
           </div>
 
           <div class="step-card">
-            <div class="step-number">7</div>
+            <div class="step-number">9</div>
             <div class="step-body">
-              <h3>Solicita a publicação do livro</h3>
-              <p>Quando o livro atingir o estado <strong>Conteúdo completo</strong>, está pronto para ser publicado. A publicação é feita pela equipa de administração — contacta-a para que o livro fique visível para os utilizadores.</p>
+              <h3>Publica o livro</h3>
+              <p>Quando o livro tiver <strong>conteúdo completo</strong> e pelo menos <strong>100 códigos gerados</strong>, o botão <strong>Publicar Livro</strong> fica disponível na página de detalhe. Ao confirmar, o livro fica imediatamente visível para os utilizadores.</p>
               <div class="tip-box">
-                <strong>Como saber se o livro está pronto</strong>
-                No painel lateral do gerador, a etiqueta <strong>Conteúdo mínimo</strong> mostrará "Completo" quando todos os módulos tiverem os exercícios necessários.
+                <strong>Condições obrigatórias para publicação</strong>
+                <ul>
+                  <li>Todos os módulos com 5+ exercícios aprovados (etiqueta "Conteúdo completo").</li>
+                  <li>Pelo menos 100 códigos de ativação gerados (campo "Mínimo de códigos" mostra "Atingido").</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -193,10 +220,10 @@ const toggleAccordion = (key: string) => {
             </div>
             <div class="rule-body">
               <h4>Condições para publicação</h4>
-              <p>Para o livro ficar pronto para o admin publicar:</p>
+              <p>Para publicar um livro, é necessário:</p>
               <ul>
-                <li>Pelo menos um módulo com conteúdo.</li>
                 <li>Todos os módulos com <strong>5+ exercícios aprovados</strong>.</li>
+                <li>Pelo menos <strong>100 códigos de ativação</strong> gerados.</li>
               </ul>
             </div>
           </div>
@@ -311,6 +338,13 @@ const toggleAccordion = (key: string) => {
                       <span class="field-status field-status--caution">Automático</span>
                     </div>
                     <p class="field-item__desc">Calculado automaticamente quando todos os módulos atingem os exercícios mínimos.</p>
+                  </div>
+                  <div class="field-item field-item--caution">
+                    <div class="field-item__left">
+                      <code class="field-item__name">min_active_codes</code>
+                      <span class="field-status field-status--caution">Configurável</span>
+                    </div>
+                    <p class="field-item__desc">Número mínimo de códigos de ativação necessários para publicar o livro. O valor por omissão é 100.</p>
                   </div>
                 </div>
               </div>
@@ -471,6 +505,55 @@ const toggleAccordion = (key: string) => {
                       <span class="field-status field-status--edit">Editável</span>
                     </div>
                     <p class="field-item__desc">Logótipo da editora. Faz upload de um ficheiro de imagem.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- activation_codes -->
+          <div class="table-card table-card--codes" :class="{ 'is-open': openAccordions['codes'] }">
+            <button class="table-card__header" @click="toggleAccordion('codes')">
+              <div class="table-card__meta">
+                <code class="table-name">activation_codes</code>
+                <div class="table-card__text">
+                  <span class="table-card__title">Códigos de Ativação</span>
+                  <span class="table-card__subtitle">Gerados pela plataforma</span>
+                </div>
+              </div>
+              <ChevronDownIcon class="table-card__chevron" aria-hidden="true" />
+            </button>
+            <div class="table-card__wrap" :class="{ 'is-open': openAccordions['codes'] }">
+              <div class="table-card__body">
+                <p class="table-desc">Contém todos os códigos de ativação gerados para cada livro. Normalmente são criados pela plataforma — não precisas de os criar manualmente.</p>
+                <div class="field-list">
+                  <div class="field-item field-item--caution">
+                    <div class="field-item__left">
+                      <code class="field-item__name">code</code>
+                      <span class="field-status field-status--caution">Automático</span>
+                    </div>
+                    <p class="field-item__desc">Código único de 12 caracteres no formato XXXX-XXXX-XXXX. Gerado automaticamente.</p>
+                  </div>
+                  <div class="field-item field-item--caution">
+                    <div class="field-item__left">
+                      <code class="field-item__name">book_id</code>
+                      <span class="field-status field-status--caution">Automático</span>
+                    </div>
+                    <p class="field-item__desc">Livro ao qual o código pertence. Definido no momento de geração.</p>
+                  </div>
+                  <div class="field-item field-item--caution">
+                    <div class="field-item__left">
+                      <code class="field-item__name">is_used</code>
+                      <span class="field-status field-status--caution">Automático</span>
+                    </div>
+                    <p class="field-item__desc">Fica <code>true</code> quando o utilizador usa o código para desbloquear o livro.</p>
+                  </div>
+                </div>
+                <div class="info-card info-card--yellow inner-card">
+                  <ExclamationTriangleIcon class="info-card__icon" aria-hidden="true" />
+                  <div class="info-card__body">
+                    <strong>Não alterares estes registos</strong>
+                    <p>Os códigos são geridos automaticamente pela plataforma. Alterar <code>is_used</code> manualmente pode comprometer a integridade dos dados.</p>
                   </div>
                 </div>
               </div>
@@ -1006,6 +1089,7 @@ h1 {
 .table-card--modules   .table-name { background: var(--color-teal-100);    border-color: var(--color-teal-500);    color: var(--color-teal-800); }
 .table-card--exercises .table-name { background: var(--color-pumpkin-100); border-color: var(--color-pumpkin-600); color: var(--color-pumpkin-900); }
 .table-card--editoras  .table-name { background: var(--color-amber-100);   border-color: var(--color-amber-600);   color: var(--color-amber-900); }
+.table-card--codes     .table-name { background: var(--color-crimson-100, #fce7e7); border-color: var(--color-crimson-500, #dc2626); color: var(--color-crimson-800, #7f1d1d); }
 
 .table-card__text {
   display: flex;

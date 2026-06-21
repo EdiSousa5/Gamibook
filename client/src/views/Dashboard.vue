@@ -678,7 +678,7 @@ onUnmounted(() => {
 .level-chip {
   margin-left: auto;
   flex-shrink: 0;
-  padding: 3px 12px;
+  padding: var(--space-050) var(--space-300);
   border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-deep-100);
@@ -768,12 +768,12 @@ onUnmounted(() => {
 }
 
 .mini-stat--hot .icon {
-  color: #fff;
+  color: var(--color-brand-white);
 }
 
 .mini-text {
   display: grid;
-  gap: 3px;
+  gap: var(--space-050);
   min-width: 0;
 }
 
@@ -847,8 +847,8 @@ onUnmounted(() => {
 .streak-pill {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: var(--space-100);
+  padding: var(--space-150) var(--space-300);
   border-radius: 999px;
   border: 2px solid var(--color-mirage-800);
   background: var(--color-deep-100);
@@ -902,13 +902,13 @@ onUnmounted(() => {
 .daily-icon {
   width: 28px;
   height: 28px;
-  color: #fff;
+  color: var(--color-brand-white);
   stroke-width: 1.5;
 }
 
 .daily-available-text {
   display: grid;
-  gap: 3px;
+  gap: var(--space-050);
 }
 
 .daily-available-title {
@@ -1124,7 +1124,7 @@ onUnmounted(() => {
   gap: var(--space-400);
   background: var(--color-wild-200);
   padding: var(--space-400);
-  border-radius: 16px;
+  border-radius: var(--radius-400);
   border: 2px solid var(--color-mirage-800);
   box-shadow: 3px 3px 0 var(--color-shadow);
   margin-top: var(--space-200);

@@ -909,6 +909,10 @@ watch(currentIndex, () => {
     gap: 12px;
   }
 
+  .options-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
   .quiz-runner {
     gap: var(--space-200);
   }

@@ -3,12 +3,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
+import UiModal from '@/components/ui/UiModal.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
 import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon, Bars3Icon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
-import { fetchBookByQrCode, checkBookOwnership, unlockBook } from '@/services/books'
+import { fetchBookByQrCode, checkBookOwnership, unlockBook, redeemActivationCode } from '@/services/books'
 import { getStoredUserId } from '@/services/storage'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAuthStore } from '@/stores/auth'
@@ -29,6 +31,7 @@ const UNLOCK_URL_RE = /\/unlock\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-owned' | 'not-found' | 'error'
+type CodeState = 'idle' | 'processing' | 'already-owned' | 'already-used' | 'not-found' | 'error'
 
 const props = defineProps<Props>()
 const emit = defineEmits<{ action: [string]; 'book-unlocked': [Book]; 'toggle-nav': [] }>()
@@ -54,6 +57,62 @@ let cameraStartedAt = 0
 
 const isDraggingOver = ref(false)
 let dragCounter = 0
+
+// ── Activation code modal ────────────────────────────────────────────────────
+const codeOpen = ref(false)
+const codeState = ref<CodeState>('idle')
+const codeInput = ref('')
+const codeBook = ref<Book | null>(null)
+const codeError = ref('')
+
+const openCode = () => {
+  codeOpen.value = true
+  codeState.value = 'idle'
+  codeInput.value = ''
+  codeBook.value = null
+}
+
+const closeCode = () => {
+  codeOpen.value = false
+  codeState.value = 'idle'
+  codeInput.value = ''
+  codeBook.value = null
+}
+
+const retryCode = () => {
+  codeState.value = 'idle'
+  codeInput.value = ''
+  codeBook.value = null
+}
+
+const submitCode = async () => {
+  const code = codeInput.value.trim().toUpperCase()
+  if (!code) return
+  codeState.value = 'processing'
+  try {
+    const userId = getStoredUserId()
+    if (!userId) {
+      codeState.value = 'error'
+      codeError.value = 'Sessão expirada. Faz login novamente.'
+      return
+    }
+    const result = await redeemActivationCode(code, userId)
+    if (result.status === 'not-found') { codeState.value = 'not-found'; return }
+    if (result.status === 'already-used') { codeState.value = 'already-used'; return }
+    if (result.status === 'already-owned') { codeBook.value = result.book!; codeState.value = 'already-owned'; return }
+    closeCode()
+    emit('book-unlocked', result.book!)
+    notifStore.add({
+      user: userId,
+      title: 'Livro desbloqueado!',
+      message: `"${result.book!.title}" foi adicionado à tua coleção.`,
+      type: 'book_unlocked',
+    })
+  } catch {
+    codeState.value = 'error'
+    codeError.value = 'Erro ao verificar o código. Tenta novamente.'
+  }
+}
 
 const showBack = computed(() => route.path !== '/app')
 
@@ -359,8 +418,8 @@ onBeforeUnmount(() => {
         </Transition>
       </div>
       <span v-if="!isAdmin" data-tour="topbar-qr">
-        <UiIconButton variant="outline" size="lg" aria-label="Ler QRCode" @click="openQr">
-          <QrCodeIcon class="icon" aria-hidden="true" />
+        <UiIconButton variant="outline" size="lg" aria-label="Introduzir código de ativação" @click="openCode">
+          <BookOpenIcon class="icon" aria-hidden="true" />
         </UiIconButton>
       </span>
       <div class="profile" ref="profileRef">
@@ -395,138 +454,111 @@ onBeforeUnmount(() => {
     </div>
   </header>
 
-  <!-- QR Modal -->
-  <Teleport to="body">
-  <div
-    v-if="qrOpen"
-    class="qr-overlay"
-    @click.self="closeQr"
-    @dragenter.prevent="onDropZoneDragEnter"
-    @dragover.prevent
-    @dragleave="onDropZoneDragLeave"
-    @drop.prevent="onDropZoneDrop"
-  >
-    <div class="qr-modal">
-      <div class="qr-header">
-        <strong>Ler QR Code</strong>
-        <UiPillButton @click="closeQr">Fechar</UiPillButton>
-      </div>
+  <!-- Código de Ativação Modal -->
+  <UiModal :visible="codeOpen" :close-on-overlay="codeState === 'idle'" @close="closeCode">
+    <div class="code-modal-card">
 
-      <!-- Mode selection -->
-      <div v-if="scanState === 'idle'" class="mode-select">
-        <p class="mode-hint">Escolhe como queres ler o código do livro</p>
-        <div class="mode-buttons">
-          <button class="mode-btn" @click="openCamera">
-            <div class="mode-icon-wrap">
-              <CameraIcon class="mode-icon" aria-hidden="true" />
-            </div>
-            <strong>Câmara</strong>
-            <span>Usa a câmara do dispositivo</span>
-          </button>
-          <button class="mode-btn" @click="openFileMode">
-            <div class="mode-icon-wrap">
-              <ArrowUpTrayIcon class="mode-icon" aria-hidden="true" />
-            </div>
-            <strong>Ficheiro</strong>
-            <span>Carrega uma imagem do PC</span>
-          </button>
+      <!-- Header -->
+      <div class="code-modal-header">
+        <div class="code-modal-icon-wrap">
+          <BookOpenIcon class="code-modal-hdr-icon" aria-hidden="true" />
+        </div>
+        <div class="code-modal-hdr-text">
+          <h3 class="code-modal-title">Código de Ativação</h3>
+          <p class="code-modal-subtitle">Desbloqueia o teu livro</p>
         </div>
       </div>
 
-      <!-- Camera scanner -->
-      <template v-if="scanState === 'scanning' || (scanState === 'processing' && videoRef)">
-        <div class="scanner-wrap">
-          <video ref="videoRef" class="scanner-video" autoplay muted playsinline />
-          <div class="scanner-ui" aria-hidden="true">
-            <div class="scanner-corner tl" />
-            <div class="scanner-corner tr" />
-            <div class="scanner-corner bl" />
-            <div class="scanner-corner br" />
-            <div class="scanner-line" />
-          </div>
-          <div v-if="scanState === 'processing'" class="scanner-processing">
-            <div class="spinner" />
-            <span>A verificar...</span>
-          </div>
+      <!-- Idle: input -->
+      <template v-if="codeState === 'idle'">
+        <div class="code-modal-body">
+          <p class="code-modal-desc">Insere o código presente na fatura de compra do livro.</p>
+          <input
+            v-model="codeInput"
+            class="code-field"
+            type="text"
+            placeholder="XXXX-XXXX-XXXX"
+            autocomplete="off"
+            spellcheck="false"
+            @keydown.enter="submitCode"
+          />
         </div>
-        <p class="scanner-hint">Aponta para o QR Code do livro</p>
-        <button class="back-link" @click="retry">
-          <ArrowUturnLeftIcon class="back-link-icon" aria-hidden="true" />
-          Voltar
-        </button>
+        <div class="code-modal-actions">
+          <UiButton variant="outline" size="sm" @click="closeCode">Cancelar</UiButton>
+          <UiButton variant="primary" size="sm" :disabled="!codeInput.trim()" @click="submitCode">
+            Ativar livro
+          </UiButton>
+        </div>
       </template>
 
-      <!-- File mode -->
-      <div v-if="scanState === 'file-mode'" class="file-zone" @click="fileInputRef?.click()">
-        <ArrowUpTrayIcon class="file-zone-icon" aria-hidden="true" />
-        <strong>Clica para selecionar a imagem</strong>
-        <span>PNG, JPG ou WebP com o QR Code visível</span>
-        <button class="back-link" @click.stop="retry">
-          <ArrowUturnLeftIcon class="back-link-icon" aria-hidden="true" />
-          Voltar
-        </button>
-      </div>
-
-      <!-- Processing from file -->
-      <div v-if="scanState === 'processing' && !videoRef?.srcObject" class="scan-result">
-        <div class="spinner dark" />
-        <strong class="result-title">A verificar...</strong>
+      <!-- Processing -->
+      <div v-else-if="codeState === 'processing'" class="code-modal-result">
+        <div class="code-result-spinner" />
+        <p class="code-result-title">A verificar...</p>
       </div>
 
       <!-- Already owned -->
-      <div v-if="scanState === 'already-owned'" class="scan-result">
-        <div class="result-icon-wrap result-icon--owned">
-          <CheckCircleIcon class="result-icon-svg" aria-hidden="true" />
+      <template v-else-if="codeState === 'already-owned'">
+        <div class="code-modal-result">
+          <div class="code-result-icon code-result-icon--ok">
+            <CheckCircleIcon class="code-result-svg" aria-hidden="true" />
+          </div>
+          <strong class="code-result-title">Já tens este livro</strong>
+          <p class="code-result-desc">{{ codeBook?.title }} já está na tua coleção.</p>
         </div>
-        <strong class="result-title">Já tens este livro!</strong>
-        <p class="result-desc">{{ scannedBook?.title }} já está na tua coleção.</p>
-        <UiPillButton variant="primary" @click="retry">Ler outro código</UiPillButton>
-      </div>
+        <div class="code-modal-actions">
+          <UiButton variant="outline" size="sm" @click="closeCode">Fechar</UiButton>
+          <UiButton variant="primary" size="sm" @click="retryCode">Inserir outro código</UiButton>
+        </div>
+      </template>
 
-      <!-- Not found / invalid -->
-      <div v-if="scanState === 'not-found'" class="scan-result">
-        <div class="result-icon-wrap result-icon--error">
-          <XCircleIcon class="result-icon-svg" aria-hidden="true" />
+      <!-- Already used -->
+      <template v-else-if="codeState === 'already-used'">
+        <div class="code-modal-result">
+          <div class="code-result-icon code-result-icon--error">
+            <XCircleIcon class="code-result-svg" aria-hidden="true" />
+          </div>
+          <strong class="code-result-title">Código já utilizado</strong>
+          <p class="code-result-desc">Este código já foi utilizado por outro utilizador.</p>
         </div>
-        <strong class="result-title">Código inválido</strong>
-        <p class="result-desc">Este QR Code não corresponde a nenhum livro GamiBook.</p>
-        <UiPillButton variant="primary" @click="retry">Tentar novamente</UiPillButton>
-      </div>
+        <div class="code-modal-actions">
+          <UiButton variant="outline" size="sm" @click="closeCode">Fechar</UiButton>
+          <UiButton variant="primary" size="sm" @click="retryCode">Tentar outro código</UiButton>
+        </div>
+      </template>
+
+      <!-- Not found -->
+      <template v-else-if="codeState === 'not-found'">
+        <div class="code-modal-result">
+          <div class="code-result-icon code-result-icon--error">
+            <XCircleIcon class="code-result-svg" aria-hidden="true" />
+          </div>
+          <strong class="code-result-title">Código inválido</strong>
+          <p class="code-result-desc">Este código não corresponde a nenhum livro GamiBook.</p>
+        </div>
+        <div class="code-modal-actions">
+          <UiButton variant="outline" size="sm" @click="closeCode">Fechar</UiButton>
+          <UiButton variant="primary" size="sm" @click="retryCode">Tentar novamente</UiButton>
+        </div>
+      </template>
 
       <!-- Error -->
-      <div v-if="scanState === 'error'" class="scan-result">
-        <div class="result-icon-wrap result-icon--warn">
-          <ExclamationTriangleIcon class="result-icon-svg" aria-hidden="true" />
-        </div>
-        <strong class="result-title">Algo correu mal</strong>
-        <p class="result-desc">{{ scanError }}</p>
-        <UiPillButton variant="primary" @click="retry">Tentar novamente</UiPillButton>
-      </div>
-
-      <!-- Hidden file input -->
-      <input
-        ref="fileInputRef"
-        type="file"
-        accept="image/*"
-        style="display: none"
-        @change="onFileSelected"
-      />
-
-      <!-- Drag-and-drop overlay -->
-      <Transition name="drag-fade">
-        <div v-if="isDraggingOver" class="drag-overlay" aria-hidden="true">
-          <div class="drag-overlay-inner">
-            <div class="drag-overlay-icon-wrap">
-              <ArrowUpTrayIcon class="drag-overlay-icon" />
-            </div>
-            <strong>Larga a imagem aqui</strong>
-            <span>PNG, JPG ou WebP com o QR Code visível</span>
+      <template v-else-if="codeState === 'error'">
+        <div class="code-modal-result">
+          <div class="code-result-icon code-result-icon--warn">
+            <ExclamationTriangleIcon class="code-result-svg" aria-hidden="true" />
           </div>
+          <strong class="code-result-title">Algo correu mal</strong>
+          <p class="code-result-desc">{{ codeError }}</p>
         </div>
-      </Transition>
+        <div class="code-modal-actions">
+          <UiButton variant="outline" size="sm" @click="closeCode">Fechar</UiButton>
+          <UiButton variant="primary" size="sm" @click="retryCode">Tentar novamente</UiButton>
+        </div>
+      </template>
+
     </div>
-  </div>
-  </Teleport>
+  </UiModal>
 </template>
 
 <style scoped>
@@ -681,7 +713,174 @@ onBeforeUnmount(() => {
   color: var(--color-mirage-900);
 }
 
-/* QR Modal */
+/* ── Activation code modal ─────────────────────────────── */
+.code-modal-card {
+  background: var(--color-wild-100);
+  border: 2px solid var(--color-mirage-900);
+  border-radius: var(--radius-400);
+  box-shadow: 6px 6px 0 var(--color-shadow);
+  padding: var(--space-600);
+  width: min(26rem, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-500);
+}
+
+.code-modal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+}
+
+.code-modal-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-200);
+  background: var(--color-deep-100);
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.code-modal-hdr-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-deep-700);
+  stroke-width: 1.75;
+}
+
+.code-modal-hdr-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.code-modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-mirage-900);
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+
+.code-modal-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-mirage-500);
+  font-weight: 500;
+}
+
+.code-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300);
+}
+
+.code-modal-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mirage-600);
+  line-height: 1.5;
+}
+
+.code-field {
+  width: 100%;
+  padding: var(--space-300) var(--space-400);
+  border-radius: 12px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  font-family: var(--font-base);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--color-mirage-800);
+  text-transform: uppercase;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.code-field::placeholder {
+  color: var(--color-mirage-300);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.code-field:focus {
+  border-color: var(--color-deep-600);
+  box-shadow: 4px 4px 0 var(--color-deep-200);
+}
+
+.code-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-300);
+}
+
+.code-modal-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-300);
+  text-align: center;
+  padding: var(--space-200) 0;
+}
+
+.code-result-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-wild-400);
+  border-top-color: var(--color-deep-500);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.code-result-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid var(--color-mirage-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  display: grid;
+  place-items: center;
+}
+
+.code-result-icon--ok    { background: var(--color-deep-100); }
+.code-result-icon--error { background: var(--color-error-muted); border-color: var(--color-red-500); }
+.code-result-icon--warn  { background: var(--color-amber-100); border-color: #92400e; }
+
+.code-result-svg {
+  width: 28px;
+  height: 28px;
+  color: var(--color-mirage-700);
+  stroke-width: 1.5;
+}
+
+.code-result-icon--error .code-result-svg { color: var(--color-error-strong); }
+.code-result-icon--warn  .code-result-svg { color: #92400e; }
+
+.code-result-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-mirage-800);
+}
+
+.code-result-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-mirage-500);
+  max-width: 17rem;
+  line-height: 1.5;
+}
+
+/* QR Modal (kept for future use) */
 .qr-overlay {
   position: fixed;
   inset: 0;

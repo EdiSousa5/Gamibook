@@ -6,7 +6,6 @@ import {
   LockClosedIcon,
   LockOpenIcon,
   InformationCircleIcon,
-  XMarkIcon,
   PaintBrushIcon,
   SparklesIcon,
   SwatchIcon,
@@ -488,9 +487,6 @@ const sortedLevelKeys = computed(() =>
               <p class="unlock-modal__eyebrow">Aparência</p>
               <h3>Desbloqueios por nível</h3>
             </div>
-            <button class="unlock-close-btn" type="button" aria-label="Fechar" @click="unlockModalOpen = false">
-              <XMarkIcon class="unlock-close-icon" aria-hidden="true" />
-            </button>
           </div>
 
           <div class="unlock-modal__filters">
@@ -934,17 +930,16 @@ h2 {
 }
 
 .bg-selector {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 4rem));
   gap: var(--space-200);
 }
 
 .bg-btn {
   position: relative;
-  width: 3.75rem;
-  height: 3.75rem;
-  flex-shrink: 0;
-  border-radius: 12px;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-200);
   border: 2px solid var(--color-deep-800);
   cursor: pointer;
   box-shadow: 3px 3px 0 var(--color-deep-300);
@@ -1119,36 +1114,6 @@ h2 {
   gap: var(--space-300);
 }
 
-.unlock-close-btn {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-200);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.unlock-close-btn:hover {
-  background: var(--color-wild-300);
-  transform: translateY(-1px);
-}
-
-.unlock-close-btn:active {
-  transform: translate(1px, 2px);
-  box-shadow: 0 0 0 var(--color-shadow);
-}
-
-.unlock-close-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-mirage-700);
-  stroke-width: 2.5;
-}
 
 .unlock-modal__eyebrow {
   margin: 0 0 4px;
@@ -1521,9 +1486,8 @@ h2 {
 }
 
 @media (max-width: 40em) {
-  .bg-btn {
-    width: 3.25rem;
-    height: 3.25rem;
+  .bg-selector {
+    grid-template-columns: repeat(auto-fill, minmax(2.75rem, 3.25rem));
   }
 
   .av-preview-box {

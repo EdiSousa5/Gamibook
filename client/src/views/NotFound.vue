@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { HomeIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, ArrowLeftIcon, BookOpenIcon, TrophyIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 </script>
@@ -8,7 +8,7 @@ const router = useRouter()
 <template>
   <div class="not-found">
     <div class="card">
-      <div class="code-block">
+      <div class="code-block" aria-hidden="true">
         <span class="code">404</span>
       </div>
       <div class="content">
@@ -19,10 +19,23 @@ const router = useRouter()
             <ArrowLeftIcon class="icon" aria-hidden="true" />
             Voltar
           </button>
-          <button class="btn-home" @click="router.push('/')">
+          <button class="btn-home" @click="router.push('/app')">
             <HomeIcon class="icon" aria-hidden="true" />
             Ir para o início
           </button>
+        </div>
+        <div class="quick-links">
+          <span class="quick-links__label">Ou vai para:</span>
+          <div class="quick-links__row">
+            <RouterLink class="quick-link" to="/collection">
+              <BookOpenIcon class="quick-link__icon" aria-hidden="true" />
+              Coleção
+            </RouterLink>
+            <RouterLink class="quick-link" to="/leaderboard">
+              <TrophyIcon class="quick-link__icon" aria-hidden="true" />
+              Rankings
+            </RouterLink>
+          </div>
         </div>
       </div>
     </div>
@@ -70,7 +83,7 @@ const router = useRouter()
   font-family: var(--font-display);
   font-size: 56px;
   font-weight: 900;
-  color: #fff;
+  color: var(--color-brand-white);
   line-height: 1;
   letter-spacing: -2px;
 }
@@ -125,9 +138,9 @@ p {
 
 .btn-home {
   background: var(--color-deep-600);
-  color: #fff;
+  color: var(--color-brand-white);
   border-color: var(--color-deep-700);
-  box-shadow: 3px 3px 0 var(--color-deep-800);
+  box-shadow: 4px 4px 0 var(--color-shadow);
 }
 
 .btn-back:hover  { background: var(--color-wild-300); }
@@ -142,6 +155,58 @@ p {
 .icon {
   width: 16px;
   height: 16px;
+  stroke-width: var(--icon-stroke);
+  flex-shrink: 0;
+}
+
+.quick-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-200);
+  padding-top: var(--space-300);
+  border-top: 2px solid var(--color-wild-300);
+}
+
+.quick-links__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-mirage-400);
+}
+
+.quick-links__row {
+  display: flex;
+  gap: var(--space-200);
+  flex-wrap: wrap;
+}
+
+.quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-150);
+  padding: var(--space-150) var(--space-300);
+  border-radius: var(--radius-200);
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-200);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-mirage-700);
+  text-decoration: none;
+  box-shadow: 2px 2px 0 var(--color-shadow);
+  transition: background 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.quick-link:hover { background: var(--color-wild-300); }
+
+.quick-link:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-shadow);
+}
+
+.quick-link__icon {
+  width: 14px;
+  height: 14px;
   stroke-width: var(--icon-stroke);
   flex-shrink: 0;
 }

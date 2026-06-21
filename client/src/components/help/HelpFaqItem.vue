@@ -1,26 +1,44 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 
-defineProps<{
+const props = defineProps<{
   question: string
   answer: string
   isOpen: boolean
   number?: number
+  itemId: string
 }>()
 
 defineEmits<{ toggle: [] }>()
+
+const triggerId = computed(() => `faq-btn-${props.itemId}`)
+const panelId = computed(() => `faq-panel-${props.itemId}`)
 </script>
 
 <template>
   <div class="faq-item" :class="{ 'is-open': isOpen }">
-    <button class="faq-trigger" type="button" @click="$emit('toggle')">
-      <span class="faq-number-wrap">
+    <button
+      :id="triggerId"
+      class="faq-trigger"
+      type="button"
+      :aria-expanded="isOpen"
+      :aria-controls="panelId"
+      @click="$emit('toggle')"
+    >
+      <span class="faq-number-wrap" aria-hidden="true">
         <span class="faq-number">{{ number ?? '?' }}</span>
       </span>
       <span class="faq-q">{{ question }}</span>
       <ChevronDownIcon class="faq-chevron" :class="{ 'is-rotated': isOpen }" aria-hidden="true" />
     </button>
-    <div class="faq-body-wrap" :class="{ 'is-open': isOpen }">
+    <div
+      :id="panelId"
+      class="faq-body-wrap"
+      :class="{ 'is-open': isOpen }"
+      role="region"
+      :aria-labelledby="triggerId"
+    >
       <div class="faq-body">
         <p>{{ answer }}</p>
       </div>

@@ -5,7 +5,7 @@ import {
   CheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
-  QrCodeIcon,
+  KeyIcon,
   BookOpenIcon,
   TrophyIcon,
   ListBulletIcon,
@@ -280,20 +280,19 @@ const highlightStyle = computed(() => {
         <Transition name="demo-win-fade">
           <div v-if="cardVisible && hasDemoWindow" class="demo-win-wrap">
 
-            <!-- QR Unlock Window -->
+            <!-- Código de Ativação Window -->
             <div v-if="step.demoType === 'qr-unlock'" class="demo-win">
               <Transition name="demo-swap" mode="out-in">
-                <!-- Phase 0: scanner -->
-                <div v-if="qrPhase === 0" key="scan" class="demo-qr-body">
-                  <div class="demo-qr-frame">
-                    <span class="qr-corner qr-corner--tl" aria-hidden="true" />
-                    <span class="qr-corner qr-corner--tr" aria-hidden="true" />
-                    <span class="qr-corner qr-corner--bl" aria-hidden="true" />
-                    <span class="qr-corner qr-corner--br" aria-hidden="true" />
-                    <QrCodeIcon class="demo-qr-ico" aria-hidden="true" />
-                    <div class="demo-qr-scanline" aria-hidden="true" />
+                <!-- Phase 0: code input -->
+                <div v-if="qrPhase === 0" key="code" class="demo-qr-body">
+                  <div class="demo-code-wrap">
+                    <KeyIcon class="demo-code-ico" aria-hidden="true" />
+                    <div class="demo-code-input" aria-hidden="true">
+                      <span class="demo-code-text">GBKX-A2B3-C4D5</span>
+                      <span class="demo-code-cursor" />
+                    </div>
                   </div>
-                  <p class="demo-win-label">A ler código QR...</p>
+                  <p class="demo-win-label">A ativar código...</p>
                 </div>
                 <!-- Phase 1: unlock card -->
                 <div v-else key="unlock" class="demo-unlock-body">
@@ -552,7 +551,7 @@ const highlightStyle = computed(() => {
   position: relative;
 }
 
-/* ── QR Scanner ─────────────────────────────────────────── */
+/* ── Código de Ativação Demo ─────────────────────────────── */
 .demo-qr-body {
   display: flex;
   flex-direction: column;
@@ -561,56 +560,61 @@ const highlightStyle = computed(() => {
   padding: var(--space-500);
 }
 
-.demo-qr-frame {
-  position: relative;
-  width: 160px;
-  height: 160px;
+.demo-code-wrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: var(--color-wild-300);
-  border-radius: 14px;
-  overflow: hidden;
+  gap: var(--space-300);
+  width: 180px;
 }
 
-.demo-qr-ico {
-  width: 80px;
-  height: 80px;
-  color: var(--color-mirage-400);
+.demo-code-ico {
+  width: 36px;
+  height: 36px;
+  color: var(--color-deep-600);
   stroke-width: 1.5;
 }
 
-.demo-qr-scanline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--color-deep-500) 30%, var(--color-deep-400) 70%, transparent 100%);
-  top: 0;
-  animation: qr-scan-line 1.6s ease-in-out infinite;
-  box-shadow: 0 0 8px 2px rgba(50, 140, 134, 0.4);
+.demo-code-input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--color-mirage-800);
+  background: var(--color-wild-100);
+  box-shadow: 3px 3px 0 var(--color-shadow);
 }
 
-@keyframes qr-scan-line {
-  0%   { top: 6px;  opacity: 0; }
-  8%   { opacity: 1; }
-  92%  { opacity: 1; }
-  100% { top: 154px; opacity: 0; }
+.demo-code-text {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-mirage-800);
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: code-reveal 1.4s steps(14, end) 0.3s forwards;
 }
 
-/* Corner marks */
-.qr-corner {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-color: var(--color-deep-500);
-  border-style: solid;
-  border-width: 0;
+@keyframes code-reveal {
+  to { width: 9em; }
 }
-.qr-corner--tl { top: 8px;  left: 8px;  border-top-width: 3px; border-left-width: 3px;  border-radius: 4px 0 0 0; }
-.qr-corner--tr { top: 8px;  right: 8px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
-.qr-corner--bl { bottom: 8px; left: 8px;  border-bottom-width: 3px; border-left-width: 3px;  border-radius: 0 0 0 4px; }
-.qr-corner--br { bottom: 8px; right: 8px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
+
+.demo-code-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: var(--color-deep-600);
+  border-radius: 1px;
+  animation: code-blink 0.8s step-end infinite;
+}
+
+@keyframes code-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
 
 .demo-win-label {
   margin: 0;

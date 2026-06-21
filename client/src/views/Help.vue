@@ -11,15 +11,12 @@ import {
   TrophyIcon,
   ChartBarIcon,
   StarIcon,
-  QrCodeIcon,
+  KeyIcon,
   QuestionMarkCircleIcon,
   ArrowRightIcon,
-  LightBulbIcon,
   ClockIcon,
   CheckCircleIcon,
-  PencilSquareIcon,
   ListBulletIcon,
-  AdjustmentsHorizontalIcon,
 } from '@heroicons/vue/24/outline'
 
 const features = [
@@ -64,9 +61,9 @@ const features = [
     chip: 'Progressão',
   },
   {
-    icon: QrCodeIcon,
-    title: 'QR Code',
-    desc: 'Lê o QR Code impresso na capa do livro físico para o adicionar à tua coleção digital. Usa a câmara ou carrega uma imagem.',
+    icon: KeyIcon,
+    title: 'Código de Ativação',
+    desc: 'Insere o código presente na tua fatura de compra para adicionar o livro à tua coleção digital. Usa o ícone de livro na barra superior.',
     to: null,
     cta: null,
     chip: 'Desbloqueio',
@@ -86,13 +83,6 @@ const exerciseTypes = [
   },
 ]
 
-const steps = [
-  { label: 'Desbloqueia um livro', desc: 'Usa o leitor de QR Code para escanear a capa do livro físico e adicioná-lo à tua coleção.' },
-  { label: 'Navega pelos módulos', desc: 'Acede ao livro na tua coleção e abre o primeiro módulo disponível.' },
-  { label: 'Responde a exercícios', desc: 'Completa os exercícios de cada módulo. Precisas de um mínimo de respostas corretas para avançar.' },
-  { label: 'Ganha XP e badges', desc: 'Cada resposta correta dá XP. Completa módulos para subir de nível e evoluir a badge do livro.' },
-  { label: 'Quiz Final', desc: 'Ao completar todos os módulos de um livro, o Quiz Final é desbloqueado para o concluir definitivamente.' },
-]
 
 const faqCategories = [
   {
@@ -125,11 +115,11 @@ const faqCategories = [
     faqs: [
       {
         q: 'Como desbloqueio novos livros?',
-        a: 'Os livros são desbloqueados lendo o QR Code impresso na capa física do livro. Usa o botão de QR Code na barra superior — podes usar a câmara do dispositivo ou carregar uma imagem. Se tiveres dificuldade, pede a um administrador que adicione o livro à tua coleção.',
+        a: 'Os livros são desbloqueados com um código de ativação único fornecido na fatura de compra. Clica no ícone de livro na barra superior, insere o código e clica em "Ativar livro". O livro é adicionado imediatamente à tua coleção. Se tiveres dificuldade, contacta o teu administrador.',
       },
       {
-        q: 'O que fazer se o QR Code não for reconhecido?',
-        a: 'Assegura-te de que a imagem está nítida e bem iluminada. Tenta a opção de carregar uma fotografia em vez da câmara ao vivo. Se o problema persistir, a capa pode estar danificada — contacta um administrador para que adicione o livro manualmente à tua coleção.',
+        q: 'O que fazer se o código de ativação não for aceite?',
+        a: 'Verifica se copiaste o código exatamente como aparece na fatura, incluindo os hífens. Os códigos têm o formato XXXX-XXXX-XXXX (letras maiúsculas e números). Se o problema persistir, o código pode já ter sido utilizado ou pode estar incorreto — contacta o administrador da tua instituição.',
       },
       {
         q: 'Os módulos têm uma ordem obrigatória?',
@@ -294,7 +284,7 @@ const filteredFaqCategories = computed(() => {
         <div v-for="category in filteredFaqCategories" :key="category.title" class="faq-category">
           <!-- Apenas mostrar o título da secção se não houver um filtro selecionado em específico -->
           <h3 class="category-title" v-if="selectedCategory === 'Todos'">{{ category.title }}</h3>
-          <HelpFaq :faqs="category.faqs" />
+          <HelpFaq :faqs="category.faqs" :prefix="category.title" />
         </div>
       </div>
     </div>
@@ -411,77 +401,6 @@ const filteredFaqCategories = computed(() => {
   margin: 0;
   font-size: 14px;
   color: var(--color-mirage-500);
-}
-
-/* ── Steps ── */
-.steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  position: relative;
-}
-
-.step-item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-400);
-  position: relative;
-}
-
-.step-number {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-full);
-  background: var(--color-deep-600);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 3px 3px 0 var(--color-shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--color-wild-100);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.step-content {
-  background: var(--color-wild-100);
-  border: 2px solid var(--color-mirage-800);
-  border-radius: var(--radius-400);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  padding: var(--space-400) var(--space-500);
-  flex: 1;
-  margin-bottom: var(--space-300);
-}
-
-.step-title {
-  margin: 0 0 var(--space-100);
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-mirage-900);
-}
-
-.step-desc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--color-mirage-600);
-}
-
-.step-connector {
-  position: absolute;
-  left: 19px;
-  top: 40px;
-  width: 2px;
-  height: calc(100% - 8px);
-  background: repeating-linear-gradient(to bottom,
-      var(--color-deep-300) 0px,
-      var(--color-deep-300) 6px,
-      transparent 6px,
-      transparent 12px);
-  z-index: 0;
 }
 
 /* ── Feature cards ── */
@@ -740,10 +659,6 @@ const filteredFaqCategories = computed(() => {
 @media (max-width: 25em) {
   .features-grid {
     grid-template-columns: 1fr;
-  }
-
-  .step-content {
-    padding: var(--space-300);
   }
 }
 </style>

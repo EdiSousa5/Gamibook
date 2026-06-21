@@ -37,9 +37,9 @@ const emit = defineEmits<{
 .confirm-modal {
   background: var(--color-wild-100);
   border: 2px solid var(--color-mirage-800);
-  border-radius: 20px;
+  border-radius: var(--radius-400);
   box-shadow: 8px 8px 0 var(--color-shadow);
-  padding: 32px;
+  padding: var(--space-600);
   width: min(420px, 100%);
   display: grid;
   gap: var(--space-300);

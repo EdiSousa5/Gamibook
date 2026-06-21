@@ -23,7 +23,7 @@ defineEmits<{
 <template>
     <UiCard class="config-panel">
         <div class="config-header">
-            <div class="step-indicator">3</div>
+            <div class="step-indicator">2</div>
             <h2>Configuração</h2>
         </div>
 

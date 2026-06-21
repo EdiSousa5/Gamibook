@@ -18,6 +18,7 @@ export type Book = {
   has_minimum_content?: boolean | null
   qr_code?: string | null
   site_url?: string | null
+  min_active_codes?: number | null
   date_created?: string | null
   date_updated?: string | null
 }

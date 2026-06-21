@@ -1130,6 +1130,10 @@ onUnmounted(() => {
         gap: 12px;
     }
 
+    .options-grid-2 {
+        grid-template-columns: 1fr;
+    }
+
     .runner-header {
         gap: var(--space-150);
         padding-bottom: var(--space-200);

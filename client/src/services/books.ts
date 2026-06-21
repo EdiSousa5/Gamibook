@@ -1,6 +1,11 @@
 import type { Book, Module, UserBook } from '@/types'
 import { authFetch, publicFetch } from './client'
 
+export type BookUserStats = {
+  totalUsers: number
+  badgeCounts: Record<string, number>
+}
+
 const BOOK_FIELDS = [
   'book_id',
   'title',
@@ -13,6 +18,7 @@ const BOOK_FIELDS = [
   'is_approved',
   'has_minimum_content',
   'site_url',
+  'min_active_codes',
   'date_created',
   'date_updated',
 ]
@@ -233,4 +239,116 @@ export const updateBookMinimumContent = async (bookId: number, hasMinimumContent
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? data) as Book
+}
+
+// ── Activation Codes ─────────────────────────────────────────────────────────
+
+export type RedeemStatus = 'success' | 'not-found' | 'already-used' | 'already-owned'
+
+export interface RedeemResult {
+  status: RedeemStatus
+  book?: Book
+}
+
+export const redeemActivationCode = async (code: string, userId: string): Promise<RedeemResult> => {
+  const params = new URLSearchParams({
+    fields: 'activation_codes_id,is_used,book_id.book_id,book_id.title,book_id.cover_img,book_id.description',
+    limit: '1',
+  })
+  params.set('filter[code][_eq]', code.trim().toUpperCase())
+  const response = await authFetch(`/items/activation_codes?${params.toString()}`)
+  if (!response.ok) throw new Error('Erro ao verificar o código.')
+  const data = await response.json().catch(() => null)
+  const entry = data?.data?.[0]
+
+  if (!entry) return { status: 'not-found' }
+  if (entry.is_used) return { status: 'already-used' }
+
+  const book = entry.book_id as Book
+
+  const owned = await checkBookOwnership(userId, book.book_id)
+  if (owned) return { status: 'already-owned', book }
+
+  const patchRes = await authFetch(`/items/activation_codes/${entry.activation_codes_id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_used: true, used_by: userId, date_updated: new Date().toISOString() }),
+  })
+  if (!patchRes.ok) throw new Error('Erro ao marcar código como utilizado.')
+
+  await unlockBook(userId, book.book_id)
+  return { status: 'success', book }
+}
+
+export const fetchActivationCodeStats = async (bookId: number): Promise<{ total: number; unused: number }> => {
+  const [totalRes, unusedRes] = await Promise.all([
+    authFetch(`/items/activation_codes?aggregate[count]=*&filter[book_id][_eq]=${bookId}`),
+    authFetch(`/items/activation_codes?aggregate[count]=*&filter[book_id][_eq]=${bookId}&filter[is_used][_eq]=false`),
+  ])
+  const totalData = await totalRes.json().catch(() => null)
+  const unusedData = await unusedRes.json().catch(() => null)
+  return {
+    total: Number(totalData?.data?.[0]?.count ?? 0),
+    unused: Number(unusedData?.data?.[0]?.count ?? 0),
+  }
+}
+
+export const fetchBookUserStats = async (bookId: number): Promise<BookUserStats> => {
+  const [countRes, badgeRes] = await Promise.all([
+    authFetch(`/items/user_books?aggregate[count]=*&filter[book_id][_eq]=${bookId}`),
+    authFetch(`/items/user_books?groupBy[]=current_badge&aggregate[count]=*&filter[book_id][_eq]=${bookId}&limit=-1`),
+  ])
+  const countData = await countRes.json().catch(() => null)
+  const badgeData = await badgeRes.json().catch(() => null)
+  const totalUsers = Number(countData?.data?.[0]?.count ?? 0)
+  const badgeCounts: Record<string, number> = {}
+  ;(badgeData?.data ?? []).forEach((item: any) => {
+    const badge = item.current_badge ?? 'default'
+    badgeCounts[badge] = Number(item.count ?? 0)
+  })
+  return { totalUsers, badgeCounts }
+}
+
+export const fetchBookExerciseAttempts = async (moduleIds: number[]): Promise<number> => {
+  if (!moduleIds.length) return 0
+  const res = await authFetch(
+    `/items/user_exercises?aggregate[count]=*&filter[id_module][_in]=${moduleIds.join(',')}`
+  )
+  const data = await res.json().catch(() => null)
+  return Number(data?.data?.[0]?.count ?? 0)
+}
+
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function generateCode(): string {
+  let s = ''
+  for (let i = 0; i < 12; i++) {
+    if (i === 4 || i === 8) s += '-'
+    s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
+  }
+  return s
+}
+
+export const generateActivationCodes = async (
+  bookId: number,
+  quantity: number,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> => {
+  const BATCH = 500
+  let done = 0
+  while (done < quantity) {
+    const n = Math.min(BATCH, quantity - done)
+    const batch = Array.from({ length: n }, () => ({ code: generateCode(), book_id: bookId, is_used: false }))
+    const res = await authFetch('/items/activation_codes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batch),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Erro ao gerar códigos: ${res.status} ${text}`.trim())
+    }
+    done += n
+    onProgress?.(done, quantity)
+  }
 }
