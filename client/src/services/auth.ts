@@ -12,7 +12,7 @@ const USER_FIELDS = [
   'role.name',
   'exercises_daily_streak',
   'best_exercises_daily_streak',
-  'last_login',
+  'last_access',
   'level',
   'avatar_border',
   'avatar_color',
@@ -173,6 +173,35 @@ export const uploadUserAvatar = async (userId: string, file: File) => {
 
   await updateUser(userId, { avatar: fileId })
   return fileId as string
+}
+
+export const requestPasswordReset = async (email: string): Promise<void> => {
+  if (!normalizedDirectusUrl) throw new Error('VITE_DIRECTUS_URL is not set.')
+  const response = await fetch(`${normalizedDirectusUrl}/auth/password/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      reset_url: `${window.location.origin}/reset-password`,
+    }),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Request failed: ${response.status} ${text}`.trim())
+  }
+}
+
+export const resetPassword = async (token: string, password: string): Promise<void> => {
+  if (!normalizedDirectusUrl) throw new Error('VITE_DIRECTUS_URL is not set.')
+  const response = await fetch(`${normalizedDirectusUrl}/auth/password/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Reset failed: ${response.status} ${text}`.trim())
+  }
 }
 
 export const getUserDisplayName = (user?: User | null) => {

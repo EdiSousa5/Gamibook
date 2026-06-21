@@ -43,6 +43,16 @@ const onAvatarChange = (event: Event) => {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+        toastError('Ficheiro demasiado grande. O tamanho máximo é 5 MB.')
+        target.value = ''
+        return
+    }
+    if (!file.type.startsWith('image/')) {
+        toastError('Formato inválido. Escolhe uma imagem (JPG, PNG ou GIF).')
+        target.value = ''
+        return
+    }
     avatarFile.value = file
     fileName.value = file.name
     const reader = new FileReader()
@@ -68,7 +78,11 @@ const loadProfile = async () => {
 const saveProfile = async () => {
     if (!user.value?.id) return
     const userId = String(user.value.id)
-    const trimmedName = name.value.trim()
+    const trimmedName = name.value.trim().replace(/[<>"'&]/g, '').slice(0, 100)
+    if (!trimmedName || trimmedName.length < 2) {
+        toastError('Nome inválido (mínimo 2 caracteres).')
+        return
+    }
     const [firstName, ...rest] = trimmedName.split(' ').filter(Boolean)
     const lastName = rest.join(' ') || undefined
     isSavingProfile.value = true

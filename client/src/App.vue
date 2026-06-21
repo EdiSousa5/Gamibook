@@ -227,7 +227,7 @@ const ADMIN_STEPS: TourStep[] = [
   {
     selector: '[data-tour="nav-generate"]',
     title: 'Gerador de Exercícios',
-    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo. Tens uma quota de 50 exercícios por dia.',
+    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo.',
     placement: 'right',
     route: '/admin',
   },

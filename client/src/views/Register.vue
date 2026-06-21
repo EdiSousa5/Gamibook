@@ -23,8 +23,16 @@ const error = ref('')
 const isLoading = ref(false)
 
 const onAvatarFilePick = (file: File | null) => {
+  if (!file) { avatarFile.value = null; avatarPreview.value = ''; return }
+  if (file.size > 5 * 1024 * 1024) {
+    toastError('Ficheiro demasiado grande. O tamanho máximo é 5 MB.')
+    return
+  }
+  if (!file.type.startsWith('image/')) {
+    toastError('Formato inválido. Escolhe uma imagem (JPG, PNG ou GIF).')
+    return
+  }
   avatarFile.value = file
-  if (!file) { avatarPreview.value = ''; return }
   const reader = new FileReader()
   reader.onload = () => { avatarPreview.value = String(reader.result || '') }
   reader.readAsDataURL(file)
@@ -67,6 +75,7 @@ const submit = async () => {
       await router.push({ path: '/login', query: { registered: '1' } })
       return
     }
+
 
     if (avatarFile.value) {
       try {

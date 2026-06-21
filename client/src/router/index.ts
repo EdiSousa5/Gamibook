@@ -14,6 +14,7 @@ const router = createRouter({
     },
     { path: '/login', name: 'login', component: () => import('../views/Login.vue'), meta: { layout: 'landing' } },
     { path: '/register', name: 'register', component: () => import('../views/Register.vue'), meta: { layout: 'landing' } },
+    { path: '/reset-password', name: 'reset-password', component: () => import('../views/ResetPassword.vue'), meta: { layout: 'landing' } },
     {
       path: '/app',
       name: 'app',
