@@ -11,6 +11,10 @@ import {
   RectangleStackIcon,
   EyeIcon,
   TrashIcon,
+  PlusCircleIcon,
+  PencilSquareIcon,
+  CheckBadgeIcon,
+  Square3Stack3DIcon,
 } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
@@ -25,7 +29,17 @@ const notifStore = useNotificationsStore()
 const toast = useToast()
 
 const selectedIds = ref<Set<string>>(new Set())
+const expandedIds = ref<Set<string>>(new Set())
 const hasSelection = computed(() => selectedIds.value.size > 0)
+
+const toggleExpand = (id: string) => {
+  const next = new Set(expandedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedIds.value = next
+}
+
+const MESSAGE_PREVIEW_CHARS = 100
 const allSelected = computed(
   () =>
     notifStore.notifications.length > 0 &&
@@ -65,6 +79,11 @@ const iconMap: Record<NotificationType, Component> = {
   system: BellIcon,
   book_unlocked: BookOpenIcon,
   new_content: RectangleStackIcon,
+  exercise_created: PlusCircleIcon,
+  exercise_deleted: TrashIcon,
+  exercise_edited: PencilSquareIcon,
+  book_approved: CheckBadgeIcon,
+  module_created: Square3Stack3DIcon,
 }
 
 const timeAgo = (dateStr: string): string => {
@@ -164,7 +183,22 @@ const handleItemClick = async (id: string, isRead: boolean) => {
                 <span class="notif-title">{{ notif.title }}</span>
                 <span class="notif-time">{{ timeAgo(notif.date_created) }}</span>
               </span>
-              <span class="notif-message">{{ notif.message }}</span>
+              <span class="notif-message" :class="{ 'notif-message--expanded': expandedIds.has(notif.notifications_id) }">
+                <template v-if="expandedIds.has(notif.notifications_id) || notif.message.length <= MESSAGE_PREVIEW_CHARS">
+                  {{ notif.message }}
+                </template>
+                <template v-else>
+                  {{ notif.message.slice(0, MESSAGE_PREVIEW_CHARS) }}…
+                </template>
+              </span>
+              <button
+                v-if="notif.message.length > MESSAGE_PREVIEW_CHARS"
+                class="notif-expand-btn"
+                type="button"
+                @click.stop="toggleExpand(notif.notifications_id)"
+              >
+                {{ expandedIds.has(notif.notifications_id) ? 'Ver menos' : 'Ver mais' }}
+              </button>
             </span>
 
             <UiIconButton
@@ -395,13 +429,18 @@ const handleItemClick = async (id: string, isRead: boolean) => {
   place-items: center;
 }
 
-.notif-icon-wrap--achievement    { background: var(--color-amber-100); }
-.notif-icon-wrap--quiz_ready     { background: #f3e8ff; }
-.notif-icon-wrap--quiz_result    { background: var(--color-deep-100); }
-.notif-icon-wrap--streak_warning { background: var(--color-pumpkin-100); }
-.notif-icon-wrap--system         { background: var(--color-wild-400); }
-.notif-icon-wrap--book_unlocked  { background: var(--color-deep-100); }
-.notif-icon-wrap--new_content    { background: var(--color-mirage-100); }
+.notif-icon-wrap--achievement        { background: var(--color-amber-100); }
+.notif-icon-wrap--quiz_ready         { background: #f3e8ff; }
+.notif-icon-wrap--quiz_result        { background: var(--color-deep-100); }
+.notif-icon-wrap--streak_warning     { background: var(--color-pumpkin-100); }
+.notif-icon-wrap--system             { background: var(--color-wild-400); }
+.notif-icon-wrap--book_unlocked      { background: var(--color-deep-100); }
+.notif-icon-wrap--new_content        { background: var(--color-mirage-100); }
+.notif-icon-wrap--exercise_created   { background: var(--color-teal-100, #e6faf8); }
+.notif-icon-wrap--exercise_deleted   { background: var(--color-crimson-100, #fee2e2); }
+.notif-icon-wrap--exercise_edited    { background: var(--color-amber-100); }
+.notif-icon-wrap--book_approved      { background: var(--color-deep-100); }
+.notif-icon-wrap--module_created     { background: var(--color-mirage-100); }
 
 .notif-icon {
   width: 16px;
@@ -409,13 +448,18 @@ const handleItemClick = async (id: string, isRead: boolean) => {
   stroke-width: 2;
 }
 
-.notif-icon-wrap--achievement    .notif-icon { color: var(--color-amber-700); }
-.notif-icon-wrap--quiz_ready     .notif-icon { color: #7c3aed; }
-.notif-icon-wrap--quiz_result    .notif-icon { color: var(--color-deep-600); }
-.notif-icon-wrap--streak_warning .notif-icon { color: var(--color-pumpkin-700); }
-.notif-icon-wrap--system         .notif-icon { color: var(--color-mirage-500); }
-.notif-icon-wrap--book_unlocked  .notif-icon { color: var(--color-deep-600); }
-.notif-icon-wrap--new_content    .notif-icon { color: var(--color-mirage-500); }
+.notif-icon-wrap--achievement        .notif-icon { color: var(--color-amber-700); }
+.notif-icon-wrap--quiz_ready         .notif-icon { color: #7c3aed; }
+.notif-icon-wrap--quiz_result        .notif-icon { color: var(--color-deep-600); }
+.notif-icon-wrap--streak_warning     .notif-icon { color: var(--color-pumpkin-700); }
+.notif-icon-wrap--system             .notif-icon { color: var(--color-mirage-500); }
+.notif-icon-wrap--book_unlocked      .notif-icon { color: var(--color-deep-600); }
+.notif-icon-wrap--new_content        .notif-icon { color: var(--color-mirage-500); }
+.notif-icon-wrap--exercise_created   .notif-icon { color: var(--color-teal-700, #0f766e); }
+.notif-icon-wrap--exercise_deleted   .notif-icon { color: var(--color-crimson-700, #b91c1c); }
+.notif-icon-wrap--exercise_edited    .notif-icon { color: var(--color-amber-700); }
+.notif-icon-wrap--book_approved      .notif-icon { color: var(--color-deep-600); }
+.notif-icon-wrap--module_created     .notif-icon { color: var(--color-mirage-600); }
 
 /* ── Body text ── */
 .notif-body {
@@ -455,10 +499,25 @@ const handleItemClick = async (id: string, isRead: boolean) => {
   font-weight: 500;
   color: var(--color-mirage-500);
   line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+}
+
+.notif-expand-btn {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary-strong, var(--color-deep-600));
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notif-expand-btn:hover {
+  color: var(--color-deep-800);
 }
 
 /* ── Empty state ── */

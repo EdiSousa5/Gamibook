@@ -6,6 +6,11 @@ export type NotificationType =
   | 'streak_warning'
   | 'new_content'
   | 'book_unlocked'
+  | 'exercise_created'
+  | 'exercise_deleted'
+  | 'exercise_edited'
+  | 'book_approved'
+  | 'module_created'
 
 export interface Notification {
   notifications_id: string

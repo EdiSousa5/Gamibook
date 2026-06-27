@@ -1,7 +1,8 @@
 import type { User } from '@/types'
 import { authFetch, normalizedDirectusUrl, setAccessToken, setRefreshToken, setStoredUserId } from './client'
 
-const USER_FIELDS = [
+// Campos acessíveis por todos os roles (incluindo editora/autor)
+const BASE_USER_FIELDS = [
   'id',
   'first_name',
   'last_name',
@@ -10,8 +11,6 @@ const USER_FIELDS = [
   'role',
   'role.id',
   'role.name',
-  'exercises_daily_streak',
-  'best_exercises_daily_streak',
   'last_access',
   'level',
   'avatar_border',
@@ -22,6 +21,13 @@ const USER_FIELDS = [
   'onboarding_completed',
   'best_rank',
   'profile_private',
+]
+
+// Campos adicionais de gamificação — apenas roles de utilizador normal têm acesso
+const USER_FIELDS = [
+  ...BASE_USER_FIELDS,
+  'exercises_daily_streak',
+  'best_exercises_daily_streak',
 ]
 
 const buildRegisterPayload = (payload: Partial<User>) => {
@@ -59,8 +65,17 @@ const registerDirectusUser = async (payload: Partial<User>) => {
   return (data?.data ?? data) as User
 }
 
-const fetchCurrentUser = async () => {
-  const params = new URLSearchParams({ fields: USER_FIELDS.join(',') })
+export const fetchCurrentUserEditoraId = async (): Promise<number | null> => {
+  // O Directus restringe via permissões de linha: o utilizador editora só vê a sua própria editora.
+  const response = await authFetch('/items/editoras?fields=editora_id&limit=1')
+  if (!response.ok) return null
+  const data = await response.json().catch(() => null)
+  const first = data?.data?.[0]
+  return first?.editora_id != null ? Number(first.editora_id) : null
+}
+
+export const fetchCurrentUser = async () => {
+  const params = new URLSearchParams({ fields: BASE_USER_FIELDS.join(',') })
   const response = await authFetch(`/users/me?${params.toString()}`)
 
   if (!response.ok) {
@@ -72,8 +87,22 @@ const fetchCurrentUser = async () => {
   return (data?.data ?? data) as User
 }
 
+
 const fetchUserByIdWithAuth = async (id: number | string) => {
   const params = new URLSearchParams({ fields: USER_FIELDS.join(',') })
+  const response = await authFetch(`/users/${id}?${params.toString()}`)
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch user failed: ${response.status} ${text}`.trim())
+  }
+
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? data) as User
+}
+
+const fetchUserByIdBaseWithAuth = async (id: number | string) => {
+  const params = new URLSearchParams({ fields: BASE_USER_FIELDS.join(',') })
   const response = await authFetch(`/users/${id}?${params.toString()}`)
 
   if (!response.ok) {
@@ -103,6 +132,7 @@ const fetchUsersWithAuth = async (limit?: number, roleName?: string) => {
 export const fetchUsers = (limit?: number, roleName?: string) => fetchUsersWithAuth(limit, roleName)
 
 export const fetchUserById = (id: number | string) => fetchUserByIdWithAuth(id)
+export const fetchUserByIdBase = (id: number | string) => fetchUserByIdBaseWithAuth(id)
 
 export const loginUser = async (email: string, password: string) => {
   if (!normalizedDirectusUrl) {
@@ -216,10 +246,20 @@ export const getUserAvatarId = (user?: User | null) => user?.avatar ?? null
 
 const ADMIN_ROLES = ['admin', 'admin absoluto', 'editora', 'autor']
 
-export const isAdminUser = (user?: User | null) => {
-  const role = user?.role
-  const roleName =
-    typeof role === 'string' ? role : typeof role === 'object' && role ? role.name : null
-  if (!roleName) return false
-  return ADMIN_ROLES.includes(roleName.trim().toLowerCase())
+export const isAdminUser = (user?: User | null): boolean => {
+  if (!user) return false
+  const role = user.role
+  if (!role) return false
+
+  if (typeof role === 'string') {
+    return ADMIN_ROLES.includes(role.trim().toLowerCase())
+  }
+
+  if (typeof role === 'object') {
+    const name = (role as any).name as string | null
+    if (!name) return false
+    return ADMIN_ROLES.includes(name.trim().toLowerCase())
+  }
+
+  return false
 }

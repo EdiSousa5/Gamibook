@@ -3,11 +3,11 @@ import { useRoute } from 'vue-router'
 import UiSideMenuItem from '@/components/ui/UiSideMenuItem.vue'
 import {
   UserIcon,
-  BellIcon,
   PaintBrushIcon,
   ShieldCheckIcon,
   EyeIcon,
-  ChartBarIcon,
+  IdentificationIcon,
+  ClockIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -15,10 +15,10 @@ const route = useRoute()
 const sections = [
   { id: 'conta', label: 'Conta', description: 'Perfil e avatar', path: '/settings/conta', icon: UserIcon },
   { id: 'aparencia', label: 'Aparência', description: 'Temas e cores', path: '/settings/aparencia', icon: PaintBrushIcon },
-  { id: 'notificacoes', label: 'Notificações', description: 'Alertas e resumos', path: '/settings/notificacoes', icon: BellIcon },
   { id: 'privacidade', label: 'Privacidade', description: 'Segurança e dados', path: '/settings/privacidade', icon: ShieldCheckIcon },
   { id: 'acessibilidade', label: 'Acessibilidade', description: 'Letra, cores e contraste', path: '/settings/acessibilidade', icon: EyeIcon },
-  { id: 'atividade', label: 'Atividade', description: 'Histórico de XP', path: '/settings/atividade', icon: ChartBarIcon },
+  { id: 'dados', label: 'Dados da Conta', description: 'Informação do perfil', path: '/settings/dados', icon: IdentificationIcon },
+  { id: 'historico', label: 'Histórico', description: 'Atividade e XP ganho', path: '/settings/historico', icon: ClockIcon },
 ] as const
 
 const isActive = (path: string) => route.path === path

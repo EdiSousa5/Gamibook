@@ -55,7 +55,7 @@ const features = [
   {
     icon: StarIcon,
     title: 'XP & Níveis',
-    desc: 'Acumulas XP a cada resposta correta. O XP ganho depende do tipo de exercício e do número de tentativas. Cada nível é progressivamente mais exigente.',
+    desc: 'Acumulas XP a cada resposta correta: 30 XP na 1.ª tentativa, 15 XP na 2.ª. Completar o Quiz Final com sucesso dá um bónus de 200 XP. Cada nível é progressivamente mais exigente.',
     to: '/app',
     cta: 'Ver dashboard',
     chip: 'Progressão',
@@ -94,7 +94,7 @@ const faqCategories = [
       },
       {
         q: 'Como são calculados os pontos de XP por exercício?',
-        a: 'O XP varia com o tipo de exercício — escolha múltipla e verdadeiro/falso têm valores diferentes. Ao responder corretamente à primeira tentativa recebes o XP máximo. Exercícios que já erraste anteriormente não dão XP ao serem repetidos. Exercícios diários têm um bónus extra.',
+        a: 'Responder corretamente à primeira tentativa dá 30 XP (mais 15 XP de bónus se mantiveres uma sequência de acertos consecutivos). Na segunda tentativa recebes 15 XP. Exercícios já respondidos corretamente anteriormente não voltam a dar XP. O exercício diário segue as mesmas regras. Completar o Quiz Final com sucesso atribui um bónus de 200 XP.',
       },
       {
         q: 'Como funcionam as badges de livro e quais os níveis?',
@@ -140,7 +140,7 @@ const faqCategories = [
       },
       {
         q: 'O que é o Quiz Final e como o desbloquear?',
-        a: 'O Quiz Final é desbloqueado automaticamente quando completares todos os módulos de um livro com o número mínimo de exercícios corretos. É uma série de perguntas abrangentes sobre todo o conteúdo do livro. Completar o Quiz Final com sucesso conclui o livro definitivamente e pode evoluir a tua badge.',
+        a: 'O Quiz Final é desbloqueado automaticamente quando completares todos os módulos de um livro (badge Diamante). É composto por 10 perguntas de todo o conteúdo do livro e precisas de acertar 8 ou mais para passar. Ao completares com sucesso: conquistas o badge Galaxy e recebes um bónus de 200 XP. Em caso de falha, podes tentar novamente após 24 horas.',
       },
       {
         q: 'O que acontece se responder incorretamente?',

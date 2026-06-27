@@ -93,11 +93,6 @@ const router = createRouter({
           component: () => import('../views/settings/SettingsAccount.vue'),
         },
         {
-          path: 'notificacoes',
-          name: 'settings-notificacoes',
-          component: () => import('../views/settings/SettingsNotifications.vue'),
-        },
-        {
           path: 'aparencia',
           name: 'settings-aparencia',
           component: () => import('../views/settings/Appearance.vue'),
@@ -112,20 +107,23 @@ const router = createRouter({
           name: 'settings-acessibilidade',
           component: () => import('../views/settings/Accessibility.vue'),
         },
-
         {
-          path: 'atividade',
-          name: 'settings-atividade',
+          path: 'dados',
+          name: 'settings-dados',
+          component: () => import('../views/settings/SettingsUserData.vue'),
+        },
+        {
+          path: 'historico',
+          name: 'settings-historico',
           component: () => import('../views/settings/ActivityHistory.vue'),
         },
-
       ],
     },
     {
       path: '/ui-kit',
       name: 'ui-kit',
       component: () => import('../views/UiKitPreview.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdminAbsoluto: true },
     },
     {
       path: '/admin',
@@ -137,6 +135,12 @@ const router = createRouter({
       path: '/admin/guide',
       name: 'admin-guide',
       component: () => import('../views/AdminGuide.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/stats',
+      name: 'admin-stats',
+      component: () => import('../views/AdminStats.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
@@ -179,6 +183,11 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAdmin && !isAdminUser(user)) return { path: '/app' }
   if (to.meta.userOnly && isAdminUser(user)) return { path: '/admin' }
+  if (to.meta.requiresAdminAbsoluto) {
+    const role = user.role
+    const name = typeof role === 'string' ? role : (role as any)?.name ?? ''
+    if (name.trim().toLowerCase() !== 'admin absoluto') return { path: '/admin' }
+  }
 
   return true
 })

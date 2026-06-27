@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { fetchUserById } from '../../services/auth'
+import { fetchUserByIdBase } from '../../services/auth'
 import { getStoredUserId } from '../../services/storage'
 import type { User } from '@/types'
 
@@ -21,7 +21,7 @@ const loadUser = async () => {
     if (!storedId) return
     error.value = ''
     try {
-        user.value = await fetchUserById(storedId)
+        user.value = await fetchUserByIdBase(storedId)
     } catch {
         error.value = 'Não foi possível carregar os dados do utilizador.'
     }

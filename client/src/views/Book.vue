@@ -554,7 +554,7 @@ watch(
                 </div>
                 <div class="badge-modal__text">
                   <strong>Galaxy</strong>
-                  <span>100% + quiz final com 75% de sucesso.</span>
+                  <span>100% + quiz final com pelo menos 8/10 certas. Recompensa: +200 XP bónus.</span>
                 </div>
               </div>
             </div>

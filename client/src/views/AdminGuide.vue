@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   BookOpenIcon,
   SparklesIcon,
@@ -14,14 +14,28 @@ import {
   TableCellsIcon,
 } from '@heroicons/vue/24/outline'
 import UiSegmented from '@/components/ui/UiSegmented.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+
+const roleName = computed(() => {
+  const role = auth.user?.role
+  const name = typeof role === 'string' ? role : (role as any)?.name ?? ''
+  return name.trim().toLowerCase()
+})
+const isAutor = computed(() => roleName.value === 'autor')
 
 const activeTab = ref('plataforma')
 const openAccordions = ref<Record<string, boolean>>({})
 
-const tabOptions = [
-  { label: 'Plataforma GamiBook', value: 'plataforma' },
-  { label: 'Directus', value: 'directus' },
-]
+const tabOptions = computed(() =>
+  isAutor.value
+    ? [{ label: 'Gerador de exercícios', value: 'plataforma' }]
+    : [
+        { label: 'Plataforma GamiBook', value: 'plataforma' },
+        { label: 'Directus', value: 'directus' },
+      ],
+)
 
 const toggleAccordion = (key: string) => {
   openAccordions.value[key] = !openAccordions.value[key]
@@ -35,15 +49,15 @@ const toggleAccordion = (key: string) => {
       <p class="kicker">Manual de utilização</p>
       <h1>Guia para Editoras e Autores</h1>
       <p class="subtitle">
-        Tudo o que precisas de saber para gerir os teus livros, criar exercícios com IA e trabalhar com o Directus.
+        {{ isAutor ? 'Tudo o que precisas de saber para criar exercícios com IA e publicar os teus livros.' : 'Tudo o que precisas de saber para gerir os teus livros, criar exercícios com IA e trabalhar com o Directus.' }}
       </p>
     </header>
 
-    <div class="tabs-row">
+    <div v-if="!isAutor" class="tabs-row">
       <UiSegmented
         :model-value="activeTab"
         :options="tabOptions"
-        @update="activeTab = $event"
+        @update="(v: string) => { activeTab = v }"
       />
     </div>
 
