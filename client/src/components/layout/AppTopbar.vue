@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BrowserQRCodeReader } from '@zxing/browser'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiIconButton from '@/components/ui/UiIconButton.vue'
 import UiModal from '@/components/ui/UiModal.vue'
 import UiPillButton from '@/components/ui/UiPillButton.vue'
-import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, QrCodeIcon, CameraIcon, ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon, Bars3Icon } from '@heroicons/vue/24/outline'
+import { ArrowUturnLeftIcon, BellIcon, ChevronDownIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TrophyIcon, SparklesIcon, BookOpenIcon, RectangleStackIcon, XMarkIcon, Bars3Icon, PlusCircleIcon, PencilSquareIcon, CheckBadgeIcon, Square3Stack3DIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import type { NotificationType } from '@/types/notification'
 import type { Component } from 'vue'
-import { fetchBookByQrCode, checkBookOwnership, unlockBook, redeemActivationCode } from '@/services/books'
+import { redeemActivationCode } from '@/services/books'
 import { getStoredUserId } from '@/services/storage'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useAuthStore } from '@/stores/auth'
@@ -27,10 +26,6 @@ type Props = {
   mobileNavOpen?: boolean
 }
 
-const UNLOCK_URL_RE = /\/unlock\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-type ScanState = 'idle' | 'scanning' | 'file-mode' | 'processing' | 'already-owned' | 'not-found' | 'error'
 type CodeState = 'idle' | 'processing' | 'already-owned' | 'already-used' | 'not-found' | 'error'
 
 const props = defineProps<Props>()
@@ -41,22 +36,10 @@ const authStore = useAuthStore()
 
 const menuOpen = ref(false)
 const bellOpen = ref(false)
-const qrOpen = ref(false)
 const profileRef = ref<HTMLElement | null>(null)
 const bellRef = ref<HTMLElement | null>(null)
 const route = useRoute()
 const router = useRouter()
-
-const videoRef = ref<HTMLVideoElement | null>(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const scanState = ref<ScanState>('idle')
-const scannedBook = ref<Book | null>(null)
-const scanError = ref('')
-let scanControls: { stop: () => void } | null = null
-let cameraStartedAt = 0
-
-const isDraggingOver = ref(false)
-let dragCounter = 0
 
 // ── Activation code modal ────────────────────────────────────────────────────
 const codeOpen = ref(false)
@@ -145,193 +128,6 @@ const progressLabel = computed(() => {
   return `${value}/${total} XP`
 })
 
-const extractUuid = (text: string): string | null => {
-  const t = text.trim()
-  const urlMatch = t.match(UNLOCK_URL_RE)
-  if (urlMatch?.[1]) return urlMatch[1]
-  if (UUID_RE.test(t)) return t
-  return null
-}
-
-const stopScanner = () => {
-  scanControls?.stop()
-  scanControls = null
-}
-
-const processResult = async (rawText: string) => {
-  stopScanner()
-  console.log('[QR] rawText:', JSON.stringify(rawText))
-  const uuid = extractUuid(rawText)
-  console.log('[QR] uuid extraído:', uuid)
-  if (!uuid) {
-    scanState.value = 'not-found'
-    return
-  }
-
-  scanState.value = 'processing'
-  try {
-    const userId = getStoredUserId()
-    if (!userId) {
-      scanState.value = 'error'
-      scanError.value = 'Sessão expirada. Faz login novamente.'
-      return
-    }
-
-    const book = await fetchBookByQrCode(uuid)
-    if (!book) {
-      scanState.value = 'not-found'
-      return
-    }
-
-    const owned = await checkBookOwnership(userId, book.book_id)
-    if (owned) {
-      scannedBook.value = book
-      scanState.value = 'already-owned'
-      return
-    }
-
-    await unlockBook(userId, book.book_id)
-    closeQr()
-    emit('book-unlocked', book)
-    notifStore.add({
-      user: userId,
-      title: 'Livro desbloqueado!',
-      message: `"${book.title}" foi adicionado à tua coleção.`,
-      type: 'book_unlocked',
-    })
-  } catch {
-    scanState.value = 'error'
-    scanError.value = 'Erro ao verificar o código. Tenta novamente.'
-  }
-}
-
-const startCamera = async (videoEl: HTMLVideoElement) => {
-  try {
-    cameraStartedAt = Date.now()
-    const reader = new BrowserQRCodeReader()
-    scanControls = await reader.decodeFromVideoDevice(undefined, videoEl, (result) => {
-      if (result && Date.now() - cameraStartedAt >= 1000) processResult(result.getText())
-    })
-  } catch {
-    scanState.value = 'error'
-    scanError.value = 'Não foi possível aceder à câmara. Verifica as permissões.'
-  }
-}
-
-const openCamera = async () => {
-  scanState.value = 'scanning'
-  await nextTick()
-  if (videoRef.value) startCamera(videoRef.value)
-}
-
-const openFileMode = () => {
-  stopScanner()
-  scanState.value = 'file-mode'
-  nextTick(() => fileInputRef.value?.click())
-}
-
-const decodeQrFromFile = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = async () => {
-      // Tenta vários tamanhos de canvas com pixels nítidos (sem interpolação)
-      // para evitar ChecksumException causado por scaling com blur
-      const sizes = [img.naturalWidth, 800, 512, 300]
-      let lastErr: unknown
-      for (const size of sizes) {
-        try {
-          const canvas = document.createElement('canvas')
-          canvas.width = size
-          canvas.height = size
-          const ctx = canvas.getContext('2d')!
-          ctx.imageSmoothingEnabled = false
-          ctx.drawImage(img, 0, 0, size, size)
-          const dataUrl = canvas.toDataURL('image/png')
-          const reader = new BrowserQRCodeReader()
-          const result = await reader.decodeFromImageUrl(dataUrl)
-          URL.revokeObjectURL(objectUrl)
-          resolve(result.getText())
-          return
-        } catch (e) {
-          lastErr = e
-        }
-      }
-      URL.revokeObjectURL(objectUrl)
-      reject(lastErr)
-    }
-    img.onerror = (e) => { URL.revokeObjectURL(objectUrl); reject(e) }
-    img.src = objectUrl
-  })
-
-const onFileSelected = async (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!fileInputRef.value) return
-  fileInputRef.value.value = ''
-  if (!file) return
-
-  scanState.value = 'processing'
-  try {
-    const text = await decodeQrFromFile(file)
-    console.log('[QR] decode ok, texto bruto:', JSON.stringify(text))
-    await processResult(text)
-  } catch (e) {
-    console.error('[QR] erro ao ler imagem:', e)
-    scanState.value = 'error'
-    scanError.value = 'Não foi possível ler o QR Code. Tenta com uma imagem mais nítida.'
-  }
-}
-
-const onDropZoneDragEnter = (event: DragEvent) => {
-  if (!event.dataTransfer?.types.includes('Files')) return
-  dragCounter++
-  isDraggingOver.value = true
-}
-
-const onDropZoneDragLeave = () => {
-  dragCounter--
-  if (dragCounter <= 0) {
-    dragCounter = 0
-    isDraggingOver.value = false
-  }
-}
-
-const onDropZoneDrop = async (event: DragEvent) => {
-  event.preventDefault()
-  dragCounter = 0
-  isDraggingOver.value = false
-  const file = event.dataTransfer?.files?.[0]
-  if (!file) return
-  scanState.value = 'processing'
-  try {
-    const text = await decodeQrFromFile(file)
-    await processResult(text)
-  } catch {
-    scanState.value = 'error'
-    scanError.value = 'Não foi possível ler o QR Code. Tenta com uma imagem mais nítida.'
-  }
-}
-
-const openQr = () => {
-  qrOpen.value = true
-  scanState.value = 'idle'
-  scannedBook.value = null
-}
-
-const closeQr = () => {
-  stopScanner()
-  qrOpen.value = false
-  scannedBook.value = null
-  scanState.value = 'idle'
-  isDraggingOver.value = false
-  dragCounter = 0
-}
-
-const retry = () => {
-  scannedBook.value = null
-  scanState.value = 'idle'
-}
-
 const toggleMenu = () => { menuOpen.value = !menuOpen.value }
 const closeMenu = () => { menuOpen.value = false }
 
@@ -343,6 +139,11 @@ const popupIconMap: Record<NotificationType, Component> = {
   system: BellIcon,
   book_unlocked: BookOpenIcon,
   new_content: RectangleStackIcon,
+  exercise_created: PlusCircleIcon,
+  exercise_deleted: TrashIcon,
+  exercise_edited: PencilSquareIcon,
+  book_approved: CheckBadgeIcon,
+  module_created: Square3Stack3DIcon,
 }
 
 const toggleBell = () => {
@@ -362,7 +163,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
-  stopScanner()
 })
 
 </script>
@@ -880,399 +680,6 @@ onBeforeUnmount(() => {
   line-height: 1.5;
 }
 
-/* QR Modal (kept for future use) */
-.qr-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(2, 29, 32, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: clamp(1rem, 4vw, 2rem);
-}
-
-.qr-modal {
-  width: min(28.75rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
-  overflow-y: auto;
-  background: var(--color-wild-100);
-  border-radius: 1.25rem;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 6px 6px 0 var(--color-shadow);
-  padding: var(--space-500);
-  display: grid;
-  gap: var(--space-400);
-  position: relative;
-}
-
-@media (max-width: 64em) {
-  .qr-modal {
-    width: min(28.75rem, calc(100vw - 1.5rem));
-    max-height: calc(100dvh - 1.5rem);
-    padding: var(--space-400);
-  }
-}
-
-@media (max-width: 40em) {
-  .qr-modal {
-    width: 90%;
-    max-width: 320px;
-    padding: var(--space-400);
-  }
-
-  .mode-buttons {
-    grid-template-columns: 1fr;
-  }
-
-  .mode-btn {
-    padding: var(--space-400);
-  }
-}
-
-.qr-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 700;
-  font-size: 15px;
-}
-
-/* Mode selection */
-.mode-select {
-  display: grid;
-  gap: var(--space-400);
-}
-
-.mode-hint {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-mirage-500);
-  text-align: center;
-  line-height: 1.5;
-}
-
-.mode-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-400);
-}
-
-.mode-btn {
-  display: grid;
-  gap: var(--space-200);
-  justify-items: center;
-  text-align: center;
-  padding: var(--space-500) var(--space-400);
-  border-radius: 16px;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-}
-
-.mode-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 4px 7px 0 var(--color-shadow);
-  background: var(--color-wild-200);
-}
-
-.mode-btn:active {
-  transform: translateY(2px);
-  box-shadow: 2px 2px 0 var(--color-shadow);
-}
-
-.mode-btn strong {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-}
-
-.mode-btn span {
-  font-size: 12px;
-  color: var(--color-mirage-500);
-  line-height: 1.4;
-}
-
-.mode-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 3px 3px 0 var(--color-shadow);
-  background: var(--color-deep-100);
-  display: grid;
-  place-items: center;
-}
-
-.mode-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--color-deep-700);
-  stroke-width: 1.5;
-}
-
-/* Scanner */
-.scanner-wrap {
-  position: relative;
-  border-radius: 14px;
-  border: 2px solid var(--color-mirage-800);
-  overflow: hidden;
-  background: #000;
-  aspect-ratio: 1;
-  box-shadow: 4px 4px 0 var(--color-shadow);
-}
-
-.scanner-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.scanner-ui {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.scanner-corner {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-color: var(--color-deep-400);
-  border-style: solid;
-}
-
-.scanner-corner.tl { top: 16px; left: 16px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-.scanner-corner.tr { top: 16px; right: 16px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-.scanner-corner.bl { bottom: 16px; left: 16px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-.scanner-corner.br { bottom: 16px; right: 16px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-
-.scanner-line {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  height: 2px;
-  background: var(--color-deep-400);
-  animation: scan-sweep 2s ease-in-out infinite;
-}
-
-@keyframes scan-sweep {
-  0%, 100% { top: 20%; opacity: 0.6; }
-  50%       { top: 80%; opacity: 1; }
-}
-
-.scanner-processing {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.scanner-hint {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-mirage-500);
-  text-align: center;
-}
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-mirage-500);
-  cursor: pointer;
-  padding: 0;
-  justify-self: center;
-}
-
-.back-link:hover { color: var(--color-mirage-800); }
-
-.back-link-icon {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2.5;
-}
-
-/* File zone */
-.file-zone {
-  display: grid;
-  gap: var(--space-200);
-  justify-items: center;
-  text-align: center;
-  padding: var(--space-600) var(--space-400);
-  border-radius: 14px;
-  border: 2px dashed var(--color-mirage-800);
-  background: var(--color-wild-200);
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.file-zone:hover { background: var(--color-wild-300); }
-
-.file-zone-icon {
-  width: 40px;
-  height: 40px;
-  color: var(--color-deep-600);
-  stroke-width: 1.5;
-  margin-bottom: 4px;
-}
-
-.file-zone strong {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-}
-
-.file-zone span {
-  font-size: 12px;
-  color: var(--color-mirage-500);
-  line-height: 1.4;
-}
-
-/* Result states */
-.scan-result {
-  display: grid;
-  gap: var(--space-300);
-  text-align: center;
-  justify-items: center;
-  padding: var(--space-500) var(--space-300);
-}
-
-.result-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  display: grid;
-  place-items: center;
-}
-
-.result-icon--owned { background: var(--color-deep-100); }
-.result-icon--error { background: var(--color-error-muted); border-color: var(--color-red-500); }
-.result-icon--warn  { background: var(--color-amber-100); border-color: #92400e; }
-
-.result-icon-svg {
-  width: 32px;
-  height: 32px;
-  color: var(--color-mirage-700);
-  stroke-width: 1.5;
-}
-
-.result-icon--error .result-icon-svg { color: var(--color-error-strong); }
-.result-icon--warn  .result-icon-svg { color: #92400e; }
-
-.result-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--color-mirage-800);
-}
-
-.result-desc {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-mirage-500);
-  max-width: 280px;
-  line-height: 1.5;
-}
-
-/* Drag-and-drop overlay */
-.drag-overlay {
-  position: absolute;
-  inset: 6px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: 3px dashed var(--color-deep-500);
-  box-shadow:
-    inset 0 0 0 5px var(--color-deep-100),
-    0 0 0 1px var(--color-deep-300);
-  display: grid;
-  place-items: center;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.drag-overlay-inner {
-  display: grid;
-  gap: var(--space-200);
-  justify-items: center;
-  text-align: center;
-}
-
-.drag-overlay-icon-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--color-deep-500);
-  border: 2px solid var(--color-mirage-800);
-  box-shadow: 4px 4px 0 var(--color-shadow);
-  display: grid;
-  place-items: center;
-}
-
-.drag-overlay-icon {
-  width: 28px;
-  height: 28px;
-  stroke-width: 2;
-  color: #fff;
-}
-
-.drag-overlay-inner strong {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-mirage-900);
-}
-
-.drag-overlay-inner span {
-  font-size: 12px;
-  color: var(--color-mirage-500);
-}
-
-.drag-fade-enter-active {
-  transition: opacity 0.2s ease;
-}
-.drag-fade-leave-active {
-  transition: opacity 0.18s ease;
-}
-.drag-fade-enter-from,
-.drag-fade-leave-to {
-  opacity: 0;
-}
-
-/* Spinner */
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.spinner.dark {
-  border-color: var(--color-wild-400);
-  border-top-color: var(--color-deep-500);
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
 .icon {
   width: 20px;
   height: 20px;
@@ -1347,7 +754,12 @@ onBeforeUnmount(() => {
 .popup-type--streak_warning{ background: var(--color-pumpkin-100); }
 .popup-type--system        { background: var(--color-wild-400); }
 .popup-type--book_unlocked { background: var(--color-deep-100); }
-.popup-type--new_content   { background: var(--color-mirage-100); }
+.popup-type--new_content        { background: var(--color-mirage-100); }
+.popup-type--exercise_created  { background: var(--color-deep-100); }
+.popup-type--exercise_deleted  { background: var(--color-error-muted); }
+.popup-type--exercise_edited   { background: var(--color-amber-100); }
+.popup-type--book_approved     { background: var(--color-deep-100); }
+.popup-type--module_created    { background: var(--color-mirage-100); }
 
 .popup-icon-svg {
   width: 16px;

@@ -35,6 +35,31 @@ export const fetchBooks = async (onlyApproved = false) => {
   return (data?.data ?? []) as Book[]
 }
 
+export const fetchBooksByAutor = async (userId: string) => {
+  const params = new URLSearchParams({ fields: BOOK_FIELDS.join(','), sort: '-date_created', limit: '-1' })
+  // conta_autores é M2M — requer _some para filtrar na relation
+  params.set('filter[conta_autores][_some][directus_users_id][_eq]', userId)
+  const response = await authFetch(`/items/books?${params.toString()}`)
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch books failed: ${response.status} ${text}`.trim())
+  }
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as Book[]
+}
+
+export const fetchBooksByEditora = async (editoraId: number) => {
+  const params = new URLSearchParams({ fields: BOOK_FIELDS.join(','), sort: '-date_created', limit: '-1' })
+  params.set('filter[editora][_eq]', String(editoraId))
+  const response = await authFetch(`/items/books?${params.toString()}`)
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Fetch books by editora failed: ${response.status} ${text}`.trim())
+  }
+  const data = await response.json().catch(() => null)
+  return (data?.data ?? []) as Book[]
+}
+
 export const fetchApprovedBooks = () => fetchBooks(true)
 
 export const fetchPublicApprovedBooks = async (): Promise<Pick<Book, 'book_id' | 'title' | 'cover_img'>[]> => {
@@ -312,8 +337,28 @@ export const fetchBookUserStats = async (bookId: number): Promise<BookUserStats>
 export const fetchBookExerciseAttempts = async (moduleIds: number[]): Promise<number> => {
   if (!moduleIds.length) return 0
   const res = await authFetch(
-    `/items/user_exercises?aggregate[count]=*&filter[id_module][_in]=${moduleIds.join(',')}`
+    `/items/user_exercises?aggregate[count]=*&filter[module_id][_in]=${moduleIds.join(',')}`
   )
+  const data = await res.json().catch(() => null)
+  return Number(data?.data?.[0]?.count ?? 0)
+}
+
+export const fetchExerciseCountByModules = async (moduleIds: number[]): Promise<number> => {
+  if (!moduleIds.length) return 0
+  const res = await authFetch(
+    `/items/exercises?aggregate[count]=*&filter[id_module][_in]=${moduleIds.join(',')}`
+  )
+  if (!res.ok) return 0
+  const data = await res.json().catch(() => null)
+  return Number(data?.data?.[0]?.count ?? 0)
+}
+
+export const fetchCorrectAttemptsByModules = async (moduleIds: number[]): Promise<number> => {
+  if (!moduleIds.length) return 0
+  const res = await authFetch(
+    `/items/user_exercises?aggregate[count]=*&filter[module_id][_in]=${moduleIds.join(',')}&filter[is_correct][_eq]=true`
+  )
+  if (!res.ok) return 0
   const data = await res.json().catch(() => null)
   return Number(data?.data?.[0]?.count ?? 0)
 }

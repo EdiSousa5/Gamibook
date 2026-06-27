@@ -21,9 +21,11 @@ import {
     CalendarDaysIcon,
     LinkIcon,
     ArrowTopRightOnSquareIcon,
+    PlusIcon,
 } from '@heroicons/vue/24/outline'
 import {
     fetchBooks,
+    fetchBooksByAutor,
     fetchModulesByBook,
     fetchModules,
     updateModuleApproval,
@@ -35,12 +37,16 @@ import {
 import UiModal from '@/components/ui/UiModal.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiTextarea from '@/components/ui/UiTextarea.vue'
+import UiRadio from '@/components/ui/UiRadio.vue'
+import UiIconButton from '@/components/ui/UiIconButton.vue'
 import {
     createExercise,
     deleteExercise,
     fetchExercisesByModule,
 } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
+import { getAccessToken } from '@/services/storage'
 import type { Book, Exercise, Module } from '@/types'
 import ModuleGrid from '@/components/exercise-generator/ModuleGrid.vue'
 import ApprovedExercisesList from '@/components/exercise-generator/ApprovedExercisesList.vue'
@@ -85,6 +91,12 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const loggedUserId = authStore.user?.id ? String(authStore.user.id) : ''
+const userRole = (() => {
+    const role = authStore.user?.role
+    return typeof role === 'string' ? role : (role as any)?.name ?? ''
+})()
+const isAutor = userRole.trim().toLowerCase() === 'autor'
+const isAbsoluteAdmin = userRole.trim().toLowerCase() === 'admin absoluto'
 const books = ref<Book[]>([])
 const modules = ref<Module[]>([])
 const selectedBookId = ref<number | null>(null)
@@ -217,7 +229,7 @@ const totalQuestions = computed(() => countPerModule.value * selectedModuleIds.v
 const isOverMaxTotal = computed(() => totalQuestions.value > MAX_TOTAL_QUESTIONS)
 
 const approvedSummaries = computed(() =>
-    selectedModules.value.map((moduleItem) => {
+    filteredModules.value.map((moduleItem) => {
         const approved = approvedExercisesByModule.value[moduleItem.modules_id] || []
         const required = APPROVAL_THRESHOLD
         return {
@@ -299,9 +311,13 @@ const formatDate = (dateStr: string | null | undefined): string => {
 }
 
 const loadInitialData = async () => {
+    if (!getAccessToken()) return
     isLoadingData.value = true
     try {
-        const [moduleList, bookList] = await Promise.all([fetchModules(), fetchBooks()])
+        const bookFetch = isAutor && loggedUserId
+            ? fetchBooksByAutor(loggedUserId)
+            : fetchBooks()
+        const [moduleList, bookList] = await Promise.all([fetchModules(), bookFetch])
         modules.value = moduleList
         books.value = bookList
     } catch (err) {
@@ -313,23 +329,26 @@ const loadInitialData = async () => {
 }
 
 const refreshApprovedExercises = async () => {
-    if (!selectedModuleIds.value.length) {
+    if (!filteredModules.value.length) {
         approvedExercisesByModule.value = {}
         return
     }
 
     try {
         const entries = await Promise.all(
-            selectedModuleIds.value.map(async (moduleId) => [
-                moduleId,
-                await fetchExercisesByModule(moduleId),
+            filteredModules.value.map(async (mod) => [
+                mod.modules_id,
+                await fetchExercisesByModule(mod.modules_id),
             ] as const),
         )
         const nextMap: Record<number, Exercise[]> = {}
+        const counts: Record<number, number> = {}
         entries.forEach(([moduleId, list]) => {
             nextMap[moduleId] = list
+            counts[moduleId] = list.length
         })
         approvedExercisesByModule.value = nextMap
+        moduleExerciseCounts.value = counts
     } catch (err) {
         console.error(err)
         toast.error('Não foi possível carregar os exercícios aprovados.')
@@ -598,6 +617,113 @@ const handleClearExercises = () => {
     showClearExercisesModal.value = true
 }
 
+// ── Criar exercício manualmente ───────────────────────────────────────────────
+type CreateDraft = {
+    exerciseType: ExerciseType
+    moduleId: number | null
+    questionText: string
+    content: Record<string, any>
+}
+const showCreateModal = ref(false)
+const createDraft = ref<CreateDraft | null>(null)
+const createCorrectOptionIndex = ref(0)
+
+const moduleOptions = computed(() =>
+    filteredModules.value.map(m => ({ label: m.module_title || `Módulo ${m.modules_id}`, value: String(m.modules_id) }))
+)
+
+const openCreateModal = () => {
+    const first = filteredModules.value[0]
+    createDraft.value = {
+        exerciseType: 'multiple-choice',
+        moduleId: first?.modules_id ?? null,
+        questionText: '',
+        content: { opcoes: ['', '', '', ''], resposta_correta: '', justificacao: '' },
+    }
+    createCorrectOptionIndex.value = 0
+    showCreateModal.value = true
+}
+
+const closeCreateModal = () => {
+    showCreateModal.value = false
+    createDraft.value = null
+}
+
+const onCreateTypeChange = (type: ExerciseType) => {
+    if (!createDraft.value) return
+    createDraft.value.exerciseType = type
+    if (type === 'multiple-choice') {
+        createDraft.value.content = { opcoes: ['', '', '', ''], resposta_correta: '', justificacao: '' }
+        createCorrectOptionIndex.value = 0
+    } else {
+        createDraft.value.content = { resposta_correta: true, justificacao: '' }
+    }
+}
+
+const addCreateOption = () => {
+    if (createDraft.value && createDraft.value.content.opcoes?.length < 6)
+        createDraft.value.content.opcoes.push('')
+}
+
+const removeCreateOption = (idx: number) => {
+    if (!createDraft.value) return
+    createDraft.value.content.opcoes.splice(idx, 1)
+    if (createCorrectOptionIndex.value === idx) createCorrectOptionIndex.value = 0
+    else if (createCorrectOptionIndex.value > idx) createCorrectOptionIndex.value--
+}
+
+const canSaveCreate = computed(() => {
+    if (!createDraft.value || !createDraft.value.moduleId) return false
+    if (String(createDraft.value.questionText || '').trim().length < 10) return false
+    if (createDraft.value.exerciseType === 'multiple-choice') {
+        const ops: string[] = createDraft.value.content.opcoes || []
+        if (ops.length < 4 || ops.length > 6) return false
+        if (ops.some((o) => !String(o).trim())) return false
+    }
+    return true
+})
+
+const isSavingCreate = ref(false)
+
+const saveCreateExercise = async () => {
+    if (!createDraft.value || !canSaveCreate.value || isSavingCreate.value) return
+    const draft = createDraft.value
+    const targetModuleId = draft.moduleId
+    if (!targetModuleId) return
+
+    const currentCount = (approvedExercisesByModule.value[targetModuleId] || []).length
+    if (currentCount >= MAX_MODULE_EXERCISES) {
+        toast.error(`Este módulo já atingiu o limite de ${MAX_MODULE_EXERCISES} exercícios.`)
+        return
+    }
+
+    const content: Record<string, any> = {
+        ...draft.content,
+        pergunta: draft.questionText.trim(),
+    }
+    if (draft.exerciseType === 'multiple-choice') {
+        content.resposta_correta = draft.content.opcoes[createCorrectOptionIndex.value]
+    }
+
+    isSavingCreate.value = true
+    try {
+        await createExercise({
+            id_module: targetModuleId,
+            type: draft.exerciseType,
+            content,
+        })
+        const list = await refreshApprovedExercisesForModule(targetModuleId)
+        await syncModuleApproval(targetModuleId, list.length)
+        closeCreateModal()
+        toast.success('Exercício criado e guardado com sucesso.')
+    } catch (err) {
+        console.error(err)
+        toast.error('Não foi possível criar o exercício.')
+    } finally {
+        isSavingCreate.value = false
+    }
+}
+
 const confirmClearExercises = () => {
     generatedExercises.value = []
     showClearExercisesModal.value = false
@@ -665,7 +791,6 @@ const handleApprove = async (exercise: GeneratedExercise) => {
             id_module: targetModuleId,
             type: exercise.exerciseType,
             content: exercise.content,
-            created_by: loggedUserId || undefined,
         })
         removeGenerated(exercise.localId)
         const list = await refreshApprovedExercisesForModule(targetModuleId)
@@ -728,23 +853,7 @@ watch([selectedModuleIds, maxPerModule], async () => {
 const moduleExerciseCounts = ref<Record<number, number>>({})
 
 const loadModuleStats = async () => {
-    if (!filteredModules.value.length) {
-        moduleExerciseCounts.value = {}
-        return
-    }
-    try {
-        const entries = await Promise.all(
-            filteredModules.value.map(async (mod) => [
-                mod.modules_id,
-                (await fetchExercisesByModule(mod.modules_id)).length,
-            ] as const),
-        )
-        const counts: Record<number, number> = {}
-        entries.forEach(([id, count]) => { counts[id] = count })
-        moduleExerciseCounts.value = counts
-    } catch (err) {
-        console.error(err)
-    }
+    await refreshApprovedExercises()
 }
 
 // ── Códigos de ativação ───────────────────────────────────────────────────────
@@ -807,6 +916,8 @@ watch(selectedBookId, () => {
 })
 
 onBeforeRouteLeave((to) => {
+    // Deixar passar sempre se o token já foi limpo (logout em curso)
+    if (!getAccessToken()) return true
     if (generatedExercises.value.length > 0 && !confirmedLeave) {
         requestDiscard(() => {
             confirmedLeave = true
@@ -975,7 +1086,7 @@ onMounted(async () => {
                             </dl>
 
                             <div class="dh-actions">
-                                <UiButton variant="primary" @click="goToGenerator">
+                                <UiButton variant="primary" :disabled="isAbsoluteAdmin" @click="goToGenerator">
                                     Gerar Exercícios
                                 </UiButton>
                                 <UiButton v-if="authStore.isAdmin && !selectedBook?.is_approved" variant="outline"
@@ -1165,14 +1276,14 @@ onMounted(async () => {
                         </div>
                     </UiCard>
 
-                    <section v-if="approvedSummaries.length" class="approved-section">
+                    <section v-if="filteredModules.length" class="approved-section">
                         <div class="workspace-section-header">
                             <h2>Exercícios Aprovados</h2>
-                            <p class="meta">Lista de exercícios já aprovados em cada módulo selecionado.</p>
+                            <p class="meta">Lista de exercícios aprovados em cada módulo do livro.</p>
                         </div>
                         <div class="approved-grid">
                             <UiCard v-for="summary in approvedSummaries" :key="summary.moduleItem.modules_id"
-                                class="approved-module-card" :class="{ 'is-approved': summary.isApproved }">
+                                class="approved-module-card" :class="{ 'is-approved': summary.isApproved, 'is-selected': selectedModuleIds.includes(summary.moduleItem.modules_id) }">
                                 <div class="card-summary" :role="summary.approvedCount > 0 ? 'button' : undefined"
                                     :tabindex="summary.approvedCount > 0 ? '0' : undefined"
                                     @click="summary.approvedCount > 0 && toggleModuleExpanded(summary.moduleItem.modules_id)">
@@ -1261,9 +1372,105 @@ onMounted(async () => {
                         :is-generating="isGenerating" :max-total-questions="MAX_TOTAL_QUESTIONS"
                         @update:count-per-module="countPerModule = Math.max(1, Number($event) || 1)"
                         @generate="handleGenerate" />
+                    <UiButton v-if="selectedBookId" variant="outline" class="w-full justify-center"
+                        :disabled="!filteredModules.length" @click="openCreateModal">
+                        Criar exercício manualmente
+                    </UiButton>
                 </div>
             </div>
         </template>
+
+        <!-- ── Modal: Criar exercício manualmente ─────────────────────────── -->
+        <Teleport to="body">
+            <Transition name="overlay-fade">
+                <div v-if="showCreateModal && createDraft" class="create-overlay" @click.self="closeCreateModal">
+                    <div class="create-modal" role="dialog" aria-modal="true" aria-label="Criar exercício manualmente">
+                        <h3>Criar Exercício Manualmente</h3>
+
+                        <div class="edit-field">
+                            <label>Módulo</label>
+                            <UiSelect :options="moduleOptions"
+                                :model-value="createDraft.moduleId ? String(createDraft.moduleId) : ''"
+                                @update="createDraft.moduleId = Number($event)" />
+                        </div>
+
+                        <div class="edit-field">
+                            <label>Tipo de exercício</label>
+                            <UiSelect
+                                :options="[{ label: 'Escolha múltipla', value: 'multiple-choice' }, { label: 'Verdadeiro / Falso', value: 'true-false' }]"
+                                :model-value="createDraft.exerciseType"
+                                @update="onCreateTypeChange($event as ExerciseType)" />
+                        </div>
+
+                        <div class="edit-field">
+                            <label>Pergunta</label>
+                            <UiTextarea :model-value="createDraft.questionText"
+                                @update="createDraft.questionText = String($event)" :rows="3" />
+                            <p class="edit-hint"
+                                :class="{ 'is-error': String(createDraft.questionText || '').trim().length < 10 }">
+                                A pergunta deve ter pelo menos 10 caracteres.
+                            </p>
+                        </div>
+
+                        <template v-if="createDraft.exerciseType === 'multiple-choice'">
+                            <div class="edit-field">
+                                <label>Alíneas (selecione a correta)</label>
+                                <p class="edit-hint"
+                                    :class="{ 'is-error': (createDraft.content.opcoes?.length < 4 || createDraft.content.opcoes?.length > 6) }">
+                                    Mínimo 4, máximo 6 alíneas. Todas devem ser preenchidas.
+                                </p>
+                                <div class="options-edit-list">
+                                    <div v-for="(_, idx) in createDraft.content.opcoes" :key="idx"
+                                        class="option-edit-item">
+                                        <UiRadio :value="Number(idx)" name="create_correct_option"
+                                            :model-value="createCorrectOptionIndex"
+                                            @update="createCorrectOptionIndex = Number($event)"
+                                            title="Marcar como correta" />
+                                        <span class="option-letter">{{ String.fromCharCode(65 + Number(idx)) }})</span>
+                                        <div class="option-input-wrapper">
+                                            <UiInput :model-value="createDraft.content.opcoes[idx]"
+                                                @update="createDraft.content.opcoes[idx] = String($event)" />
+                                        </div>
+                                        <UiIconButton size="md" shape="square" variant="outline"
+                                            @click="removeCreateOption(Number(idx))" title="Remover alínea">
+                                            <TrashIcon style="width: 20px; height: 20px; stroke-width: var(--icon-stroke);"
+                                                aria-hidden="true" />
+                                        </UiIconButton>
+                                    </div>
+                                </div>
+                                <UiButton v-if="createDraft.content.opcoes.length < 6" variant="outline" size="sm"
+                                    @click="addCreateOption" style="align-self: flex-start; margin-top: 8px;">
+                                    <PlusIcon style="width: 16px; height: 16px; margin-right: 6px;" />
+                                    Adicionar alínea
+                                </UiButton>
+                            </div>
+                        </template>
+
+                        <template v-else-if="createDraft.exerciseType === 'true-false'">
+                            <div class="edit-field">
+                                <label>Resposta Correta</label>
+                                <UiSelect
+                                    :options="[{ label: 'Verdadeiro', value: 'true' }, { label: 'Falso', value: 'false' }]"
+                                    :model-value="createDraft.content.resposta_correta ? 'true' : 'false'"
+                                    @update="createDraft.content.resposta_correta = ($event === 'true')" />
+                            </div>
+                        </template>
+
+                        <div class="edit-field">
+                            <label>Justificação <span style="font-weight: 500; color: var(--color-mirage-500);">(opcional)</span></label>
+                            <UiTextarea :model-value="createDraft.content.justificacao || ''"
+                                @update="createDraft.content.justificacao = String($event)" :rows="2" />
+                        </div>
+
+                        <div class="edit-actions">
+                            <UiButton variant="outline" size="sm" @click="closeCreateModal">Cancelar</UiButton>
+                            <UiButton variant="primary" size="sm" :disabled="!canSaveCreate || isSavingCreate"
+                                @click="saveCreateExercise">{{ isSavingCreate ? 'A guardar…' : 'Criar exercício' }}</UiButton>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
 
         <!-- ── Modais ──────────────────────────────────────────────────────── -->
         <UiModal v-if="authStore.isAdmin" :visible="showApprovalModal" :close-on-overlay="true"
@@ -2327,6 +2534,19 @@ onMounted(async () => {
     border-color: var(--color-teal-500);
 }
 
+.approved-module-card.is-selected {
+    border-color: var(--color-teal-400);
+    box-shadow: 4px 4px 0 color-mix(in srgb, var(--color-teal-400) 30%, transparent);
+}
+
+.approved-module-card.is-selected .card-summary {
+    background: #f0faf4;
+}
+
+.approved-module-card.is-selected .card-summary[role="button"]:hover {
+    background: #e6f5eb;
+}
+
 .card-summary {
     padding: var(--space-400);
     display: flex;
@@ -2608,5 +2828,98 @@ onMounted(async () => {
     .detail-hero-wrapper {
         padding: 0 var(--space-150);
     }
+}
+
+.manual-create-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--space-200) 0;
+}
+
+.create-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 29, 32, 0.6);
+    display: grid;
+    place-items: center;
+    z-index: 9999;
+    padding: 1rem;
+}
+
+.create-modal {
+    width: min(680px, 90vw);
+    max-height: 90dvh;
+    background: var(--color-wild-100);
+    border-radius: var(--radius-400);
+    border: 2px solid var(--color-mirage-800);
+    box-shadow: 6px 6px 0 var(--color-shadow);
+    padding: var(--space-500);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-400);
+    overflow-y: auto;
+}
+
+.create-modal h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-mirage-900);
+    font-family: var(--font-display);
+}
+
+.edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.edit-field label {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-mirage-800);
+}
+
+.edit-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-mirage-500);
+}
+
+.edit-hint.is-error {
+    color: var(--color-error-strong);
+    font-weight: 600;
+}
+
+.options-edit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.option-edit-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.option-letter {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-mirage-800);
+    min-width: 20px;
+    text-align: right;
+}
+
+.option-input-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: var(--space-200);
 }
 </style>

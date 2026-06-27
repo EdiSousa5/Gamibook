@@ -27,8 +27,12 @@ export const fetchAllUsersPoints = async (startDate?: string): Promise<Map<strin
 
   const map = new Map<string, number>()
   for (const item of items) {
-    if (!item.user_id) continue
-    map.set(item.user_id, Number(item.sum?.points ?? 0))
+    const raw = item.user_id
+    const userId =
+      typeof raw === 'string' ? raw
+      : typeof raw === 'object' && raw !== null ? String((raw as any).id ?? '') : ''
+    if (!userId) continue
+    map.set(userId, Number(item.sum?.points ?? 0))
   }
   return map
 }
@@ -339,6 +343,38 @@ export const fetchExercisesByIds = async (ids: number[]): Promise<Exercise[]> =>
 
   const data = await response.json().catch(() => null)
   return (data?.data ?? []) as Exercise[]
+}
+
+export interface PlatformStats {
+  totalXp: number
+  totalAttempts: number
+  totalDailyChallenges: number
+  activeUsers: number
+  correctAttempts: number
+}
+
+export const fetchPlatformStats = async (): Promise<PlatformStats> => {
+  const [xpRes, attemptsRes, correctRes, dailyRes, activeRes] = await Promise.all([
+    authFetch('/items/user_points_history?aggregate[sum]=points'),
+    authFetch('/items/user_exercises?aggregate[count]=*'),
+    authFetch('/items/user_exercises?aggregate[count]=*&filter[is_correct][_eq]=true'),
+    authFetch('/items/user_daily_exercise?aggregate[count]=*'),
+    authFetch('/items/user_points_history?aggregate[countDistinct]=user_id'),
+  ])
+  const [xpData, attemptsData, correctData, dailyData, activeData] = await Promise.all([
+    xpRes.json().catch(() => null),
+    attemptsRes.json().catch(() => null),
+    correctRes.json().catch(() => null),
+    dailyRes.json().catch(() => null),
+    activeRes.json().catch(() => null),
+  ])
+  return {
+    totalXp: Number(xpData?.data?.[0]?.sum?.points ?? 0),
+    totalAttempts: Number(attemptsData?.data?.[0]?.count ?? 0),
+    correctAttempts: Number(correctData?.data?.[0]?.count ?? 0),
+    totalDailyChallenges: Number(dailyData?.data?.[0]?.count ?? 0),
+    activeUsers: Number(activeData?.data?.[0]?.countDistinct?.user_id ?? 0),
+  }
 }
 
 export const fetchLatestUserExercise = async (userId: string) => {

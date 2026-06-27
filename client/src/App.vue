@@ -42,15 +42,23 @@ const handleBookUnlocked = (book: Book) => {
   unlockVisible.value = true
 }
 
+const isAdminAbsoluto = computed(() => {
+  const role = auth.user?.role
+  const name = typeof role === 'string' ? role : (role as any)?.name ?? ''
+  return name.trim().toLowerCase() === 'admin absoluto'
+})
+
 const navItems = computed(() => {
   if (isAdmin.value) {
-    return [
+    const items = [
       { label: 'Painel Admin', to: '/admin', icon: 'home', exact: true },
       { label: 'Gerir Livros', to: '/exercise-generator', icon: 'books', dataTour: 'nav-generate' },
+      { label: 'Estatísticas', to: '/admin/stats', icon: 'stats' },
       { label: 'Guia de utilização', to: '/admin/guide', icon: 'guide', dataTour: 'nav-guide' },
       { label: 'Definições', to: '/settings', icon: 'settings' },
-      { label: 'UI Kit', to: '/ui-kit', icon: 'ui' },
     ]
+    if (isAdminAbsoluto.value) items.push({ label: 'UI Kit', to: '/ui-kit', icon: 'ui' })
+    return items
   }
   return [
     { label: 'Página Principal', to: '/app', icon: 'home' },
@@ -71,6 +79,7 @@ const userRole = computed(() => {
 const isEditorRole = computed(() =>
   userRole.value !== null && ['editora', 'autor'].includes(userRole.value),
 )
+
 
 // ── Onboarding steps ─────────────────────────────────────
 const USER_STEPS: TourStep[] = [
@@ -211,47 +220,6 @@ const USER_STEPS: TourStep[] = [
   },
 ]
 
-const ADMIN_STEPS: TourStep[] = [
-  {
-    title: 'Bem-vindo ao Painel de Gestão!',
-    description: 'Como editor ou autor, tens acesso a ferramentas exclusivas para criares e gerires conteúdo. Vamos fazer uma visita rápida!',
-    route: '/admin',
-  },
-  {
-    selector: '[data-tour="sidebar"]',
-    title: 'Navegação de Gestão',
-    description: 'A tua barra de navegação. Tens acesso ao Painel Admin, Gerador de Exercícios, Guia de Utilização e Definições.',
-    placement: 'right',
-    route: '/admin',
-  },
-  {
-    selector: '[data-tour="nav-generate"]',
-    title: 'Gerador de Exercícios',
-    description: 'A tua principal ferramenta. Clica aqui para gerar exercícios com IA para qualquer módulo.',
-    placement: 'right',
-    route: '/admin',
-  },
-  {
-    selector: '[data-tour="generator-workspace"]',
-    title: 'Como Funciona o Gerador',
-    description: 'Seleciona um livro, escolhe os módulos que precisam de exercícios e configura os parâmetros. A IA gera e tu aprovais.',
-    placement: 'bottom',
-    route: '/exercise-generator',
-  },
-  {
-    selector: '[data-tour="nav-guide"]',
-    title: 'Guia de Utilização',
-    description: 'Tens dúvidas? O guia explica todo o processo de criação e aprovação de exercícios com exemplos detalhados.',
-    placement: 'right',
-    route: '/admin',
-  },
-  {
-    title: 'Pronto para criar conteúdo!',
-    description: 'Começa pelo Gerador de Exercícios, revê o que foi gerado e publica o melhor conteúdo. Bom trabalho!',
-    route: '/admin',
-  },
-]
-
 // ── Onboarding visibility ────────────────────────────────
 const showUserOnboarding = computed(() => {
   if (!isAuthed.value || isAdmin.value || showLanding.value) return false
@@ -259,17 +227,7 @@ const showUserOnboarding = computed(() => {
   return auth.user.onboarding_completed === false
 })
 
-const showAdminOnboarding = computed(() => {
-  if (!isAuthed.value || !isEditorRole.value || showLanding.value) return false
-  if (!auth.user?.id) return false
-  return auth.user.onboarding_completed === false
-})
-
-const showOnboarding = computed(() => showUserOnboarding.value || showAdminOnboarding.value)
-
-const onboardingSteps = computed(() =>
-  isEditorRole.value ? ADMIN_STEPS : USER_STEPS,
-)
+const showOnboarding = computed(() => showUserOnboarding.value)
 
 async function completeOnboarding() {
   const userId = auth.user?.id ? String(auth.user.id) : null
@@ -411,7 +369,7 @@ watch(
 
   <LevelUpModal :visible="levelUpVisible" :old-level="levelUpOld" :new-level="levelUpNew" :current-points="levelUpPoints" @close="levelUpVisible = false" />
   <BookUnlockModal :visible="unlockVisible" :book="unlockedBook" @close="unlockVisible = false" />
-  <OnboardingTour v-if="showOnboarding" :steps="onboardingSteps" :demo-cover-url="demoCoverUrl" @done="completeOnboarding" />
+  <OnboardingTour v-if="showOnboarding" :steps="USER_STEPS" :demo-cover-url="demoCoverUrl" @done="completeOnboarding" />
 
   <Teleport to="body">
     <div class="toast-container">
@@ -439,7 +397,6 @@ watch(
       <div class="content">
         <AppTopbar :username="displayName" :avatar-asset-id="avatarAssetId" :level="progress.level"
           :progress-value="progress.progress" :progress-total="progress.nextLevelXp"
-
           :is-admin="isAdmin" :mobile-nav-open="mobileNavOpen" @action="onNavClick" @book-unlocked="handleBookUnlocked" @toggle-nav="mobileNavOpen = !mobileNavOpen" />
 
         <main id="main-content" class="main">

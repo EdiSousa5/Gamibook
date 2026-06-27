@@ -150,15 +150,19 @@ const submitForgot = async () => {
             <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="forgotEmail"
               @update="forgotEmail = String($event)" />
             <p v-if="forgotError" class="error">{{ forgotError }}</p>
-            <UiButton class="cta" type="submit" :loading="isSendingReset">Enviar instruções</UiButton>
+            <div class="btn-row">
+              <UiButton variant="outline" type="button" @click="closeForgot">Voltar ao login</UiButton>
+              <UiButton type="submit" :loading="isSendingReset">Enviar instruções</UiButton>
+            </div>
           </form>
         </template>
 
-        <p v-else class="info">
-          Se o email estiver registado, receberás um email com instruções para recuperares a palavra-passe.
-        </p>
-
-        <UiButton class="cta" variant="outline" @click="closeForgot">Voltar ao login</UiButton>
+        <template v-else>
+          <p class="info">
+            Se o email estiver registado, receberás um email com instruções para recuperares a palavra-passe.
+          </p>
+          <UiButton class="cta" variant="outline" @click="closeForgot">Voltar ao login</UiButton>
+        </template>
       </template>
 
     </UiCard>
@@ -196,6 +200,12 @@ form {
 
 .forgot-form {
   margin-top: var(--space-400);
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-300);
 }
 
 .cta {
@@ -313,6 +323,10 @@ form {
 
   .card {
     width: 100%;
+  }
+
+  .btn-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

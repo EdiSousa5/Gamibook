@@ -101,6 +101,19 @@
   /* Tokens de layout responsivo */
   --nav-bottom-height: 64px;
 
+  /* ── Breakpoints padronizados ───────────────────────────────
+     Nota: CSS custom properties não podem ser usados directamente
+     em @media queries. Estes valores servem de referência
+     documental e para uso via JS (getComputedStyle).
+     Nos componentes, usar os valores em em directamente.
+     ─────────────────────────────────────────────────────────
+     --bp-xs  25em   (~400px)  ecrãs muito pequenos
+     --bp-sm  30em   (~480px)  mobile pequeno
+     --bp-md  40em   (~640px)  mobile grande / landscape
+     --bp-lg  48em   (~768px)  tablet
+     --bp-xl  64em  (~1024px)  desktop — ponto de transição sidebar
+     ─────────────────────────────────────────────────────────── */
+
   --space-0: 0;
   --space-050: 2px;
   --space-100: 4px;

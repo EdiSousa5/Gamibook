@@ -23,7 +23,9 @@ import {
   tierForPct,
   TIER_ORDER,
 } from '../services/badges'
-import { fetchApprovedExerciseCountsByModule, fetchUserExercisesByModule } from '../services/exercises'
+import { fetchApprovedExerciseCountsByModule, fetchUserExercisesByModule, createUserPointsHistory, fetchUserPointsFromHistory } from '../services/exercises'
+import { getLevelProgressFromPoints } from '@/utils/gamification'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useNotificationsStore } from '@/stores/notifications'
 import { getStoredUserId } from '../services/client'
@@ -38,6 +40,7 @@ import type { Book, Exercise, UserBook, FinalQuizAttempt } from '@/types'
 const route = useRoute()
 const bookId = computed(() => Number(route.params.bookId || 1))
 const notifStore = useNotificationsStore()
+const auth = useAuthStore()
 
 type QuizState = 'loading' | 'locked' | 'done' | 'quiz' | 'result' | 'history'
 
@@ -183,15 +186,28 @@ const submitResult = async () => {
     if (passed.value) {
       await updateUserBookBadge(userBook.value.user_book_id, 'galaxy')
       userBook.value = { ...userBook.value, current_badge: 'galaxy' }
-      window.setTimeout(() => { showGalaxyModal.value = true }, 800)
+
       if (userId.value) {
+        const QUIZ_BONUS_XP = 200
+        const oldPoints = await fetchUserPointsFromHistory(userId.value).catch(() => auth.points)
+        await createUserPointsHistory({
+          user_id: userId.value,
+          points: QUIZ_BONUS_XP,
+          source: 'exercise',
+          reference_id: bookId.value,
+        }).catch(() => console.error('[FinalQuiz] Failed to save quiz bonus points'))
+        auth.setPoints(oldPoints + QUIZ_BONUS_XP)
+        await auth.syncUserLevelFromPoints(userId.value)
+
         notifStore.add({
           user: userId.value,
           title: 'Quiz Final superado!',
-          message: `Acertaste ${score.value.correct} de ${questions.value.length} perguntas e conquistaste o badge Galaxy em "${book.value?.title ?? 'livro'}".`,
+          message: `Acertaste ${score.value.correct} de ${questions.value.length} perguntas e conquistaste o badge Galaxy em "${book.value?.title ?? 'livro'}". +${QUIZ_BONUS_XP} XP bónus!`,
           type: 'quiz_result',
         })
       }
+
+      window.setTimeout(() => { showGalaxyModal.value = true }, 800)
     } else {
       cooldownUntil.value = new Date(Date.now() + 24 * 60 * 60 * 1000)
       if (userId.value) {

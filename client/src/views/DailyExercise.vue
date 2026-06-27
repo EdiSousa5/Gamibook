@@ -122,11 +122,11 @@ const handleSelect = async (option: string) => {
         stopTimer()
         isLocked.value = true
         if (attemptsUsed.value === 0) {
-            const bonus = currentStreak.value >= 2 ? 5 : 0
-            pointsEarned.value = 10 + bonus
+            const bonus = currentStreak.value >= 2 ? 15 : 0
+            pointsEarned.value = 30 + bonus
             newStreak.value = currentStreak.value + 1
         } else {
-            pointsEarned.value = 5
+            pointsEarned.value = 15
             newStreak.value = currentStreak.value
         }
         result.value = 'correct'

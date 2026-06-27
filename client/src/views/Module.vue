@@ -103,11 +103,11 @@ const handleCorrect = async () => {
     if (eligible) {
         if (attemptsUsed.value === 0) {
             correctStreak.value += 1
-            basePoints = 10
-            bonusPoints = correctStreak.value >= 2 ? 5 : 0
+            basePoints = 30
+            bonusPoints = correctStreak.value >= 2 ? 15 : 0
         } else {
             correctStreak.value = 0
-            basePoints = 5
+            basePoints = 15
         }
     }
     const points = eligible ? basePoints + bonusPoints : 0

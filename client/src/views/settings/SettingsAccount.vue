@@ -5,7 +5,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { PaperClipIcon, UserCircleIcon, KeyIcon } from '@heroicons/vue/24/outline'
 import {
-    fetchUserById,
+    fetchUserByIdBase,
     getUserAvatarId,
     updateUser,
     uploadUserAvatar,
@@ -65,7 +65,7 @@ const loadProfile = async () => {
     if (!storedId) { user.value = null; return }
     isLoading.value = true
     try {
-        const me = await fetchUserById(storedId)
+        const me = await fetchUserByIdBase(storedId)
         user.value = me
         name.value = [me.first_name, me.last_name].filter(Boolean).join(' ').trim() || ''
     } catch {

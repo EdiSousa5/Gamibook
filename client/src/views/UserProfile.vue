@@ -91,7 +91,7 @@ const joinDate = computed(() => {
 const shelfZoneRef = ref<HTMLElement | null>(null)
 const booksRowRef = ref<HTMLElement | null>(null)
 const carouselOffset = ref(0)
-const BOOK_STEP = 120
+const BOOK_STEP = 90
 
 const maxOffset = computed(() => {
   if (!shelfZoneRef.value || !booksRowRef.value) return 0
@@ -559,25 +559,34 @@ onMounted(async () => {
   align-items: stretch;
 }
 
-/* Shelf zone — same pattern as Collection.vue */
+/* Shelf zone */
 .books-stage {
   flex: 1;
   position: relative;
   overflow: hidden;
-  min-height: 180px;
+  min-height: 150px;
 }
 
 .books-row {
   display: flex;
   flex-wrap: nowrap;
-  gap: 24px;
+  gap: 10px;
   align-items: flex-end;
   /*
    * padding-bottom = 16px (frente da estante) para os livros
-   * assentarem directamente sobre a superfície da estante.
+   * assentarem sobre a superfície da estante.
+   * position + z-index garantem que os livros ficam à frente da estante (z-index: 1).
    */
-  padding: 24px 40px 16px;
+  padding: 6px 8px 16px;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 2;
+}
+
+/* Reduz ligeiramente o tamanho dos livros neste contexto */
+.books-row :deep(.book-scene.sm .book) {
+  width: 78px;
+  height: 112px;
 }
 
 /* Carousel arrows */
@@ -695,12 +704,26 @@ onMounted(async () => {
   text-decoration: underline;
 }
 
+/*
+ * A BookShelf variante 'small' tem margin-bottom: var(--space-300) (12px) a partir de 45em.
+ * Com a estante deslocada 12px para cima e a frente de 12px, os livros precisam de
+ * padding-bottom = 24px para assentar correctamente sobre a superfície da estante.
+ */
+@media (max-width: 45em) {
+  .books-row { padding-bottom: var(--space-500); }
+  .books-stage { min-height: 130px; }
+  .books-row :deep(.book-scene.sm .book) {
+    width: 66px;
+    height: 95px;
+  }
+}
+
 @media (max-width: 600px) {
   .profile-page { padding: var(--space-400) var(--space-300) var(--space-700); }
   .hero-card { padding: var(--space-600) var(--space-400) var(--space-500); }
   .section-card { padding: var(--space-500); }
-  .books-section { padding: var(--space-500) var(--space-500) var(--space-500); }
-  .books-row { padding: var(--space-400) var(--space-500) var(--space-400); gap: var(--space-400); }
+  .books-section { padding: var(--space-400) var(--space-300) var(--space-500); }
+  .books-row { padding: 6px 4px var(--space-500); gap: 8px; }
 }
 
 @media (max-width: 480px) {

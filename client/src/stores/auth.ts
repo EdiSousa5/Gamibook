@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchUserById, getUserDisplayName, isAdminUser, updateUser } from '@/services/auth'
+import { fetchUserById, fetchUserByIdBase, getUserDisplayName, isAdminUser, updateUser } from '@/services/auth'
 import { clearAccessToken, clearRefreshToken, getAssetUrl, getStoredUserId, setStoredUserId } from '@/services/client'
 import { fetchUserPointsFromHistory, createUserPointsHistory } from '@/services/exercises'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
@@ -37,12 +37,27 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
     try {
-      const [userData, totalPoints] = await Promise.all([
-        fetchUserById(storedId),
+      // /users/{id} retorna role.name corretamente para todos os roles;
+      // /users/me pode devolver apenas o UUID do role para editora/autor
+      const baseUser = await fetchUserByIdBase(storedId)
+      user.value = baseUser
+
+      if (isAdminUser(baseUser)) {
+        points.value = 0
+        return
+      }
+
+      // Utilizador normal: buscar campos de gamificação + pontos em paralelo
+      const [fullUser, totalPoints] = await Promise.all([
+        fetchUserById(storedId).catch(() => null),
         fetchUserPointsFromHistory(storedId).catch(() => 0),
       ])
+      if (!fullUser) {
+        points.value = 0
+        return
+      }
       isInitialLoad.value = true
-      user.value = userData
+      user.value = fullUser
       points.value = totalPoints
       await syncUserLevelFromPoints(storedId)
     } catch {
@@ -54,6 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const refreshPoints = async (userId?: string) => {
+    if (isAdmin.value) return 0
+
     const targetId = userId || (user.value?.id ? String(user.value.id) : null)
     if (!targetId) {
       points.value = 0
@@ -70,6 +87,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const syncUserLevelFromPoints = async (userId: string) => {
+    if (isAdmin.value) return
+
     try {
       const totalPoints = points.value
       const newLevel = getLevelProgressFromPoints(totalPoints).level
@@ -93,12 +112,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = async (router: { push: (path: string) => Promise<unknown> }) => {
+    await router.push('/')
     setStoredUserId(null)
     clearAccessToken()
     clearRefreshToken()
     user.value = null
     points.value = 0
-    await router.push('/')
   }
 
   const triggerLevelUp = (oldLevel: number, newLevel: number, currentPoints: number) => {
