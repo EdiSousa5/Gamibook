@@ -16,24 +16,23 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - gamibook-network
-
-  # 2. Ollama — Local LLM/Embedding models
-  ollama:
-    image: ollama/ollama:latest
-    container_name: gamibook-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ./docker/ollama_data:/root/.ollama
-    networks:
-      - gamibook-network
+    # 2. Ollama — Local LLM/Embedding models
+    # ollama:
+    # image: ollama/ollama:latest
+    #  container_name: gamibook-ollama
+    #  restart: unless-stopped
+    #  ports:
+    #    - "11434:11434"
+    #  volumes:
+    #    - ./docker/ollama_data:/root/.ollama
+    #  networks:
+    #    - gamibook-network
     # Production note: Enable GPU support if running on a host with an NVIDIA GPU.
     # To enable GPU, uncomment the following block:
     # deploy:
@@ -44,7 +43,7 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
-  # 3. Flowise — AI Workflow / Chatflow UI
+    # 3. Flowise — AI Workflow / Chatflow UI
   flowise:
     image: flowiseai/flowise:latest
     container_name: gamibook-flowise
@@ -120,6 +119,7 @@ services:
       VITE_DIRECTUS_URL: ${VITE_DIRECTUS_URL:-http://localhost:8055}
       VITE_FLOWISE_URL: ${VITE_FLOWISE_URL:-http://localhost:3000}
       VITE_FLOWISE_CHATFLOW_ID: ${VITE_FLOWISE_CHATFLOW_ID}
+      VITE_FLOWISE_API_KEY: ${VITE_FLOWISE_API_KEY}
     depends_on:
       - directus
       - flowise
