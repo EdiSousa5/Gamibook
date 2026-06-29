@@ -29,7 +29,6 @@ const avatarFile = ref<File | null>(null)
 const fileName = ref('Nenhum ficheiro escolhido')
 
 // Credenciais
-const newEmail = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const isSavingCredentials = ref(false)
@@ -112,38 +111,27 @@ const saveProfile = async () => {
 
 const saveCredentials = async () => {
     if (!user.value?.id) return
-    const hasEmail = newEmail.value.trim().length > 0
-    const hasPassword = newPassword.value.length > 0
-    if (!hasEmail && !hasPassword) {
-        toastError('Preenche pelo menos o email ou a palavra-passe.')
+    if (!newPassword.value) {
+        toastError('Preenche a nova palavra-passe.')
         return
     }
-    if (hasEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.value.trim())) {
-        toastError('Endereço de email inválido.')
-        return
-    }
-    if (hasPassword && newPassword.value.length < 8) {
+    if (newPassword.value.length < 8) {
         toastError('A palavra-passe deve ter pelo menos 8 caracteres.')
         return
     }
-    if (hasPassword && newPassword.value !== confirmPassword.value) {
+    if (newPassword.value !== confirmPassword.value) {
         toastError('As palavras-passe não coincidem.')
         return
     }
     isSavingCredentials.value = true
     try {
-        const payload: Record<string, string> = {}
-        if (hasEmail) payload.email = newEmail.value.trim()
-        if (hasPassword) payload.password = newPassword.value
-        await updateUser(String(user.value.id), payload)
-        if (hasEmail && user.value) user.value.email = newEmail.value.trim()
-        newEmail.value = ''
+        await updateUser(String(user.value.id), { password: newPassword.value })
         newPassword.value = ''
         confirmPassword.value = ''
         await auth.loadUser()
-        toastSuccess('Credenciais atualizadas com sucesso.')
+        toastSuccess('Palavra-passe atualizada com sucesso.')
     } catch {
-        toastError('Não foi possível atualizar as credenciais.')
+        toastError('Não foi possível atualizar a palavra-passe.')
     } finally {
         isSavingCredentials.value = false
     }
@@ -211,19 +199,11 @@ onMounted(loadProfile)
                         <KeyIcon class="group-icon" aria-hidden="true" />
                     </div>
                     <div>
-                        <h3>Credenciais de acesso</h3>
-                        <p>Email atual: <strong class="current-value">{{ user?.email || '—' }}</strong></p>
+                        <h3>Palavra-passe</h3>
+                        <p>Email: <strong class="current-value">{{ user?.email || '—' }}</strong></p>
                     </div>
                 </div>
                 <div class="group-body">
-                    <UiInput
-                        label="Novo email"
-                        type="email"
-                        placeholder="novo@email.com"
-                        :model-value="newEmail"
-                        @update="newEmail = String($event)"
-                    />
-                    <div class="creds-divider"><span>Palavra-passe</span></div>
                     <UiInput
                         label="Nova palavra-passe"
                         type="password"
@@ -238,15 +218,14 @@ onMounted(loadProfile)
                         :model-value="confirmPassword"
                         @update="confirmPassword = String($event)"
                     />
-                    <p class="creds-hint">Preenche apenas os campos que queres alterar.</p>
                     <div class="group-actions">
                         <UiButton
                             type="button"
-                            :disabled="!newEmail.trim() && !newPassword"
+                            :disabled="!newPassword"
                             :loading="isSavingCredentials"
                             @click="saveCredentials"
                         >
-                            Guardar credenciais
+                            Alterar palavra-passe
                         </UiButton>
                     </div>
                 </div>

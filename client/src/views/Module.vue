@@ -227,8 +227,14 @@ watch(
     },
 )
 
-onBeforeRouteLeave(async () => {
+onBeforeRouteLeave(async (to) => {
     if (viewState.value !== 'runner' || !pendingResults.value.length) return true
+    if (to.path === '/' || to.path === '/login') {
+        isSaving.value = true
+        await persistResults()
+        isSaving.value = false
+        return true
+    }
     const ok = await openConfirm(
         'Sair do quiz?',
         'As respostas já realizadas serão guardadas. Queres mesmo sair?',

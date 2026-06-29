@@ -4,6 +4,7 @@ import { fetchUserById, fetchUserByIdBase, getUserDisplayName, isAdminUser, upda
 import { clearAccessToken, clearRefreshToken, getAssetUrl, getStoredUserId, setStoredUserId } from '@/services/client'
 import { fetchUserPointsFromHistory, createUserPointsHistory } from '@/services/exercises'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
+import { DAILY_UNLOCK_LEVEL } from '@/utils/constants'
 import type { User } from '@/types'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
@@ -100,6 +101,19 @@ export const useAuthStore = defineStore('auth', () => {
         user.value.level = newLevel
         if (newLevel > oldLevel && !isInitialLoad.value) {
           triggerLevelUp(oldLevel, newLevel, totalPoints)
+          if (oldLevel < DAILY_UNLOCK_LEVEL && newLevel >= DAILY_UNLOCK_LEVEL) {
+            const warnKey = `gb_daily_unlock_notif_${userId}`
+            if (!localStorage.getItem(warnKey)) {
+              localStorage.setItem(warnKey, '1')
+              const { useNotificationsStore } = await import('@/stores/notifications')
+              useNotificationsStore().add({
+                user: userId,
+                title: 'Desafios diários desbloqueados!',
+                message: `Atingiste o nível ${DAILY_UNLOCK_LEVEL}! Já podes responder ao desafio diário e manter o teu streak.`,
+                type: 'achievement',
+              })
+            }
+          }
         }
       }
     } catch {

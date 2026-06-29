@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>GamiBook — Arquitetura do Sistema</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { margin: 0; background: #f3f7f8; display: flex; justify-content: center; align-items: flex-start; padding: 40px 20px; min-height: 100vh; }
+    svg { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+<svg width="980" height="810" viewBox="0 0 980 810" xmlns="http://www.w3.org/2000/svg"
+     font-family="Manrope, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#1a262e"/>
+    </marker>
+    <marker id="arr-rev" markerWidth="9" markerHeight="7" refX="1" refY="3.5" orient="auto">
+      <polygon points="9 0, 0 3.5, 9 7" fill="#1a262e"/>
+    </marker>
+    <marker id="arr-gray" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CAMADA 1 — Vue SPA
+  ═══════════════════════════════════════════════════════════════ -->
+  <rect x="80" y="20" width="820" height="78" rx="14" fill="#dbeafe" stroke="#1a262e" stroke-width="2"/>
+  <text x="490" y="51" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="18" font-weight="800" fill="#1a262e">Vue 3 + Vite + TypeScript</text>
+  <text x="490" y="74" text-anchor="middle" font-size="12" fill="#1e40af">SPA — routing, UI, gamificação, exercícios · localhost:5173</text>
+  <text x="490" y="789" text-anchor="middle" font-size="10" fill="#9ca3af">Camada de apresentação</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SETAS Vue → Directus e Vue → Flowise
+  ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- Vue → Directus (REST API, sólida) -->
+  <line x1="290" y1="98" x2="190" y2="172" stroke="#1a262e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="170" y="122" width="75" height="18" rx="4" fill="#f3f7f8"/>
+  <text x="207" y="134" text-anchor="middle" font-size="11" font-weight="600" fill="#1a262e">REST API</text>
+
+  <!-- Vue → Flowise (HTTP direto, tracejada) -->
+  <line x1="620" y1="98" x2="530" y2="172" stroke="#6b7280" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arr-gray)"/>
+  <rect x="563" y="118" width="82" height="18" rx="4" fill="#f3f7f8"/>
+  <text x="604" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#6b7280">HTTP direto</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DOCKER COMPOSE — caixa principal
+  ═══════════════════════════════════════════════════════════════ -->
+  <rect x="30" y="148" width="660" height="415" rx="16" fill="#ecfdf5" fill-opacity="0.5" stroke="#059669" stroke-width="2.5"/>
+  <text x="52" y="170" font-size="11" font-weight="700" fill="#059669" letter-spacing="0.3">Docker Compose — gamibook</text>
+
+  <!-- ── Directus ── -->
+  <rect x="55" y="183" width="270" height="165" rx="10" fill="#ffffff" stroke="#1a262e" stroke-width="2"/>
+  <!-- header -->
+  <rect x="55" y="183" width="270" height="38" rx="10" fill="#7fb8b4"/>
+  <rect x="55" y="202" width="270" height="19" fill="#7fb8b4"/>
+  <text x="190" y="208" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">Directus v11</text>
+  <!-- body -->
+  <text x="190" y="239" text-anchor="middle" font-size="11" fill="#555">Headless CMS / BaaS · :8055</text>
+  <text x="190" y="257" text-anchor="middle" font-size="11" fill="#555">RBAC — 4 roles, policies</text>
+  <text x="190" y="275" text-anchor="middle" font-size="11" fill="#555">Flows — 12 ativos</text>
+  <text x="190" y="293" text-anchor="middle" font-size="11" fill="#555">Autenticação JWT · Email SMTP</text>
+  <text x="190" y="311" text-anchor="middle" font-size="11" fill="#555">Extensions (Qdrant, Ollama)</text>
+  <text x="190" y="329" text-anchor="middle" font-size="10" fill="#9ca3af">gamibook-directus</text>
+
+  <!-- ── Flowise ── -->
+  <rect x="385" y="183" width="270" height="165" rx="10" fill="#ffffff" stroke="#1a262e" stroke-width="2"/>
+  <!-- header -->
+  <rect x="385" y="183" width="270" height="38" rx="10" fill="#f59e0b" fill-opacity="0.75"/>
+  <rect x="385" y="202" width="270" height="19" fill="#f59e0b" fill-opacity="0.75"/>
+  <text x="520" y="208" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">Flowise 3.1.1</text>
+  <!-- body -->
+  <text x="520" y="239" text-anchor="middle" font-size="11" fill="#555">Orquestração RAG · :3000</text>
+  <text x="520" y="257" text-anchor="middle" font-size="11" fill="#555">ChatFlow visual</text>
+  <text x="520" y="275" text-anchor="middle" font-size="11" fill="#555">Geração de exercícios (JSON)</text>
+  <text x="520" y="293" text-anchor="middle" font-size="11" fill="#555">Quota: 50 gerações / dia</text>
+  <text x="520" y="329" text-anchor="middle" font-size="10" fill="#9ca3af">gamibook-flowise</text>
+
+  <!-- ── Directus ↔ Flowise (bidirecional) ── -->
+  <line x1="325" y1="253" x2="385" y2="253" stroke="#1a262e" stroke-width="2"
+        marker-start="url(#arr-rev)" marker-end="url(#arr)"/>
+  <rect x="325" y="240" width="60" height="16" rx="3" fill="#ecfdf5"/>
+  <text x="355" y="251" text-anchor="middle" font-size="10" font-weight="600" fill="#1a262e">interno</text>
+
+  <!-- ── Ollama ── -->
+  <rect x="385" y="400" width="270" height="125" rx="10" fill="#ffffff" stroke="#1a262e" stroke-width="2"/>
+  <!-- header -->
+  <rect x="385" y="400" width="270" height="38" rx="10" fill="#a78bfa" fill-opacity="0.7"/>
+  <rect x="385" y="419" width="270" height="19" fill="#a78bfa" fill-opacity="0.7"/>
+  <text x="520" y="425" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">Ollama</text>
+  <!-- body -->
+  <text x="520" y="457" text-anchor="middle" font-size="11" fill="#555">nomic-embed-text · :11434</text>
+  <text x="520" y="475" text-anchor="middle" font-size="11" fill="#555">Embeddings locais 768d</text>
+  <text x="520" y="493" text-anchor="middle" font-size="11" fill="#555">Modelo local (sem GPU)</text>
+  <text x="520" y="511" text-anchor="middle" font-size="10" fill="#9ca3af">gamibook-ollama</text>
+
+  <!-- ── Flowise → Ollama ── -->
+  <line x1="520" y1="348" x2="520" y2="400" stroke="#1a262e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="527" y="363" width="46" height="16" rx="3" fill="#ecfdf5"/>
+  <text x="550" y="375" text-anchor="start" font-size="10" font-weight="600" fill="#1a262e">HTTP</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MySQL — fora do Docker, host local
+  ═══════════════════════════════════════════════════════════════ -->
+  <rect x="730" y="183" width="220" height="165" rx="10" fill="#ffffff" stroke="#1a262e" stroke-width="2"/>
+  <!-- header -->
+  <rect x="730" y="183" width="220" height="38" rx="10" fill="#fca5a5" fill-opacity="0.9"/>
+  <rect x="730" y="202" width="220" height="19" fill="#fca5a5" fill-opacity="0.9"/>
+  <text x="840" y="208" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">MySQL</text>
+  <!-- body -->
+  <text x="840" y="239" text-anchor="middle" font-size="11" fill="#6b7280" font-style="italic">host local · :3306</text>
+  <text x="840" y="257" text-anchor="middle" font-size="11" fill="#555">Base de dados relacional</text>
+  <text x="840" y="275" text-anchor="middle" font-size="11" fill="#555">13 coleções</text>
+  <text x="840" y="293" text-anchor="middle" font-size="11" fill="#555">Permissões RBAC granular</text>
+  <text x="840" y="311" text-anchor="middle" font-size="11" fill="#555">host.docker.internal</text>
+  <text x="840" y="329" text-anchor="middle" font-size="10" fill="#9ca3af">fora do Docker</text>
+
+  <!-- ── Directus → MySQL (atravessa a fronteira do Docker) ── -->
+  <!-- Directus right edge at x=325, Docker right wall at x=690, MySQL left at x=730 -->
+  <line x1="325" y1="230" x2="730" y2="230" stroke="#1a262e" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="470" y="217" width="68" height="16" rx="3" fill="#f3f7f8"/>
+  <text x="504" y="229" text-anchor="middle" font-size="10" font-weight="600" fill="#1a262e">TCP :3306</text>
+  <!-- Marcação da fronteira Docker -->
+  <line x1="690" y1="218" x2="690" y2="242" stroke="#059669" stroke-width="1.5" stroke-dasharray="3 2"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SERVIÇOS EXTERNOS — cloud
+  ═══════════════════════════════════════════════════════════════ -->
+  <text x="52" y="595" font-size="11" font-weight="700" fill="#b45309">Serviços externos (cloud)</text>
+
+  <!-- ── Groq ── -->
+  <rect x="55" y="613" width="225" height="135" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2" stroke-dasharray="7 3"/>
+  <rect x="55" y="613" width="225" height="38" rx="10" fill="#fde68a" fill-opacity="0.8"/>
+  <rect x="55" y="632" width="225" height="19" fill="#fde68a" fill-opacity="0.8"/>
+  <text x="167" y="638" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">Groq</text>
+  <text x="167" y="669" text-anchor="middle" font-size="11" fill="#555">LLM — llama-3.3-70b</text>
+  <text x="167" y="687" text-anchor="middle" font-size="11" fill="#555">Inferência via API externa</text>
+  <text x="167" y="705" text-anchor="middle" font-size="11" fill="#555">Chave de API (Flowise)</text>
+  <text x="167" y="723" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">cloud externo</text>
+
+  <!-- ── Qdrant Cloud ── -->
+  <rect x="335" y="613" width="225" height="135" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2" stroke-dasharray="7 3"/>
+  <rect x="335" y="613" width="225" height="38" rx="10" fill="#fde68a" fill-opacity="0.8"/>
+  <rect x="335" y="632" width="225" height="19" fill="#fde68a" fill-opacity="0.8"/>
+  <text x="447" y="638" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a262e">Qdrant Cloud</text>
+  <text x="447" y="669" text-anchor="middle" font-size="11" fill="#555">Base de dados vetorial</text>
+  <text x="447" y="687" text-anchor="middle" font-size="11" fill="#555">Embeddings 768d</text>
+  <text x="447" y="705" text-anchor="middle" font-size="11" fill="#555">Pesquisa semântica (RAG)</text>
+  <text x="447" y="723" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">eu-west-2 AWS</text>
+
+  <!-- ── Flowise → Groq (sai pelo fundo do Docker) ── -->
+  <polyline points="475,348 475,565 167,565 167,613"
+            stroke="#1a262e" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+  <rect x="287" y="555" width="90" height="16" rx="3" fill="#f3f7f8"/>
+  <text x="332" y="567" text-anchor="middle" font-size="10" font-weight="600" fill="#1a262e">HTTPS (API key)</text>
+
+  <!-- ── Flowise → Qdrant (sai pelo fundo do Docker) ── -->
+  <polyline points="530,348 530,578 447,578 447,613"
+            stroke="#1a262e" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- ── Directus → Qdrant (via extension, tracejado) ── -->
+  <polyline points="190,348 190,540 447,540 447,613"
+            stroke="#6b7280" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#arr-gray)"/>
+  <rect x="268" y="530" width="105" height="16" rx="3" fill="#f3f7f8"/>
+  <text x="320" y="542" text-anchor="middle" font-size="10" fill="#6b7280">extension (HTTPS)</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       LEGENDA
+  ═══════════════════════════════════════════════════════════════ -->
+  <rect x="600" y="600" width="360" height="158" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/>
+  <text x="780" y="622" text-anchor="middle" font-size="12" font-weight="700" fill="#1a262e">Legenda</text>
+
+  <line x1="622" y1="645" x2="662" y2="645" stroke="#1a262e" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="672" y="649" font-size="11" fill="#444">Chamada REST / HTTP</text>
+
+  <line x1="622" y1="668" x2="662" y2="668" stroke="#6b7280" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arr-gray)"/>
+  <text x="672" y="672" font-size="11" fill="#444">HTTP direto (Vue → Flowise)</text>
+
+  <line x1="622" y1="691" x2="662" y2="691" stroke="#1a262e" stroke-width="2" marker-start="url(#arr-rev)" marker-end="url(#arr)"/>
+  <text x="672" y="695" font-size="11" fill="#444">Comunicação bidirecional</text>
+
+  <line x1="622" y1="714" x2="662" y2="714" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-gray)"/>
+  <text x="672" y="718" font-size="11" fill="#444">Extension / integração interna</text>
+
+  <rect x="622" y="728" width="22" height="14" rx="3" fill="#fffbeb" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4 2"/>
+  <text x="672" y="740" font-size="11" fill="#444">Serviço externo (cloud)</text>
+
+  <rect x="622" y="746" width="22" height="8" rx="2" fill="#ecfdf5" fill-opacity="0.5" stroke="#059669" stroke-width="1.5"/>
+  <text x="672" y="758" font-size="11" fill="#444">Dentro do Docker Compose</text>
+
+</svg>
+</body>
+</html>

@@ -9,7 +9,7 @@ import BookBadge from '@/components/ui/BookBadge.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import BookShelf from '@/components/ui/BookShelf.vue'
 import { fetchUserById, getUserAvatarId, getUserDisplayName } from '@/services/auth'
-import { fetchUserBookBadges, fetchUserBooks } from '@/services/books'
+import { fetchUserBooks } from '@/services/books'
 import { fetchUserPointsFromHistory } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
@@ -26,10 +26,24 @@ const userId = computed(() => route.params.id as string)
 
 const user = ref<User | null>(null)
 const points = ref(0)
-const badgeCounts = ref<BadgeCounts>({ bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 })
 const userBooks = ref<UserBook[]>([])
 const isLoading = ref(true)
 const error = ref('')
+
+const TIER_RANK: Record<BookBadgeTier, number> = { bronze: 0, silver: 1, gold: 2, diamond: 3, galaxy: 4 }
+
+const badgeCounts = computed<BadgeCounts>(() => {
+  const counts: BadgeCounts = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
+  for (const ub of userBooks.value) {
+    const b = ub.current_badge as BookBadgeTier | 'default' | undefined
+    if (!b || b === 'default' || !(b in TIER_RANK)) continue
+    const rank = TIER_RANK[b]
+    for (const tier of BADGE_TIERS.map(t => t.tier)) {
+      if (TIER_RANK[tier] <= rank) counts[tier]++
+    }
+  }
+  return counts
+})
 
 const isOwnProfile = computed(() => !!auth.user?.id && String(auth.user.id) === userId.value)
 const isPrivateOtherProfile = computed(() => !!user.value?.profile_private && !isOwnProfile.value)
@@ -51,18 +65,8 @@ const BADGE_TIERS: { tier: BookBadgeTier; label: string }[] = [
   { tier: 'galaxy', label: 'Galáxia' },
 ]
 
-const BADGE_WEIGHTS: Record<BookBadgeTier, number> = { bronze: 1, silver: 2, gold: 3, diamond: 4, galaxy: 5 }
-
-const totalBadgeScore = computed(() =>
-  userBooks.value.reduce((sum, ub) => {
-    const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
-    if (!badge || badge === 'default') return sum
-    return sum + (BADGE_WEIGHTS[badge] ?? 0)
-  }, 0)
-)
-
 const totalBadges = computed(() =>
-  Object.values(badgeCounts.value).reduce((sum, c) => sum + c, 0)
+  userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
 )
 
 const getBookCover = (ub: UserBook) => {
@@ -115,24 +119,13 @@ onMounted(async () => {
       return
     }
 
-    const [totalPoints, allBadges, books] = await Promise.all([
+    const [totalPoints, books] = await Promise.all([
       fetchUserPointsFromHistory(userId.value).catch(() => 0),
-      fetchUserBookBadges().catch(() => [] as UserBook[]),
       fetchUserBooks(userId.value).catch(() => [] as UserBook[]),
     ])
 
     points.value = totalPoints
     userBooks.value = books
-
-    const counts: BadgeCounts = { bronze: 0, silver: 0, gold: 0, diamond: 0, galaxy: 0 }
-    for (const ub of allBadges) {
-      if (String(ub.user_id) !== String(userId.value)) continue
-      const badge = ub.current_badge as BookBadgeTier | 'default' | undefined
-      if (badge && badge !== 'default' && badge in counts) {
-        counts[badge] += 1
-      }
-    }
-    badgeCounts.value = counts
   } catch {
     error.value = 'Não foi possível carregar o perfil.'
   } finally {
