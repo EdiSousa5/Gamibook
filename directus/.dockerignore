@@ -1,0 +1,5 @@
+uploads/
+templates/
+extensions/*/node_modules/
+extensions/*/dist/
+.DS_Store
