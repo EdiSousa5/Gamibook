@@ -3,11 +3,13 @@
 # Set defaults if not provided
 VITE_DIRECTUS_URL=${VITE_DIRECTUS_URL:-""}
 VITE_FLOWISE_URL=${VITE_FLOWISE_URL:-"http://localhost:3000"}
+VITE_FLOWISE_API_KEY=${VITE_FLOWISE_API_KEY:-""}
 VITE_FLOWISE_CHATFLOW_ID=${VITE_FLOWISE_CHATFLOW_ID:-""}
 
 echo "Injecting runtime environment variables..."
 echo "VITE_DIRECTUS_URL: $VITE_DIRECTUS_URL"
 echo "VITE_FLOWISE_URL: $VITE_FLOWISE_URL"
+echo "VITE_FLOWISE_API_KEY: [redacted]"
 echo "VITE_FLOWISE_CHATFLOW_ID: $VITE_FLOWISE_CHATFLOW_ID"
 
 # Find all JS files in the assets directory and replace placeholders
@@ -17,6 +19,7 @@ for file in /usr/share/nginx/html/assets/*.js; do
     echo "Processing $file..."
     sed -i "s|PLACEHOLDER_VITE_DIRECTUS_URL|${VITE_DIRECTUS_URL}|g" "$file"
     sed -i "s|PLACEHOLDER_VITE_FLOWISE_URL|${VITE_FLOWISE_URL}|g" "$file"
+    sed -i "s|PLACEHOLDER_VITE_FLOWISE_API_KEY|${VITE_FLOWISE_API_KEY}|g" "$file"
     sed -i "s|PLACEHOLDER_VITE_FLOWISE_CHATFLOW_ID|${VITE_FLOWISE_CHATFLOW_ID}|g" "$file"
   fi
 done
