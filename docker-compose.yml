@@ -13,12 +13,17 @@ services:
 
   # 2. Serviço de Inteligência Artificial
   flowise:
-    image: flowiseai/flowise
+    image: flowiseai/flowise:2.2.4
     container_name: gamibook-flowise
     ports:
       - "3000:3000"
     depends_on:
       - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
     volumes:
       - ./docker/flowise_data:/root/.flowise
     restart: unless-stopped
@@ -29,6 +34,8 @@ services:
     container_name: gamibook-directus
     ports:
       - "8055:8055"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./directus/uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions
