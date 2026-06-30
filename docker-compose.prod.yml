@@ -45,19 +45,23 @@ services:
 
     # 3. Flowise — AI Workflow / Chatflow UI
   flowise:
-    image: flowiseai/flowise:latest
+    image: flowiseai/flowise:2.2.4
     container_name: gamibook-flowise
     restart: unless-stopped
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - PORT=3000
       - DATABASE_PATH=/root/.flowise
       - APIKEY_PATH=/root/.flowise
+      - FLOWISE_USERNAME=${FLOWISE_USERNAME}
+      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
     volumes:
       - ./docker/flowise_data:/root/.flowise
-    depends_on:
-      - ollama
+    # depends_on:
+    #   - ollama
     networks:
       - gamibook-network
 
@@ -68,6 +72,8 @@ services:
     restart: unless-stopped
     ports:
       - "8055:8055"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Note: We do not bind-mount './directus/extensions' in production because the 
       # Dockerfile builds and bakes the extensions into the image at build-time.
@@ -79,6 +85,8 @@ services:
     env_file:
       - .env
     environment:
+      PUBLIC_URL: ${PUBLIC_URL}
+      BASE_URL: ${BASE_URL}
       KEY: ${DIRECTUS_KEY}
       SECRET: ${DIRECTUS_SECRET}
       DB_CLIENT: "mysql"
