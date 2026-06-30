@@ -2,19 +2,17 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { FireIcon } from '@heroicons/vue/24/solid'
-import { StarIcon, ChevronLeftIcon, ChevronRightIcon, BookOpenIcon, TrophyIcon, SparklesIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
+import { StarIcon, BookOpenIcon, TrophyIcon, SparklesIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
-import BookMockup from '@/components/ui/BookMockup.vue'
-import BookShelf from '@/components/ui/BookShelf.vue'
 import { fetchUserById, getUserAvatarId, getUserDisplayName } from '@/services/auth'
 import { fetchUserBooks } from '@/services/books'
 import { fetchUserPointsFromHistory } from '@/services/exercises'
 import { getAssetUrl } from '@/services/client'
 import { getLevelProgressFromPoints } from '@/utils/gamification'
 import { useAuthStore } from '@/stores/auth'
-import type { User, UserBook, Book } from '@/types'
+import type { User, UserBook } from '@/types'
 import type { BookBadgeTier } from '@/components/ui/BookBadge.vue'
 import type { AvatarBorder, AvatarColor, AvatarEffect, AvatarShadow } from '@/types/avatar'
 
@@ -69,46 +67,11 @@ const totalBadges = computed(() =>
   userBooks.value.filter(ub => ub.current_badge && ub.current_badge !== 'default').length
 )
 
-const getBookCover = (ub: UserBook) => {
-  const book = ub.book_id as Book | undefined
-  return book?.cover_img ? getAssetUrl(book.cover_img) : null
-}
-
-const getBookTitle = (ub: UserBook) => {
-  const book = ub.book_id as Book | undefined
-  return book?.title ?? 'Livro'
-}
-
-const getBookBadge = (ub: UserBook): BookBadgeTier | undefined => {
-  return ub.current_badge && ub.current_badge !== 'default'
-    ? (ub.current_badge as BookBadgeTier)
-    : undefined
-}
-
 const joinDate = computed(() => {
   const raw = (user.value as any)?.date_created
   if (!raw) return null
   return new Date(raw).toLocaleDateString('pt-PT', { year: 'numeric', month: 'long' })
 })
-
-// Carousel
-const shelfZoneRef = ref<HTMLElement | null>(null)
-const booksRowRef = ref<HTMLElement | null>(null)
-const carouselOffset = ref(0)
-const BOOK_STEP = 90
-
-const maxOffset = computed(() => {
-  if (!shelfZoneRef.value || !booksRowRef.value) return 0
-  return Math.max(0, booksRowRef.value.scrollWidth - shelfZoneRef.value.clientWidth)
-})
-
-const canLeft = computed(() => carouselOffset.value > 0)
-const canRight = computed(() => carouselOffset.value < maxOffset.value)
-const needsCarousel = computed(() => userBooks.value.length > 4)
-
-const shiftCarousel = (dir: 1 | -1) => {
-  carouselOffset.value = Math.max(0, Math.min(maxOffset.value, carouselOffset.value + dir * BOOK_STEP * 2))
-}
 
 onMounted(async () => {
   try {
@@ -266,59 +229,11 @@ onMounted(async () => {
         <p v-if="totalBadges === 0" class="empty-hint">Ainda sem conquistas.</p>
       </div>
 
-      <!-- Coleção -->
-      <div v-if="userBooks.length" class="card section-card books-section">
-        <p class="section-label">Coleção</p>
-        <div class="carousel-wrap">
-          <!-- Left arrow -->
-          <button
-            v-if="needsCarousel && canLeft"
-            class="c-arrow c-arrow--left"
-            type="button"
-            aria-label="Ver livros anteriores"
-            @click="shiftCarousel(-1)"
-          >
-            <ChevronLeftIcon class="c-arrow-icon" aria-hidden="true" />
-          </button>
-
-          <!-- Stage (same pattern as Collection.vue) -->
-          <div class="books-stage" ref="shelfZoneRef">
-            <div
-              class="books-row"
-              ref="booksRowRef"
-              :style="needsCarousel
-                ? { transform: `translateX(${-carouselOffset}px)`, justifyContent: 'flex-start' }
-                : { justifyContent: 'center' }"
-            >
-              <BookMockup
-                v-for="ub in userBooks"
-                :key="ub.user_book_id"
-                :coverUrl="getBookCover(ub)"
-                :title="getBookTitle(ub)"
-                :badge="getBookBadge(ub)"
-                size="sm"
-              />
-            </div>
-            <BookShelf variant="small" />
-          </div>
-
-          <!-- Right arrow -->
-          <button
-            v-if="needsCarousel && canRight"
-            class="c-arrow c-arrow--right"
-            type="button"
-            aria-label="Ver mais livros"
-            @click="shiftCarousel(1)"
-          >
-            <ChevronRightIcon class="c-arrow-icon" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
     </template>
 
   </div>
 </template>
+
 
 <style scoped>
 .profile-page {
@@ -541,87 +456,6 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* ── Coleção / Carousel ── */
-.books-section {
-  padding: var(--space-500) var(--space-500) var(--space-600);
-}
-
-.carousel-wrap {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-}
-
-/* Shelf zone */
-.books-stage {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  min-height: 150px;
-}
-
-.books-row {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 10px;
-  align-items: flex-end;
-  /*
-   * padding-bottom = 16px (frente da estante) para os livros
-   * assentarem sobre a superfície da estante.
-   * position + z-index garantem que os livros ficam à frente da estante (z-index: 1).
-   */
-  padding: 6px 8px 16px;
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  z-index: 2;
-}
-
-/* Reduz ligeiramente o tamanho dos livros neste contexto */
-.books-row :deep(.book-scene.sm .book) {
-  width: 78px;
-  height: 112px;
-}
-
-/* Carousel arrows */
-.c-arrow {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid var(--color-mirage-800);
-  background: var(--color-wild-100);
-  box-shadow: 3px 3px 0 var(--color-shadow);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  z-index: 5;
-  transition: background 0.15s ease, box-shadow 0.1s ease, transform 0.1s ease;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.c-arrow--left  { left: 4px; }
-.c-arrow--right { right: 4px; }
-
-.c-arrow:hover {
-  background: var(--color-wild-200);
-  box-shadow: 3px 5px 0 var(--color-shadow);
-  transform: translateY(calc(-50% - 2px));
-}
-
-.c-arrow:active {
-  transform: translateY(calc(-50% + 2px)) translateX(2px);
-  box-shadow: 1px 1px 0 var(--color-shadow);
-}
-
-.c-arrow-icon {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2.5;
-  color: var(--color-mirage-700);
-}
-
 /* ── Error ── */
 .error-card {
   display: grid;
@@ -697,26 +531,10 @@ onMounted(async () => {
   text-decoration: underline;
 }
 
-/*
- * A BookShelf variante 'small' tem margin-bottom: var(--space-300) (12px) a partir de 45em.
- * Com a estante deslocada 12px para cima e a frente de 12px, os livros precisam de
- * padding-bottom = 24px para assentar correctamente sobre a superfície da estante.
- */
-@media (max-width: 45em) {
-  .books-row { padding-bottom: var(--space-500); }
-  .books-stage { min-height: 130px; }
-  .books-row :deep(.book-scene.sm .book) {
-    width: 66px;
-    height: 95px;
-  }
-}
-
 @media (max-width: 600px) {
   .profile-page { padding: var(--space-400) var(--space-300) var(--space-700); }
   .hero-card { padding: var(--space-600) var(--space-400) var(--space-500); }
   .section-card { padding: var(--space-500); }
-  .books-section { padding: var(--space-400) var(--space-300) var(--space-500); }
-  .books-row { padding: 6px 4px var(--space-500); gap: 8px; }
 }
 
 @media (max-width: 480px) {

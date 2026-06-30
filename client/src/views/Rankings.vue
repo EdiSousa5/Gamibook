@@ -36,11 +36,11 @@ type LeaderboardEntry = User & {
   badgeCounts: BadgeCounts
 }
 
-const TIME_FILTERS: Array<{ value: TimeFilter; label: string }> = [
-  { value: 'all', label: 'Todo o Tempo' },
-  { value: 'week', label: 'Esta semana' },
-  { value: 'month', label: 'Este mês' },
-  { value: 'year', label: 'Este ano' },
+const TIME_FILTERS: Array<{ value: TimeFilter; label: string; shortLabel: string }> = [
+  { value: 'all', label: 'Todo o Tempo', shortLabel: 'Tudo' },
+  { value: 'week', label: 'Esta semana', shortLabel: 'Semana' },
+  { value: 'month', label: 'Este mês', shortLabel: 'Mês' },
+  { value: 'year', label: 'Este ano', shortLabel: 'Ano' },
 ]
 
 const topGlobal = ref<LeaderboardEntry[]>([])
@@ -818,6 +818,17 @@ watch(timeFilter, () => {
 
   .filters-seg-block {
     padding: var(--space-200) var(--space-300);
+  }
+
+  .filters-seg-block :deep(.ui-segmented) {
+    display: flex;
+    width: 100%;
+  }
+
+  .filters-seg-block :deep(.ui-segmented button) {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
   }
 
   .filters-wrapper {

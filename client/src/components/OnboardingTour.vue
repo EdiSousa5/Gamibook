@@ -14,7 +14,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import UiButton from './ui/UiButton.vue'
 import ExerciseOption from './ui/ExerciseOption.vue'
-import logoUrl from '@/assets/images/gamibook_logo.jpg'
+import logoUrl from '@/assets/images/gamibook_logo.png'
 
 export type TourStep = {
   selector?: string
@@ -126,12 +126,23 @@ function computeStyleFromRect(s: TourStep, rect: DOMRect | null): Record<string,
   const M = 16
   const cardW = s.hero ? TW_HERO : TW_NORMAL
 
-  // Mobile: pin to bottom
+  // Mobile: centre steps with no spotlight target (hero/intro/features), pin the rest to bottom
+  // so the spotlighted element above stays visible.
   if (vw < 560) {
+    if (s.hero || !rect || !s.selector) {
+      return {
+        left: '14px',
+        right: '14px',
+        top: '50%',
+        bottom: 'auto',
+        width: 'auto',
+        transform: 'translateY(-50%)',
+      }
+    }
     return {
       left: '14px',
       right: '14px',
-      bottom: '16px',
+      bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
       top: 'auto',
       width: 'auto',
       transform: 'none',
@@ -798,7 +809,7 @@ const highlightStyle = computed(() => {
 
 /* Hero header */
 .tour-hero-header {
-  background: linear-gradient(135deg, var(--color-deep-600) 0%, var(--color-deep-400) 100%);
+  background: linear-gradient(135deg, var(--color-teal-200) 0%, var(--color-teal-100) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -808,11 +819,9 @@ const highlightStyle = computed(() => {
 }
 
 .tour-hero-logo {
-  width: 170px;
+  width: 260px;
   height: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.95;
 }
 
 /* ── Compact logo bar (non-hero cards) ─────────────────── */
@@ -828,8 +837,6 @@ const highlightStyle = computed(() => {
   height: 22px;
   width: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: 0.9;
 }
 
 /* ── Header / dots ──────────────────────────────────────── */
@@ -1026,7 +1033,7 @@ const highlightStyle = computed(() => {
 @media (max-width: 35em) {
   .tour-card,
   .tour-card--hero {
-    max-height: 72vh;
+    max-height: min(72vh, calc(100vh - 32px - env(safe-area-inset-bottom, 0px)));
     overflow-y: auto;
     border-radius: 18px 18px 14px 14px;
   }
@@ -1036,13 +1043,23 @@ const highlightStyle = computed(() => {
     gap: var(--space-200);
   }
 
+  .tour-hero-logo { width: 200px; }
+  .tour-hero-header { padding: var(--space-400); min-height: 90px; }
+
   .tour-title { font-size: 15px; }
   .tour-desc  { font-size: 13px; }
 
+  .tour-footer {
+    flex-wrap: wrap;
+  }
+
   .tour-footer-spacer { width: 60px; }
 
+  .demo-features { gap: var(--space-100); }
+  .demo-feature { padding: var(--space-150) var(--space-200); }
+
   .demo-win-wrap {
-    padding: var(--space-400) var(--space-300) 250px;
+    padding: var(--space-400) var(--space-300) 220px;
     align-items: flex-start;
   }
 
@@ -1052,6 +1069,13 @@ const highlightStyle = computed(() => {
 
   .demo-win {
     max-width: calc(100vw - 32px);
+  }
+}
+
+@media (max-width: 23em) {
+  .demo-ex-grid {
+    grid-template-columns: 1fr;
+    zoom: 0.85;
   }
 }
 </style>
