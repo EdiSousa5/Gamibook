@@ -126,12 +126,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = async (router: { push: (path: string) => Promise<unknown> }) => {
-    await router.push('/')
     setStoredUserId(null)
     clearAccessToken()
     clearRefreshToken()
     user.value = null
     points.value = 0
+    await router.push('/')
   }
 
   const triggerLevelUp = (oldLevel: number, newLevel: number, currentPoints: number) => {

@@ -47,8 +47,8 @@ const submit = async () => {
 
   if (!cleanEmail) { error.value = 'Preenche o email.'; return }
   if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
-  if (!cleanPassword) { error.value = 'Preenche a password.'; return }
-  if (cleanPassword.length < 8) { error.value = 'Password demasiado curta (mínimo 8 caracteres).'; return }
+  if (!cleanPassword) { error.value = 'Preenche a palavra-passe.'; return }
+  if (cleanPassword.length < 8) { error.value = 'Palavra-passe demasiado curta (mínimo 8 caracteres).'; return }
 
   isLoading.value = true
   try {
@@ -104,14 +104,14 @@ const submitForgot = async () => {
 
       <!-- Formulário de login -->
       <template v-if="!showForgot">
-        <h1>Login</h1>
+        <h1>Iniciar Sessão</h1>
         <p class="hint">Bem-vindo de volta! Entra para continuares a tua missão.</p>
 
         <form @submit.prevent="submit">
           <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
             @update="email = String($event)" />
           <label class="ui-field">
-            <span class="label">Password</span>
+            <span class="label">Palavra-passe</span>
             <div class="password-wrap">
               <input
                 :type="showPassword ? 'text' : 'password'"
@@ -119,7 +119,7 @@ const submitForgot = async () => {
                 placeholder="********"
                 @input="password = ($event.target as HTMLInputElement).value"
               />
-              <button type="button" class="eye-btn" :aria-label="showPassword ? 'Esconder password' : 'Mostrar password'" @click="showPassword = !showPassword">
+              <button type="button" class="eye-btn" :aria-label="showPassword ? 'Esconder palavra-passe' : 'Mostrar palavra-passe'" @click="showPassword = !showPassword">
                 <EyeSlashIcon v-if="showPassword" class="eye-icon" aria-hidden="true" />
                 <EyeIcon v-else class="eye-icon" aria-hidden="true" />
               </button>

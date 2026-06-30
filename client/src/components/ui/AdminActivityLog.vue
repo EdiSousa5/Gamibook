@@ -39,10 +39,10 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
   create:  { label: 'Criar',   cls: 'action--create'  },
   update:  { label: 'Editar',  cls: 'action--update'  },
   delete:  { label: 'Apagar',  cls: 'action--delete'  },
-  login:   { label: 'Login',   cls: 'action--login'   },
-  logout:  { label: 'Logout',  cls: 'action--logout'  },
+  login:   { label: 'Sessão iniciada',   cls: 'action--login'   },
+  logout:  { label: 'Sessão terminada',  cls: 'action--logout'  },
   comment: { label: 'Comentário', cls: 'action--comment' },
-  upload:  { label: 'Upload',  cls: 'action--upload'  },
+  upload:  { label: 'Carregamento',  cls: 'action--upload'  },
 }
 
 const actionMeta = (action: string) =>
