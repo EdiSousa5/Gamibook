@@ -111,14 +111,13 @@ const isActive = (path: string) => route.path === path
     gap: var(--space-400);
   }
 
-  /* Nav sem card envolvente — cada UiSideMenuItem tem o seu próprio card */
+  /* Nav com card próprio, separado do panel que agora é transparente */
   .side-nav-wrap {
-    position: relative;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    padding: 0;
-    box-shadow: none;
+    background: var(--color-wild-100);
+    border: 2px solid var(--color-mirage-800);
+    border-radius: var(--radius-200);
+    padding: var(--space-150);
+    box-shadow: 4px 4px 0 var(--color-shadow);
     overflow: hidden;
   }
 
@@ -150,8 +149,13 @@ const isActive = (path: string) => route.path === path
     display: none;
   }
 
+  /* Panel sem card — os sub-componentes (account-group, etc.) têm os seus próprios cards */
   .panel {
-    padding: var(--space-300);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
     min-height: unset;
   }
 }
