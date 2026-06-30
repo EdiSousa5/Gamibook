@@ -108,16 +108,17 @@ const isActive = (path: string) => route.path === path
 
   .settings-body {
     grid-template-columns: 1fr;
-    gap: var(--space-200);
+    gap: var(--space-400);
   }
 
+  /* Nav sem card envolvente — cada UiSideMenuItem tem o seu próprio card */
   .side-nav-wrap {
     position: relative;
-    background: var(--color-wild-100);
-    border: 2px solid var(--color-mirage-800);
-    border-radius: var(--radius-200);
-    padding: var(--space-150);
-    box-shadow: 4px 4px 0 var(--color-shadow);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     overflow: hidden;
   }
 
@@ -127,8 +128,8 @@ const isActive = (path: string) => route.path === path
     right: 0;
     top: 0;
     height: 100%;
-    width: 48px;
-    background: linear-gradient(to right, transparent, var(--color-wild-100));
+    width: 40px;
+    background: linear-gradient(to right, transparent, var(--color-bg-page, rgba(255,255,255,0)));
     pointer-events: none;
     z-index: 2;
   }
@@ -137,8 +138,8 @@ const isActive = (path: string) => route.path === path
     flex-direction: row;
     overflow-x: auto;
     overflow-y: visible;
-    gap: var(--space-150);
-    padding-bottom: 0;
+    gap: var(--space-200);
+    padding-bottom: var(--space-100);
     padding-right: var(--space-600);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;

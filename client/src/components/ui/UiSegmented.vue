@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
-type Option = { label: string; value: string }
+type Option = { label: string; value: string; shortLabel?: string }
 
 type Props = {
   modelValue?: string
@@ -58,7 +58,8 @@ watch(() => props.modelValue, () => {
     <div class="segmented-indicator" :style="indicatorStyle" aria-hidden="true"></div>
     <button v-for="option in options" :key="option.value" type="button" :class="{ active: option.value === modelValue }"
       @click="$emit('update', option.value)">
-      {{ option.label }}
+      <span class="option-label-full">{{ option.label }}</span>
+      <span class="option-label-short">{{ option.shortLabel ?? option.label }}</span>
     </button>
   </div>
 </template>
@@ -119,6 +120,10 @@ watch(() => props.modelValue, () => {
   box-shadow: 0 0 0 2px var(--color-teal-500);
 }
 
+.option-label-short {
+  display: none;
+}
+
 @media (max-width: 37.5em) {
   .ui-segmented {
     padding: 4px 8px;
@@ -130,6 +135,14 @@ watch(() => props.modelValue, () => {
     font-size: 12px;
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  .option-label-full {
+    display: none;
+  }
+
+  .option-label-short {
+    display: inline;
   }
 }
 </style>

@@ -435,7 +435,7 @@ h1 {
   .visuals {
     order: 1;
     min-height: 17rem;
-    padding-bottom: 2rem;
+    padding-bottom: 1.25rem;
   }
 
   .content {
@@ -453,15 +453,22 @@ h1 {
 
   .hero-chip { max-width: 100%; }
 
-  /* Mostrar apenas o badge Galaxy, esconder restantes */
-  .oi-1, .oi-3 { display: none; }
-  .bf-1 { left: 4%; top: 8%; }
+  /* Mantém todos os badges visíveis no mobile, mais pequenos e sem o texto da tooltip */
+  .oi-4, .oi-5 { display: block; }
+  .fi-wrap { transform: scale(0.62); }
+  .tip { display: none; }
+
+  .bf-1 { left: 0%; top: 6%; }
+  .oi-1 { left: 70%; top: 4%; }
+  .oi-3 { left: 86%; top: 20%; }
+  .oi-4 { left: 80%; top: 56%; }
+  .oi-5 { left: 2%; top: 54%; }
 
   h1 { font-size: clamp(1.625rem, 7vw, 2rem); }
 
   .cta {
     max-width: 18rem;
-    gap: var(--space-200);
+    gap: var(--space-400);
   }
 }
 
@@ -470,10 +477,10 @@ h1 {
     padding: var(--space-400) var(--space-300) var(--space-600);
     gap: var(--space-300);
   }
-  .visuals { min-height: 13rem; padding-bottom: 1.5rem; }
+  .visuals { min-height: 13rem; padding-bottom: 0.875rem; }
   .hero-book :deep(.book-scene.lg .book) { width: 6.5rem; height: 9.4rem; --d: 22px; }
   h1 { font-size: clamp(1.375rem, 7vw, 1.75rem); }
-  .bf-1 { display: none; }
+  .fi-wrap { transform: scale(0.54); }
 }
 
 /* ── Auto-cycle active state ── */
