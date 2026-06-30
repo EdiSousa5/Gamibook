@@ -14,7 +14,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import UiButton from './ui/UiButton.vue'
 import ExerciseOption from './ui/ExerciseOption.vue'
-import logoUrl from '@/assets/images/gamibook_logo.png'
+import logoUrl from '@/assets/images/gamibook_logo.jpg'
 
 export type TourStep = {
   selector?: string

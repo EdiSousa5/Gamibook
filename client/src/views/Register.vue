@@ -51,7 +51,7 @@ const submit = async () => {
   if (!cleanName || cleanName.length < 2) { error.value = 'Nome inválido (mínimo 2 caracteres).'; return }
   if (!cleanEmail) { error.value = 'Email inválido.'; return }
   if (!isValidEmail(cleanEmail)) { error.value = 'Formato de email inválido.'; return }
-  if (!cleanPassword || cleanPassword.length < 8) { error.value = 'Password demasiado curta (mínimo 8 caracteres).'; return }
+  if (!cleanPassword || cleanPassword.length < 8) { error.value = 'Palavra-passe demasiado curta (mínimo 8 caracteres).'; return }
 
   isLoading.value = true
   try {
@@ -111,7 +111,7 @@ const submit = async () => {
         <UiInput label="Email" type="email" placeholder="email@exemplo.com" :model-value="email"
           @update="email = String($event)" />
         <label class="ui-field">
-          <span class="label">Password</span>
+          <span class="label">Palavra-passe</span>
           <div class="password-wrap">
             <input
               :type="showPassword ? 'text' : 'password'"
@@ -119,7 +119,7 @@ const submit = async () => {
               placeholder="Mínimo 8 caracteres"
               @input="password = ($event.target as HTMLInputElement).value"
             />
-            <button type="button" class="eye-btn" :aria-label="showPassword ? 'Esconder password' : 'Mostrar password'" @click="showPassword = !showPassword">
+            <button type="button" class="eye-btn" :aria-label="showPassword ? 'Esconder palavra-passe' : 'Mostrar palavra-passe'" @click="showPassword = !showPassword">
               <EyeSlashIcon v-if="showPassword" class="eye-icon" aria-hidden="true" />
               <EyeIcon v-else class="eye-icon" aria-hidden="true" />
             </button>
@@ -129,7 +129,7 @@ const submit = async () => {
         <UiFilePicker label="Avatar (opcional)" accept="image/*" :model-value="avatarFile" @update:model-value="onAvatarFilePick" />
 
         <div v-if="avatarPreview" class="avatar">
-          <img :src="avatarPreview" alt="Avatar preview" />
+          <img :src="avatarPreview" alt="Pré-visualização do avatar" />
         </div>
 
         <p v-if="error" class="error">{{ error }}</p>

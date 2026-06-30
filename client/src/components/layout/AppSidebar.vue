@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import logoUrl from '@/assets/images/gamibook_logo.png'
+import logoUrl from '@/assets/images/gamibook_logo.jpg'
 import NavItem from './NavItem.vue'
 import { useAuthStore } from '@/stores/auth'
 

@@ -28,7 +28,6 @@ const userLevel = computed(() => user.value?.level ?? 1)
 /* ── Background ──────────────────────────────────────── */
 
 const currentBg = ref('bg-1')
-const devUnlockAll = ref(false)
 
 interface Background {
   id: string
@@ -70,7 +69,7 @@ const animatedBackgrounds: Background[] = [
 ]
 
 function isUnlocked(bg: Background): boolean {
-  return isAdmin.value || devUnlockAll.value || userLevel.value >= bg.minLevel
+  return isAdmin.value || userLevel.value >= bg.minLevel
 }
 
 async function selectBg(bg: Background) {
@@ -169,7 +168,7 @@ const SHADOW_OPTIONS: { id: AvatarShadow; label: string }[] = [
 ]
 
 function isAvatarOptionUnlocked(minLevel: number): boolean {
-  return isAdmin.value || devUnlockAll.value || userLevel.value >= minLevel
+  return isAdmin.value || userLevel.value >= minLevel
 }
 
 /* ── Tabela de desbloqueios ──────────────────────── */
@@ -236,11 +235,11 @@ const categoryOptions = computed(() => [
 ])
 
 function isRowUnlocked(row: UnlockRow): boolean {
-  return isAdmin.value || devUnlockAll.value || userLevel.value >= row.minLevel
+  return isAdmin.value || userLevel.value >= row.minLevel
 }
 
 function levelUnlocked(level: number): boolean {
-  return isAdmin.value || devUnlockAll.value || userLevel.value >= level
+  return isAdmin.value || userLevel.value >= level
 }
 
 const filteredUnlockables = computed(() => {
@@ -399,10 +398,6 @@ const sortedLevelKeys = computed(() =>
           <h3>O teu Fundo</h3>
           <p>Muda o padrão de fundo principal da tua janela. Novos fundos desbloqueiam ao subir de nível.</p>
         </div>
-
-        <button class="dev-unlock-btn" @click="devUnlockAll = !devUnlockAll">
-          {{ devUnlockAll ? 'Bloquear tudo' : 'Desbloquear tudo (teste)' }}
-        </button>
 
         <div class="bg-category">
           <h4>Cores Sólidas</h4>
@@ -891,26 +886,6 @@ h2 {
 
 .av-group--save :deep(.ui-button) {
   width: fit-content;
-}
-
-/* ── Dev unlock ──────────────────────────────────────── */
-
-.dev-unlock-btn {
-  margin-top: var(--space-200);
-  padding: 6px 12px;
-  font-size: 12px;
-  font-family: var(--font-base);
-  border: 1.5px dashed var(--color-deep-400);
-  border-radius: var(--radius-200);
-  background: transparent;
-  color: var(--color-deep-600);
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.dev-unlock-btn:hover {
-  border-color: var(--color-deep-600);
-  color: var(--color-deep-700);
 }
 
 /* ── Background selector ─────────────────────────────── */

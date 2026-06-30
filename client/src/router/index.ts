@@ -192,4 +192,43 @@ router.beforeEach(async (to) => {
   return true
 })
 
+const PAGE_TITLES: Record<string, string> = {
+  home: 'GamiBook',
+  login: 'Iniciar Sessão',
+  register: 'Criar Conta',
+  'reset-password': 'Recuperar Palavra-passe',
+  app: 'Início',
+  leaderboard: 'Classificação',
+  'user-profile': 'Perfil',
+  collection: 'Catálogo',
+  book: 'Livro',
+  module: 'Módulo',
+  study: 'Modo Livre',
+  'final-quiz': 'Quiz Final',
+  'daily-exercise': 'Desafio Diário',
+  help: 'Ajuda',
+  unlock: 'Desbloquear Livro',
+  settings: 'Definições',
+  'settings-conta': 'Conta',
+  'settings-aparencia': 'Aparência',
+  'settings-privacidade': 'Privacidade',
+  'settings-acessibilidade': 'Acessibilidade',
+  'settings-dados': 'Os Meus Dados',
+  'settings-historico': 'Histórico',
+  admin: 'Painel Admin',
+  'admin-guide': 'Guia de Admin',
+  'admin-stats': 'Estatísticas',
+  'exercise-generator': 'Gerir Livros',
+  'ui-kit': 'UI Kit',
+  'not-found': 'Página não encontrada',
+}
+
+router.afterEach((to) => {
+  const name = typeof to.name === 'string' ? to.name : ''
+  const pageTitle = PAGE_TITLES[name]
+  document.title = pageTitle && pageTitle !== 'GamiBook'
+    ? `${pageTitle} — GamiBook`
+    : 'GamiBook'
+})
+
 export default router
