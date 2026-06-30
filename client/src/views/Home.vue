@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import UiButton from '@/components/ui/UiButton.vue'
-import UiChip from '@/components/ui/UiChip.vue'
 import BookMockup from '@/components/ui/BookMockup.vue'
 import BookBadge from '@/components/ui/BookBadge.vue'
 import BookShelf from '@/components/ui/BookShelf.vue'
@@ -14,6 +13,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchPublicApprovedBooks } from '@/services/books'
 import { getAssetUrl } from '@/services/client'
+import logoUrl from '@/assets/images/gamibook_logo.png'
 
 const router = useRouter()
 
@@ -90,8 +90,13 @@ const onIconLeave = () => {
       <div class="halo halo-1"></div>
       <div class="halo halo-3"></div>
 
+      <!-- Logo no topo apenas em mobile -->
+      <div class="logo-bar">
+        <img :src="logoUrl" alt="GamiBook" class="hero-logo-img" />
+      </div>
+
       <div class="content">
-        <UiChip label="Plataforma de Leitura Gamificada" variant="outline" class="hero-chip" />
+        <img :src="logoUrl" alt="GamiBook" class="hero-logo-img hero-logo-desktop" />
         <h1>A maneira divertida e eficaz de <span class="highlight">dominar</span> os teus livros.</h1>
         <div class="cta">
           <UiButton size="lg" variant="primary" @click="router.push('/register')">Começar a Aventura</UiButton>
@@ -205,13 +210,25 @@ const onIconLeave = () => {
   padding-top: 0;
 }
 
-.hero-chip {
+/* Logo bar — apenas visível em mobile (escondido em desktop) */
+.logo-bar {
+  display: none;
+}
+
+.hero-logo-img {
+  width: clamp(13rem, 26vw, 22rem);
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.hero-logo-desktop {
   justify-self: start;
   margin-bottom: var(--space-100);
 }
 
 h1 {
-  font-size: clamp(2rem, 4vw, 3.375rem);
+  font-size: clamp(1.5rem, 3vw, 2.375rem);
   margin: 0;
   line-height: 1.15;
   color: var(--color-mirage-900);
@@ -263,7 +280,7 @@ h1 {
 }
 
 .bf-1 { left:  3%; top: 15%;  animation: fi 5.3s -2.1s ease-in-out infinite alternate; }
-.oi-1 { left: 64%; top: 10%;  animation: fi 4.7s -1.3s ease-in-out infinite alternate; }
+.oi-1 { left: 56%; top: -22%; animation: fi 4.7s -1.3s ease-in-out infinite alternate; }
 .oi-3 { left: 84%; top: 22%;  animation: fi 6.2s -0.8s ease-in-out infinite alternate; }
 .oi-4 { left: 78%; top: 52%;  animation: fi 5.0s -3.7s ease-in-out infinite alternate-reverse; }
 .oi-5 { left:  9%; top: 50%;  animation: fi 3.8s -2.4s ease-in-out infinite alternate-reverse; }
@@ -365,7 +382,7 @@ h1 {
     padding-top: 0;
   }
 
-  .hero-chip { justify-self: center; }
+  .hero-logo-desktop { justify-self: center; }
 
   .cta {
     flex-direction: column;
@@ -425,21 +442,28 @@ h1 {
 /* Mobile: livro centrado em cima, conteúdo centrado abaixo */
 @media (max-width: 37.5em) {
   .landing {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     min-height: 100dvh;
-    padding: var(--space-500) var(--space-300) var(--space-700);
-    gap: var(--space-400);
-    align-content: center;
+    padding: var(--space-300) var(--space-300) var(--space-700);
+    gap: var(--space-300);
   }
 
   .visuals {
     order: 1;
-    min-height: 17rem;
+    margin-top: auto;
+    margin-left: calc(-1 * var(--space-300));
+    margin-right: calc(-1 * var(--space-300));
+    width: calc(100% + 2 * var(--space-300));
+    min-height: 20rem;
     padding-bottom: 1.25rem;
+    overflow: visible;
+    position: relative;
   }
 
   .content {
     order: 2;
+    margin-bottom: auto;
     text-align: center;
     place-items: center;
     width: 100%;
@@ -451,20 +475,44 @@ h1 {
     --d: 28px;
   }
 
-  .hero-chip { max-width: 100%; }
+  /* Reset da translação aplicada no breakpoint 48em */
+  .hero-book {
+    transform: none;
+  }
 
-  /* Mantém todos os badges visíveis no mobile, mais pequenos e sem o texto da tooltip */
+  /* Logo no topo (logo-bar) + esconde logo dentro de content */
+  .logo-bar {
+    display: flex;
+    justify-content: center;
+    order: 0;
+    width: 100%;
+    padding-top: var(--space-200);
+  }
+
+  .hero-logo-desktop { display: none; }
+
+  .hero-logo-img {
+    width: clamp(10rem, 55vw, 14rem);
+  }
+
+  /* Badges menores e mais próximos do livro */
   .oi-4, .oi-5 { display: block; }
-  .fi-wrap { transform: scale(0.62); }
+  .fi-wrap { transform: scale(0.26); }
   .tip { display: none; }
 
-  .bf-1 { left: 0%; top: 6%; }
-  .oi-1 { left: 70%; top: 4%; }
-  .oi-3 { left: 86%; top: 20%; }
-  .oi-4 { left: 80%; top: 56%; }
-  .oi-5 { left: 2%; top: 54%; }
+  .bf-1 { left: 14%; top: 22%; }
+  .oi-1 { left: 44%; top: 8%; }
+  .oi-3 { left: 68%; top: 30%; }
+  .oi-4 { left: 72%; top: 56%; }
+  .oi-5 { left: 10%; top: 54%; }
 
-  h1 { font-size: clamp(1.625rem, 7vw, 2rem); }
+  /* Estante mais estreita */
+  :deep(.estante-wrapper.hero) {
+    width: 72%;
+    left: 14%;
+  }
+
+  h1 { font-size: clamp(1.625rem, 7vw, 2rem); font-weight: 500; }
 
   .cta {
     max-width: 18rem;
@@ -480,7 +528,12 @@ h1 {
   .visuals { min-height: 13rem; padding-bottom: 0.875rem; }
   .hero-book :deep(.book-scene.lg .book) { width: 6.5rem; height: 9.4rem; --d: 22px; }
   h1 { font-size: clamp(1.375rem, 7vw, 1.75rem); }
-  .fi-wrap { transform: scale(0.54); }
+  .fi-wrap { transform: scale(0.32); }
+
+  :deep(.estante-wrapper.hero) {
+    width: 65%;
+    left: 17.5%;
+  }
 }
 
 /* ── Auto-cycle active state ── */
@@ -496,5 +549,19 @@ h1 {
 .fi-wrap.is-active .tip {
   opacity: 1;
   transform: scale(1);
+}
+
+/* No mobile, desativa completamente o efeito de seleção automática */
+@media (max-width: 37.5em) {
+  .fi-wrap.is-active .orbit-icon {
+    transform: none !important;
+    box-shadow: 4px 4px 0 var(--color-shadow) !important;
+  }
+  .fi-wrap.is-active .badge-float {
+    transform: none !important;
+  }
+  .fi-wrap.is-active .tip {
+    opacity: 0 !important;
+  }
 }
 </style>
